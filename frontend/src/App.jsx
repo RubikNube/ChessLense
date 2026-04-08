@@ -97,10 +97,10 @@ function App() {
     <div className="app">
       <nav className="top-menu" aria-label="Application menu">
         <div className="menu-group">
-          <button type="button" className="menu-trigger" onClick={() => toggleMenu("file")}>
-            File
+          <button type="button" className="menu-trigger" onClick={() => toggleMenu("engine")}>
+            Engine
           </button>
-          {openMenu === "file" && (
+          {openMenu === "engine" && (
             <div className="menu-dropdown">
               <button
                 type="button"
@@ -108,13 +108,6 @@ function App() {
                 onClick={() => handleMenuAction("Analyze with Stockfish", analyzePosition)}
               >
                 Analyze with Stockfish
-              </button>
-              <button
-                type="button"
-                className="menu-entry"
-                onClick={() => handleMenuAction("Reset", resetGame)}
-              >
-                Reset
               </button>
             </div>
           )}
@@ -131,6 +124,13 @@ function App() {
               </button>
               <button type="button" className="menu-entry" onClick={() => handleMenuAction("Copy FEN")}>
                 Copy FEN
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction("Reset", resetGame)}
+              >
+                Reset
               </button>
             </div>
           )}
