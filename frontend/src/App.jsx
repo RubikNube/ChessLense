@@ -16,7 +16,8 @@ function App() {
     setGame(next);
   }
 
-  function onDrop(sourceSquare, targetSquare) {
+  function handlePieceDrop({ sourceSquare, targetSquare }) {
+    console.log(`Attempting move from ${sourceSquare} to ${targetSquare}`);
     let move = null;
 
     safeGameMutate((next) => {
@@ -69,7 +70,12 @@ function App() {
     <div className="app">
       <div className="board-panel">
         <div className="chessboard-wrapper">
-          <Chessboard position={fen} onPieceDrop={onDrop} />
+          <Chessboard
+            options={{
+              position: fen,
+              onPieceDrop: handlePieceDrop,
+            }}
+          />
         </div>
       </div>
 
