@@ -10,6 +10,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [openMenu, setOpenMenu] = useState(null);
   const [showMoveHistory, setShowMoveHistory] = useState(true);
+  const [boardOrientation, setBoardOrientation] = useState("white");
 
   const fen = useMemo(() => game.fen(), [game]);
 
@@ -32,7 +33,20 @@ function App() {
     return result;
   }
 
-  function handlePieceDrop({ sourceSquare, targetSquare }) {
+  function handlePieceDrop(sourceSquareOrMove, maybeTargetSquare) {
+    const sourceSquare =
+      typeof sourceSquareOrMove === "string"
+        ? sourceSquareOrMove
+        : sourceSquareOrMove?.sourceSquare;
+    const targetSquare =
+      typeof maybeTargetSquare === "string"
+        ? maybeTargetSquare
+        : sourceSquareOrMove?.targetSquare;
+
+    if (!sourceSquare || !targetSquare) {
+      return false;
+    }
+
     return !!safeGameMutate((next) =>
       next.move({
         from: sourceSquare,
@@ -46,7 +60,7 @@ function App() {
     setOpenMenu((currentMenu) => (currentMenu === menuName ? null : menuName));
   }
 
-  function handleMenuAction(label, action) {
+  function handleMenuAction(action) {
     setOpenMenu(null);
 
     if (action) {
@@ -93,6 +107,12 @@ function App() {
     setShowMoveHistory((currentValue) => !currentValue);
   }
 
+  function toggleBoardOrientation() {
+    setBoardOrientation((currentValue) =>
+      currentValue === "white" ? "black" : "white",
+    );
+  }
+
   return (
     <div className="app">
       <nav className="top-menu" aria-label="Application menu">
@@ -105,7 +125,7 @@ function App() {
               <button
                 type="button"
                 className="menu-entry"
-                onClick={() => handleMenuAction("Analyze with Stockfish", analyzePosition)}
+                onClick={() => handleMenuAction(analyzePosition)}
               >
                 Analyze with Stockfish
               </button>
@@ -119,16 +139,16 @@ function App() {
           </button>
           {openMenu === "edit" && (
             <div className="menu-dropdown">
-              <button type="button" className="menu-entry" onClick={() => handleMenuAction("Undo")}>
+              <button type="button" className="menu-entry" onClick={() => handleMenuAction()}>
                 Undo
               </button>
-              <button type="button" className="menu-entry" onClick={() => handleMenuAction("Copy FEN")}>
+              <button type="button" className="menu-entry" onClick={() => handleMenuAction()}>
                 Copy FEN
               </button>
               <button
                 type="button"
                 className="menu-entry"
-                onClick={() => handleMenuAction("Reset", resetGame)}
+                onClick={() => handleMenuAction(resetGame)}
               >
                 Reset
               </button>
@@ -142,18 +162,17 @@ function App() {
           </button>
           {openMenu === "view" && (
             <div className="menu-dropdown">
-              <button type="button" className="menu-entry" onClick={() => handleMenuAction("Flip Board")}>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(toggleBoardOrientation)}
+              >
                 Flip Board
               </button>
               <button
                 type="button"
                 className="menu-entry"
-                onClick={() =>
-                  handleMenuAction(
-                    showMoveHistory ? "Hide Move History" : "Show Move History",
-                    toggleMoveHistory,
-                  )
-                }
+                onClick={() => handleMenuAction(toggleMoveHistory)}
               >
                 {showMoveHistory ? "Hide Move History" : "Show Move History"}
               </button>
@@ -171,7 +190,7 @@ function App() {
                 type="button"
                 className="menu-entry"
                 onClick={() =>
-                  handleMenuAction("About ChessLense", () =>
+                  handleMenuAction(() =>
                     window.open(
                       "https://github.com/RubikNube/ChessLense/tree/main",
                       "_blank",
@@ -182,7 +201,7 @@ function App() {
               >
                 About ChessLense
               </button>
-              <button type="button" className="menu-entry" onClick={() => handleMenuAction("Keyboard Shortcuts")}>
+              <button type="button" className="menu-entry" onClick={() => handleMenuAction()}>
                 Keyboard Shortcuts
               </button>
             </div>
@@ -193,9 +212,13 @@ function App() {
       <div className="board-panel">
         <div className="chessboard-wrapper">
           <Chessboard
+            position={fen}
+            onPieceDrop={handlePieceDrop}
+            boardOrientation={boardOrientation}
             options={{
               position: fen,
               onPieceDrop: handlePieceDrop,
+              boardOrientation,
             }}
           />
         </div>
