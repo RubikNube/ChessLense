@@ -66,6 +66,7 @@ const SHORTCUT_ACTION_ORDER = [
   "openShortcutsPopup",
   "undoMove",
   "redoMove",
+  "flipBoard",
   "closeShortcutsPopup",
 ];
 
@@ -88,6 +89,10 @@ const DEFAULT_SHORTCUT_CONFIG = {
   redoMove: {
     label: "Redo move",
     keys: ["ArrowRight"],
+  },
+  flipBoard: {
+    label: "Flip board",
+    keys: ["ü"],
   },
   closeShortcutsPopup: {
     label: "Close popup",
@@ -405,11 +410,11 @@ function App() {
     setShowEngineWindow((currentValue) => !currentValue);
   }
 
-  function toggleBoardOrientation() {
+  const toggleBoardOrientation = useCallback(() => {
     setBoardOrientation((currentValue) =>
       currentValue === "white" ? "black" : "white",
     );
-  }
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -448,6 +453,12 @@ function App() {
         return;
       }
 
+      if (matchesShortcut(event, shortcutConfig.flipBoard.keys)) {
+        event.preventDefault();
+        toggleBoardOrientation();
+        return;
+      }
+
       if (matchesShortcut(event, shortcutConfig.undoMove.keys)) {
         event.preventDefault();
         undoMove();
@@ -471,6 +482,7 @@ function App() {
     redoMove,
     shortcutConfig,
     showShortcutsPopup,
+    toggleBoardOrientation,
     undoMove,
   ]);
 

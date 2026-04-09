@@ -11,6 +11,10 @@
     "label": "Redo move",
     "keys": ["ArrowRight"]
   },
+  "flipBoard": {
+    "label": "Flip board",
+    "keys": ["ü"]
+  },
   "closeShortcutsPopup": {
     "label": "Close popup",
     "keys": ["Escape"]
