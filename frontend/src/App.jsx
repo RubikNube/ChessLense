@@ -10,6 +10,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [openMenu, setOpenMenu] = useState(null);
   const [showMoveHistory, setShowMoveHistory] = useState(true);
+  const [showEngineWindow, setShowEngineWindow] = useState(true);
   const [boardOrientation, setBoardOrientation] = useState("white");
   const [redoStack, setRedoStack] = useState([]);
 
@@ -122,6 +123,7 @@ function App() {
   }
 
   async function analyzePosition() {
+    setShowEngineWindow(true);
     setLoading(true);
     setEngineResult(null);
 
@@ -159,6 +161,10 @@ function App() {
 
   function toggleMoveHistory() {
     setShowMoveHistory((currentValue) => !currentValue);
+  }
+
+  function toggleEngineWindow() {
+    setShowEngineWindow((currentValue) => !currentValue);
   }
 
   function toggleBoardOrientation() {
@@ -243,6 +249,13 @@ function App() {
               >
                 {showMoveHistory ? "Hide Move History" : "Show Move History"}
               </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(toggleEngineWindow)}
+              >
+                {showEngineWindow ? "Hide Engine Window" : "Show Engine Window"}
+              </button>
             </div>
           )}
         </div>
@@ -292,26 +305,27 @@ function App() {
       </div>
 
       <div className="side-panel">
-        <h1>ChessLense</h1>
 
-        <div className="card">
-          <h2>Engine</h2>
-          {engineResult?.error && <p className="error">{engineResult.error}</p>}
-          {!engineResult && !loading && <p>No analysis yet.</p>}
-          {engineResult?.bestmove && (
-            <>
-              <p>
-                <strong>Best move:</strong> {engineResult.bestmove}
-              </p>
-              <p>
-                <strong>Evaluation:</strong>{" "}
-                {engineResult.evaluation
-                  ? `${engineResult.evaluation.type} ${engineResult.evaluation.value}`
-                  : "n/a"}
-              </p>
-            </>
-          )}
-        </div>
+        {showEngineWindow && (
+          <div className="card">
+            <h2>Engine</h2>
+            {engineResult?.error && <p className="error">{engineResult.error}</p>}
+            {!engineResult && !loading && <p>No analysis yet.</p>}
+            {engineResult?.bestmove && (
+              <>
+                <p>
+                  <strong>Best move:</strong> {engineResult.bestmove}
+                </p>
+                <p>
+                  <strong>Evaluation:</strong>{" "}
+                  {engineResult.evaluation
+                    ? `${engineResult.evaluation.type} ${engineResult.evaluation.value}`
+                    : "n/a"}
+                </p>
+              </>
+            )}
+          </div>
+        )}
 
         {showMoveHistory && (
           <MoveHistory
