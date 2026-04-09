@@ -108,8 +108,10 @@ const modalErrorStyle = {
 
 const SHORTCUT_ACTION_ORDER = [
   "openShortcutsPopup",
+  "goToStart",
   "undoMove",
   "redoMove",
+  "goToEnd",
   "flipBoard",
   "closeShortcutsPopup",
 ];
@@ -117,6 +119,8 @@ const SHORTCUT_ACTION_ORDER = [
 const SHORTCUT_DISPLAY_LABELS = {
   ArrowLeft: "←",
   ArrowRight: "→",
+  ArrowUp: "↑",
+  ArrowDown: "↓",
   Escape: "Esc",
   " ": "Space",
 };
@@ -126,6 +130,10 @@ const DEFAULT_SHORTCUT_CONFIG = {
     label: "Open shortcuts popup",
     keys: ["?"],
   },
+  goToStart: {
+    label: "Go to start",
+    keys: ["ArrowUp"],
+  },
   undoMove: {
     label: "Undo move",
     keys: ["ArrowLeft"],
@@ -133,6 +141,10 @@ const DEFAULT_SHORTCUT_CONFIG = {
   redoMove: {
     label: "Redo move",
     keys: ["ArrowRight"],
+  },
+  goToEnd: {
+    label: "Go to end",
+    keys: ["ArrowDown"],
   },
   flipBoard: {
     label: "Flip board",
@@ -294,6 +306,14 @@ function cloneGame(sourceGame) {
   return next;
 }
 
+function serializeMove(move) {
+  return {
+    from: move.from,
+    to: move.to,
+    ...(move.promotion ? { promotion: move.promotion } : {}),
+  };
+}
+
 function App() {
   const persistedAppState = useMemo(() => loadPersistedAppState(), []);
   const [game, setGame] = useState(() =>
@@ -383,14 +403,7 @@ function App() {
     }
 
     setGame(next);
-    setRedoStack((currentValue) => [
-      {
-        from: undoneMove.from,
-        to: undoneMove.to,
-        promotion: undoneMove.promotion,
-      },
-      ...currentValue,
-    ]);
+    setRedoStack((currentValue) => [serializeMove(undoneMove), ...currentValue]);
     setEngineResult(null);
   }, [game]);
 
@@ -402,12 +415,7 @@ function App() {
     }
 
     const next = cloneGame(game);
-    const move = {
-      from: moveToRedo.from,
-      to: moveToRedo.to,
-      ...(moveToRedo.promotion ? { promotion: moveToRedo.promotion } : {}),
-    };
-    const redoneMove = next.move(move);
+    const redoneMove = next.move(moveToRedo);
 
     if (!redoneMove) {
       return;
@@ -415,6 +423,52 @@ function App() {
 
     setGame(next);
     setRedoStack((currentValue) => currentValue.slice(1));
+    setEngineResult(null);
+  }, [game, redoStack]);
+
+  const goToStart = useCallback(() => {
+    const next = cloneGame(game);
+    const undoneMoves = [];
+    let undoneMove = next.undo();
+
+    while (undoneMove) {
+      undoneMoves.unshift(serializeMove(undoneMove));
+      undoneMove = next.undo();
+    }
+
+    if (!undoneMoves.length) {
+      return;
+    }
+
+    setGame(next);
+    setRedoStack([...undoneMoves, ...redoStack]);
+    setEngineResult(null);
+  }, [game, redoStack]);
+
+  const goToEnd = useCallback(() => {
+    if (!redoStack.length) {
+      return;
+    }
+
+    const next = cloneGame(game);
+    let appliedMoveCount = 0;
+
+    for (const moveToRedo of redoStack) {
+      const redoneMove = next.move(moveToRedo);
+
+      if (!redoneMove) {
+        break;
+      }
+
+      appliedMoveCount += 1;
+    }
+
+    if (!appliedMoveCount) {
+      return;
+    }
+
+    setGame(next);
+    setRedoStack(redoStack.slice(appliedMoveCount));
     setEngineResult(null);
   }, [game, redoStack]);
 
@@ -664,9 +718,9 @@ function App() {
         return;
       }
 
-      if (matchesShortcut(event, shortcutConfig.flipBoard.keys)) {
+      if (matchesShortcut(event, shortcutConfig.goToStart.keys)) {
         event.preventDefault();
-        toggleBoardOrientation();
+        goToStart();
         return;
       }
 
@@ -679,6 +733,18 @@ function App() {
       if (matchesShortcut(event, shortcutConfig.redoMove.keys)) {
         event.preventDefault();
         redoMove();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.goToEnd.keys)) {
+        event.preventDefault();
+        goToEnd();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.flipBoard.keys)) {
+        event.preventDefault();
+        toggleBoardOrientation();
       }
     }
 
@@ -690,6 +756,8 @@ function App() {
   }, [
     closeImportPgnPopup,
     closeShortcutsPopup,
+    goToEnd,
+    goToStart,
     openShortcutsPopup,
     redoMove,
     shortcutConfig,
@@ -889,6 +957,8 @@ function App() {
             canRedo={canRedo}
             onUndo={undoMove}
             onRedo={redoMove}
+            onGoToStart={goToStart}
+            onGoToEnd={goToEnd}
           />
         )}
       </div>

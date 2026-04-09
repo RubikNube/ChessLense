@@ -30,7 +30,15 @@ const disabledActionButtonStyle = {
   opacity: 0.75,
 };
 
-function MoveHistory({ game, canUndo, canRedo, onUndo, onRedo }) {
+function MoveHistory({
+  game,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onGoToStart,
+  onGoToEnd,
+}) {
   const moveHistory = useMemo(() => {
     const moves = game.history();
 
@@ -67,6 +75,16 @@ function MoveHistory({ game, canUndo, canRedo, onUndo, onRedo }) {
       <div style={actionRowStyle}>
         <button
           type="button"
+          onClick={onGoToStart}
+          disabled={!canUndo}
+          aria-label="Go to start"
+          title="Go to start"
+          style={{ ...actionButtonStyle, ...(!canUndo ? disabledActionButtonStyle : {}) }}
+        >
+          ⏮
+        </button>
+        <button
+          type="button"
           onClick={onUndo}
           disabled={!canUndo}
           aria-label="Undo"
@@ -84,6 +102,16 @@ function MoveHistory({ game, canUndo, canRedo, onUndo, onRedo }) {
           style={{ ...actionButtonStyle, ...(!canRedo ? disabledActionButtonStyle : {}) }}
         >
           ▶
+        </button>
+        <button
+          type="button"
+          onClick={onGoToEnd}
+          disabled={!canRedo}
+          aria-label="Go to end"
+          title="Go to end"
+          style={{ ...actionButtonStyle, ...(!canRedo ? disabledActionButtonStyle : {}) }}
+        >
+          ⏭
         </button>
       </div>
     </div>

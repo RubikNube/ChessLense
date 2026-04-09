@@ -3,6 +3,10 @@
     "label": "Open shortcuts popup",
     "keys": ["?"]
   },
+  "goToStart": {
+    "label": "Go to start",
+    "keys": ["ArrowUp"]
+  },
   "undoMove": {
     "label": "Undo move",
     "keys": ["ArrowLeft"]
@@ -10,6 +14,10 @@
   "redoMove": {
     "label": "Redo move",
     "keys": ["ArrowRight"]
+  },
+  "goToEnd": {
+    "label": "Go to end",
+    "keys": ["ArrowDown"]
   },
   "flipBoard": {
     "label": "Flip board",
