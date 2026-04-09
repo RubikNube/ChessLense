@@ -62,6 +62,50 @@ const shortcutCloseButtonStyle = {
   fontWeight: 600,
 };
 
+const importPgnTextAreaStyle = {
+  width: "100%",
+  minHeight: "12rem",
+  marginTop: "1rem",
+  padding: "0.75rem",
+  borderRadius: "0.5rem",
+  border: "1px solid #d1d5db",
+  boxSizing: "border-box",
+  fontFamily: "ui-monospace, SFMono-Regular, monospace",
+  fontSize: "0.95rem",
+  lineHeight: 1.5,
+  resize: "vertical",
+};
+
+const modalActionRowStyle = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: "0.75rem",
+  marginTop: "1rem",
+  flexWrap: "wrap",
+};
+
+const modalButtonStyle = {
+  padding: "0.65rem 1rem",
+  border: "1px solid #d1d5db",
+  borderRadius: "0.5rem",
+  backgroundColor: "#f3f4f6",
+  color: "#111827",
+  cursor: "pointer",
+  fontWeight: 600,
+};
+
+const modalPrimaryButtonStyle = {
+  ...modalButtonStyle,
+  borderColor: "#2563eb",
+  backgroundColor: "#2563eb",
+  color: "#ffffff",
+};
+
+const modalErrorStyle = {
+  marginTop: "0.75rem",
+  color: "#dc2626",
+};
+
 const SHORTCUT_ACTION_ORDER = [
   "openShortcutsPopup",
   "undoMove",
@@ -144,24 +188,39 @@ function getShortcutDisplayLabel(shortcutKey) {
   return SHORTCUT_DISPLAY_LABELS[shortcutKey] || shortcutKey;
 }
 
-function createGameFromPgn(pgn) {
-  const next = new Chess();
+function parseGameFromPgn(pgn, options = {}) {
+  const { allowEmpty = true } = options;
 
   if (typeof pgn !== "string" || !pgn.trim()) {
-    return next;
+    return allowEmpty
+      ? { game: new Chess(), error: null }
+      : { game: null, error: "Paste a PGN to import." };
   }
+
+  const next = new Chess();
 
   try {
-    const didLoad = next.loadPgn(pgn);
+    const didLoad = next.loadPgn(pgn.trim());
 
     if (didLoad === false) {
-      return new Chess();
+      return {
+        game: null,
+        error: "Invalid PGN. Please check the notation and try again.",
+      };
     }
 
-    return next;
+    return { game: next, error: null };
   } catch {
-    return new Chess();
+    return {
+      game: null,
+      error: "Invalid PGN. Please check the notation and try again.",
+    };
   }
+}
+
+function createGameFromPgn(pgn) {
+  const { game } = parseGameFromPgn(pgn);
+  return game ?? new Chess();
 }
 
 function loadPersistedAppState() {
@@ -250,6 +309,7 @@ function App() {
     () => persistedAppState?.showEngineWindow ?? true,
   );
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
+  const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState(
     () => persistedAppState?.boardOrientation ?? "white",
   );
@@ -258,6 +318,8 @@ function App() {
   );
   const [shortcutConfig, setShortcutConfig] = useState(DEFAULT_SHORTCUT_CONFIG);
   const [copyNotification, setCopyNotification] = useState("");
+  const [importPgnValue, setImportPgnValue] = useState("");
+  const [importPgnError, setImportPgnError] = useState("");
   const shortcutConfigSignatureRef = useRef(
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
@@ -376,6 +438,36 @@ function App() {
     setShowShortcutsPopup(false);
   }, []);
 
+  const openImportPgnPopup = useCallback(() => {
+    setImportPgnValue(game.pgn());
+    setImportPgnError("");
+    setShowImportPgnPopup(true);
+  }, [game]);
+
+  const closeImportPgnPopup = useCallback(() => {
+    setShowImportPgnPopup(false);
+    setImportPgnValue("");
+    setImportPgnError("");
+  }, []);
+
+  function importPgn() {
+    const { game: importedGame, error } = parseGameFromPgn(importPgnValue, {
+      allowEmpty: false,
+    });
+
+    if (error || !importedGame) {
+      setImportPgnError(
+        error ?? "Invalid PGN. Please check the notation and try again.",
+      );
+      return;
+    }
+
+    setGame(importedGame);
+    setRedoStack([]);
+    setEngineResult(null);
+    closeImportPgnPopup();
+  }
+
   async function copyFenToClipboard() {
     try {
       if (navigator.clipboard?.writeText) {
@@ -402,7 +494,6 @@ function App() {
       console.error("Failed to copy FEN to clipboard:", error);
     }
   }
-
   useEffect(() => {
     if (!copyNotification) {
       return undefined;
@@ -533,6 +624,24 @@ function App() {
         return;
       }
 
+      if (showImportPgnPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeImportPgnPopup();
+        }
+
+        return;
+      }
+
+      if (showShortcutsPopup) {
+        if (matchesShortcut(event, shortcutConfig.closeShortcutsPopup.keys)) {
+          event.preventDefault();
+          closeShortcutsPopup();
+        }
+
+        return;
+      }
+
       const target = event.target;
 
       if (target instanceof HTMLElement) {
@@ -546,15 +655,6 @@ function App() {
         ) {
           return;
         }
-      }
-
-      if (showShortcutsPopup) {
-        if (matchesShortcut(event, shortcutConfig.closeShortcutsPopup.keys)) {
-          event.preventDefault();
-          closeShortcutsPopup();
-        }
-
-        return;
       }
 
       if (matchesShortcut(event, shortcutConfig.openShortcutsPopup.keys)) {
@@ -588,15 +688,16 @@ function App() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [
+    closeImportPgnPopup,
     closeShortcutsPopup,
     openShortcutsPopup,
     redoMove,
     shortcutConfig,
+    showImportPgnPopup,
     showShortcutsPopup,
     toggleBoardOrientation,
     undoMove,
   ]);
-
   return (
     <div className="app">
       <nav className="top-menu" aria-label="Application menu">
@@ -646,6 +747,13 @@ function App() {
                 disabled={!canRedo}
               >
                 Redo
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(openImportPgnPopup)}
+              >
+                Import PGN
               </button>
               <button
                 type="button"
@@ -784,6 +892,57 @@ function App() {
           />
         )}
       </div>
+
+      {showImportPgnPopup && (
+        <div
+          style={shortcutOverlayStyle}
+          onClick={closeImportPgnPopup}
+          role="presentation"
+        >
+          <div
+            style={shortcutModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="import-pgn-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="import-pgn-title">Import PGN</h2>
+            <p>Paste a PGN game score to load it on the board.</p>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                importPgn();
+              }}
+            >
+              <textarea
+                style={importPgnTextAreaStyle}
+                value={importPgnValue}
+                onChange={(event) => {
+                  setImportPgnValue(event.target.value);
+                  setImportPgnError("");
+                }}
+                aria-label="PGN text"
+                placeholder={'[Event "Casual Game"]\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6'}
+                autoFocus
+                spellCheck={false}
+              />
+              {importPgnError && <p style={modalErrorStyle}>{importPgnError}</p>}
+              <div style={modalActionRowStyle}>
+                <button
+                  type="button"
+                  style={modalButtonStyle}
+                  onClick={closeImportPgnPopup}
+                >
+                  Cancel
+                </button>
+                <button type="submit" style={modalPrimaryButtonStyle}>
+                  Import
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showShortcutsPopup && (
         <div
