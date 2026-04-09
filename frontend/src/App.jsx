@@ -11,16 +11,24 @@ function App() {
   const [openMenu, setOpenMenu] = useState(null);
   const [showMoveHistory, setShowMoveHistory] = useState(true);
   const [boardOrientation, setBoardOrientation] = useState("white");
+  const [redoStack, setRedoStack] = useState([]);
 
-  const fen = useMemo(() => game.fen(), [game]);
-
-  function safeGameMutate(modify) {
+  function cloneGame(sourceGame) {
     const next = new Chess();
 
-    if (game.history().length) {
-      next.loadPgn(game.pgn());
+    if (sourceGame.history().length) {
+      next.loadPgn(sourceGame.pgn());
     }
 
+    return next;
+  }
+
+  const fen = useMemo(() => game.fen(), [game]);
+  const canUndo = game.history().length > 0;
+  const canRedo = redoStack.length > 0;
+
+  function safeGameMutate(modify) {
+    const next = cloneGame(game);
     const result = modify(next);
 
     if (!result) {
@@ -28,6 +36,7 @@ function App() {
     }
 
     setGame(next);
+    setRedoStack([]);
     setEngineResult(null);
 
     return result;
@@ -54,6 +63,50 @@ function App() {
         promotion: "q",
       }),
     );
+  }
+
+  function undoMove() {
+    const next = cloneGame(game);
+    const undoneMove = next.undo();
+
+    if (!undoneMove) {
+      return;
+    }
+
+    setGame(next);
+    setRedoStack((currentValue) => [
+      {
+        from: undoneMove.from,
+        to: undoneMove.to,
+        promotion: undoneMove.promotion,
+      },
+      ...currentValue,
+    ]);
+    setEngineResult(null);
+  }
+
+  function redoMove() {
+    const moveToRedo = redoStack[0];
+
+    if (!moveToRedo) {
+      return;
+    }
+
+    const next = cloneGame(game);
+    const move = {
+      from: moveToRedo.from,
+      to: moveToRedo.to,
+      ...(moveToRedo.promotion ? { promotion: moveToRedo.promotion } : {}),
+    };
+    const redoneMove = next.move(move);
+
+    if (!redoneMove) {
+      return;
+    }
+
+    setGame(next);
+    setRedoStack((currentValue) => currentValue.slice(1));
+    setEngineResult(null);
   }
 
   function toggleMenu(menuName) {
@@ -100,6 +153,7 @@ function App() {
 
   function resetGame() {
     setGame(new Chess());
+    setRedoStack([]);
     setEngineResult(null);
   }
 
@@ -139,8 +193,21 @@ function App() {
           </button>
           {openMenu === "edit" && (
             <div className="menu-dropdown">
-              <button type="button" className="menu-entry" onClick={() => handleMenuAction()}>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(undoMove)}
+                disabled={!canUndo}
+              >
                 Undo
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(redoMove)}
+                disabled={!canRedo}
+              >
+                Redo
               </button>
               <button type="button" className="menu-entry" onClick={() => handleMenuAction()}>
                 Copy FEN
@@ -246,7 +313,15 @@ function App() {
           )}
         </div>
 
-        {showMoveHistory && <MoveHistory game={game} />}
+        {showMoveHistory && (
+          <MoveHistory
+            game={game}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undoMove}
+            onRedo={redoMove}
+          />
+        )}
       </div>
     </div>
   );

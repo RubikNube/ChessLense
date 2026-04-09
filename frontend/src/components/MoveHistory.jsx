@@ -1,6 +1,36 @@
 import { useMemo } from "react";
 
-function MoveHistory({ game }) {
+const actionRowStyle = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: "0.75rem",
+  marginTop: "1rem",
+  flexWrap: "wrap",
+};
+
+const actionButtonStyle = {
+  padding: "0.6rem 1rem",
+  border: "1px solid #d0d7de",
+  borderRadius: "0.5rem",
+  backgroundColor: "#f6f8fa",
+  color: "#24292f",
+  fontWeight: 600,
+  fontSize: "1rem",
+  lineHeight: 1,
+  minWidth: "2.75rem",
+  cursor: "pointer",
+  transition: "background-color 0.2s ease, transform 0.2s ease",
+};
+
+const disabledActionButtonStyle = {
+  backgroundColor: "#eaeef2",
+  color: "#8c959f",
+  borderColor: "#d8dee4",
+  cursor: "not-allowed",
+  opacity: 0.75,
+};
+
+function MoveHistory({ game, canUndo, canRedo, onUndo, onRedo }) {
   const moveHistory = useMemo(() => {
     const moves = game.history();
 
@@ -34,6 +64,28 @@ function MoveHistory({ game }) {
           ))}
         </ol>
       )}
+      <div style={actionRowStyle}>
+        <button
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo}
+          aria-label="Undo"
+          title="Undo"
+          style={{ ...actionButtonStyle, ...(!canUndo ? disabledActionButtonStyle : {}) }}
+        >
+          ◀
+        </button>
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo}
+          aria-label="Redo"
+          title="Redo"
+          style={{ ...actionButtonStyle, ...(!canRedo ? disabledActionButtonStyle : {}) }}
+        >
+          ▶
+        </button>
+      </div>
     </div>
   );
 }
