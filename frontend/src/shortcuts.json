@@ -1,0 +1,18 @@
+{
+  "openShortcutsPopup": {
+    "label": "Open shortcuts popup",
+    "keys": ["?"]
+  },
+  "undoMove": {
+    "label": "Undo move",
+    "keys": ["ArrowLeft"]
+  },
+  "redoMove": {
+    "label": "Redo move",
+    "keys": ["ArrowRight"]
+  },
+  "closeShortcutsPopup": {
+    "label": "Close popup",
+    "keys": ["Escape"]
+  }
+}

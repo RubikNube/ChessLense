@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import MoveHistory from "./components/MoveHistory.jsx";
@@ -62,6 +62,81 @@ const shortcutCloseButtonStyle = {
   fontWeight: 600,
 };
 
+const SHORTCUT_ACTION_ORDER = [
+  "openShortcutsPopup",
+  "undoMove",
+  "redoMove",
+  "closeShortcutsPopup",
+];
+
+const SHORTCUT_DISPLAY_LABELS = {
+  ArrowLeft: "←",
+  ArrowRight: "→",
+  Escape: "Esc",
+  " ": "Space",
+};
+
+const DEFAULT_SHORTCUT_CONFIG = {
+  openShortcutsPopup: {
+    label: "Open shortcuts popup",
+    keys: ["?"],
+  },
+  undoMove: {
+    label: "Undo move",
+    keys: ["ArrowLeft"],
+  },
+  redoMove: {
+    label: "Redo move",
+    keys: ["ArrowRight"],
+  },
+  closeShortcutsPopup: {
+    label: "Close popup",
+    keys: ["Escape"],
+  },
+};
+
+const DEFAULT_SHORTCUT_CONFIG_SIGNATURE = JSON.stringify(
+  DEFAULT_SHORTCUT_CONFIG,
+);
+
+function normalizeShortcutConfig(config) {
+  if (!config || typeof config !== "object") {
+    return DEFAULT_SHORTCUT_CONFIG;
+  }
+
+  return SHORTCUT_ACTION_ORDER.reduce((normalizedConfig, actionName) => {
+    const defaultShortcut = DEFAULT_SHORTCUT_CONFIG[actionName];
+    const candidateShortcut = config[actionName];
+    const shortcutKeys =
+      Array.isArray(candidateShortcut?.keys) &&
+        candidateShortcut.keys.every(
+          (shortcutKey) =>
+            typeof shortcutKey === "string" && shortcutKey.trim().length > 0,
+        )
+        ? candidateShortcut.keys
+        : defaultShortcut.keys;
+
+    normalizedConfig[actionName] = {
+      label:
+        typeof candidateShortcut?.label === "string" &&
+          candidateShortcut.label.trim().length > 0
+          ? candidateShortcut.label
+          : defaultShortcut.label,
+      keys: shortcutKeys,
+    };
+
+    return normalizedConfig;
+  }, {});
+}
+
+function matchesShortcut(event, shortcutKeys) {
+  return shortcutKeys.some((shortcutKey) => event.key === shortcutKey);
+}
+
+function getShortcutDisplayLabel(shortcutKey) {
+  return SHORTCUT_DISPLAY_LABELS[shortcutKey] || shortcutKey;
+}
+
 function cloneGame(sourceGame) {
   const next = new Chess();
 
@@ -82,10 +157,22 @@ function App() {
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState("white");
   const [redoStack, setRedoStack] = useState([]);
+  const [shortcutConfig, setShortcutConfig] = useState(DEFAULT_SHORTCUT_CONFIG);
+  const shortcutConfigSignatureRef = useRef(
+    DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
+  );
 
   const fen = useMemo(() => game.fen(), [game]);
   const canUndo = game.history().length > 0;
   const canRedo = redoStack.length > 0;
+  const shortcutEntries = useMemo(
+    () =>
+      SHORTCUT_ACTION_ORDER.map((actionName) => ({
+        actionName,
+        ...shortcutConfig[actionName],
+      })),
+    [shortcutConfig],
+  );
 
   function safeGameMutate(modify) {
     const next = cloneGame(game);
@@ -189,6 +276,48 @@ function App() {
     setShowShortcutsPopup(false);
   }, []);
 
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadShortcuts() {
+      try {
+        const response = await fetch(new URL("./shortcuts.json", import.meta.url), {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to load shortcuts");
+        }
+
+        const data = await response.json();
+        const normalizedConfig = normalizeShortcutConfig(data);
+        const nextSignature = JSON.stringify(normalizedConfig);
+
+        if (!ignore && nextSignature !== shortcutConfigSignatureRef.current) {
+          shortcutConfigSignatureRef.current = nextSignature;
+          setShortcutConfig(normalizedConfig);
+        }
+      } catch {
+        if (
+          !ignore &&
+          DEFAULT_SHORTCUT_CONFIG_SIGNATURE !== shortcutConfigSignatureRef.current
+        ) {
+          shortcutConfigSignatureRef.current = DEFAULT_SHORTCUT_CONFIG_SIGNATURE;
+          setShortcutConfig(DEFAULT_SHORTCUT_CONFIG);
+        }
+      }
+    }
+
+    loadShortcuts();
+
+    const intervalId = window.setInterval(loadShortcuts, 2000);
+
+    return () => {
+      ignore = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   async function analyzePosition() {
     setShowEngineWindow(true);
     setLoading(true);
@@ -262,7 +391,7 @@ function App() {
       }
 
       if (showShortcutsPopup) {
-        if (event.key === "Escape") {
+        if (matchesShortcut(event, shortcutConfig.closeShortcutsPopup.keys)) {
           event.preventDefault();
           closeShortcutsPopup();
         }
@@ -270,19 +399,20 @@ function App() {
         return;
       }
 
-      if (event.key === "?") {
+      if (matchesShortcut(event, shortcutConfig.openShortcutsPopup.keys)) {
         event.preventDefault();
         setOpenMenu(null);
         openShortcutsPopup();
         return;
       }
 
-      if (event.key === "ArrowLeft") {
+      if (matchesShortcut(event, shortcutConfig.undoMove.keys)) {
         event.preventDefault();
         undoMove();
+        return;
       }
 
-      if (event.key === "ArrowRight") {
+      if (matchesShortcut(event, shortcutConfig.redoMove.keys)) {
         event.preventDefault();
         redoMove();
       }
@@ -297,6 +427,7 @@ function App() {
     closeShortcutsPopup,
     openShortcutsPopup,
     redoMove,
+    shortcutConfig,
     showShortcutsPopup,
     undoMove,
   ]);
@@ -504,22 +635,14 @@ function App() {
           >
             <h2 id="keyboard-shortcuts-title">Keyboard Shortcuts</h2>
             <ul style={shortcutListStyle}>
-              <li style={shortcutItemStyle}>
-                <span>Open shortcuts popup</span>
-                <kbd style={shortcutKeyStyle}>?</kbd>
-              </li>
-              <li style={shortcutItemStyle}>
-                <span>Undo move</span>
-                <kbd style={shortcutKeyStyle}>←</kbd>
-              </li>
-              <li style={shortcutItemStyle}>
-                <span>Redo move</span>
-                <kbd style={shortcutKeyStyle}>→</kbd>
-              </li>
-              <li style={shortcutItemStyle}>
-                <span>Close popup</span>
-                <kbd style={shortcutKeyStyle}>Esc</kbd>
-              </li>
+              {shortcutEntries.map(({ actionName, label, keys }) => (
+                <li key={actionName} style={shortcutItemStyle}>
+                  <span>{label}</span>
+                  <kbd style={shortcutKeyStyle}>
+                    {keys.map(getShortcutDisplayLabel).join(" / ")}
+                  </kbd>
+                </li>
+              ))}
             </ul>
             <button
               type="button"
