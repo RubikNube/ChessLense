@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import MoveHistory from "./components/MoveHistory.jsx";
@@ -172,6 +172,45 @@ function App() {
       currentValue === "white" ? "black" : "white",
     );
   }
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      const target = event.target;
+
+      if (target instanceof HTMLElement) {
+        const tagName = target.tagName;
+
+        if (
+          target.isContentEditable ||
+          tagName === "INPUT" ||
+          tagName === "TEXTAREA" ||
+          tagName === "SELECT"
+        ) {
+          return;
+        }
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        undoMove();
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        redoMove();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [undoMove, redoMove]);
 
   return (
     <div className="app">
