@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
+import EvaluationBar from "./components/EvaluationBar.jsx";
 import MoveHistory from "./components/MoveHistory.jsx";
 import "./App.css";
 
@@ -290,6 +291,10 @@ function loadPersistedAppState() {
         typeof parsedState.showEngineWindow === "boolean"
           ? parsedState.showEngineWindow
           : true,
+      showEvaluationBar:
+        typeof parsedState.showEvaluationBar === "boolean"
+          ? parsedState.showEvaluationBar
+          : true,
     };
   } catch {
     return null;
@@ -320,6 +325,7 @@ function App() {
     createGameFromPgn(persistedAppState?.gamePgn),
   );
   const [engineResult, setEngineResult] = useState(null);
+  const [evaluationResult, setEvaluationResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [openMenu, setOpenMenu] = useState(null);
   const [showMoveHistory, setShowMoveHistory] = useState(
@@ -327,6 +333,9 @@ function App() {
   );
   const [showEngineWindow, setShowEngineWindow] = useState(
     () => persistedAppState?.showEngineWindow ?? true,
+  );
+  const [showEvaluationBar, setShowEvaluationBar] = useState(
+    () => persistedAppState?.showEvaluationBar ?? true,
   );
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
@@ -367,6 +376,7 @@ function App() {
     setGame(next);
     setRedoStack([]);
     setEngineResult(null);
+    setEvaluationResult(null);
 
     return result;
   }
@@ -405,6 +415,7 @@ function App() {
     setGame(next);
     setRedoStack((currentValue) => [serializeMove(undoneMove), ...currentValue]);
     setEngineResult(null);
+    setEvaluationResult(null);
   }, [game]);
 
   const redoMove = useCallback(() => {
@@ -424,6 +435,7 @@ function App() {
     setGame(next);
     setRedoStack((currentValue) => currentValue.slice(1));
     setEngineResult(null);
+    setEvaluationResult(null);
   }, [game, redoStack]);
 
   const goToStart = useCallback(() => {
@@ -443,6 +455,7 @@ function App() {
     setGame(next);
     setRedoStack([...undoneMoves, ...redoStack]);
     setEngineResult(null);
+    setEvaluationResult(null);
   }, [game, redoStack]);
 
   const goToEnd = useCallback(() => {
@@ -470,6 +483,7 @@ function App() {
     setGame(next);
     setRedoStack(redoStack.slice(appliedMoveCount));
     setEngineResult(null);
+    setEvaluationResult(null);
   }, [game, redoStack]);
 
   function toggleMenu(menuName) {
@@ -519,6 +533,7 @@ function App() {
     setGame(importedGame);
     setRedoStack([]);
     setEngineResult(null);
+    setEvaluationResult(null);
     closeImportPgnPopup();
   }
 
@@ -605,21 +620,44 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
+    let ignore = false;
+    setEvaluationResult(null);
 
-    window.localStorage.setItem(
-      FRONTEND_STATE_STORAGE_KEY,
-      JSON.stringify({
-        gamePgn: game.pgn(),
-        redoStack,
-        boardOrientation,
-        showMoveHistory,
-        showEngineWindow,
-      }),
-    );
-  }, [boardOrientation, game, redoStack, showEngineWindow, showMoveHistory]);
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const response = await fetch("http://localhost:3001/api/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fen,
+            depth: 10,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.details || data.error || "Request failed");
+        }
+
+        if (!ignore) {
+          console.log("Position evaluation:", data);
+          setEvaluationResult(data);
+        }
+      } catch {
+        if (!ignore) {
+          setEvaluationResult(null);
+        }
+      }
+    }, 250);
+
+    return () => {
+      ignore = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [fen]);
 
   async function analyzePosition() {
     setShowEngineWindow(true);
@@ -656,6 +694,7 @@ function App() {
     setGame(new Chess());
     setRedoStack([]);
     setEngineResult(null);
+    setEvaluationResult(null);
   }
 
   function toggleMoveHistory() {
@@ -664,6 +703,10 @@ function App() {
 
   function toggleEngineWindow() {
     setShowEngineWindow((currentValue) => !currentValue);
+  }
+
+  function toggleEvaluationBar() {
+    setShowEvaluationBar((currentValue) => !currentValue);
   }
 
   const toggleBoardOrientation = useCallback(() => {
@@ -872,6 +915,13 @@ function App() {
               >
                 {showEngineWindow ? "Hide Engine Window" : "Show Engine Window"}
               </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(toggleEvaluationBar)}
+              >
+                {showEvaluationBar ? "Hide Evaluation Bar" : "Show Evaluation Bar"}
+              </button>
             </div>
           )}
         </div>
@@ -914,17 +964,26 @@ function App() {
       </nav>
 
       <div className="board-panel">
-        <div className="chessboard-wrapper">
-          <Chessboard
-            position={fen}
-            onPieceDrop={handlePieceDrop}
-            boardOrientation={boardOrientation}
-            options={{
-              position: fen,
-              onPieceDrop: handlePieceDrop,
-              boardOrientation,
-            }}
-          />
+        <div className="board-and-evaluation">
+          <div className="chessboard-wrapper">
+            <Chessboard
+              position={fen}
+              onPieceDrop={handlePieceDrop}
+              boardOrientation={boardOrientation}
+              options={{
+                position: fen,
+                onPieceDrop: handlePieceDrop,
+                boardOrientation,
+              }}
+            />
+          </div>
+          {showEvaluationBar && (
+            <EvaluationBar
+              evaluation={evaluationResult?.evaluation}
+              boardOrientation={boardOrientation}
+              turn={game.turn()}
+            />
+          )}
         </div>
       </div>
 
