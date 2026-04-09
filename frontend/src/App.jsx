@@ -1,8 +1,76 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import MoveHistory from "./components/MoveHistory.jsx";
 import "./App.css";
+
+const shortcutOverlayStyle = {
+  position: "fixed",
+  inset: 0,
+  backgroundColor: "rgba(15, 23, 42, 0.7)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "1rem",
+  zIndex: 1000,
+};
+
+const shortcutModalStyle = {
+  width: "min(100%, 28rem)",
+  backgroundColor: "#ffffff",
+  color: "#111827",
+  borderRadius: "0.75rem",
+  boxShadow: "0 20px 45px rgba(15, 23, 42, 0.35)",
+  padding: "1.5rem",
+};
+
+const shortcutListStyle = {
+  listStyle: "none",
+  padding: 0,
+  margin: "1rem 0 0",
+  display: "grid",
+  gap: "0.75rem",
+};
+
+const shortcutItemStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "1rem",
+};
+
+const shortcutKeyStyle = {
+  fontFamily: "inherit",
+  fontSize: "0.95rem",
+  fontWeight: 700,
+  padding: "0.35rem 0.6rem",
+  borderRadius: "0.45rem",
+  border: "1px solid #d1d5db",
+  backgroundColor: "#f9fafb",
+  minWidth: "4.5rem",
+  textAlign: "center",
+};
+
+const shortcutCloseButtonStyle = {
+  marginTop: "1.25rem",
+  padding: "0.65rem 1rem",
+  border: "1px solid #d1d5db",
+  borderRadius: "0.5rem",
+  backgroundColor: "#f3f4f6",
+  color: "#111827",
+  cursor: "pointer",
+  fontWeight: 600,
+};
+
+function cloneGame(sourceGame) {
+  const next = new Chess();
+
+  if (sourceGame.history().length) {
+    next.loadPgn(sourceGame.pgn());
+  }
+
+  return next;
+}
 
 function App() {
   const [game, setGame] = useState(new Chess());
@@ -11,18 +79,9 @@ function App() {
   const [openMenu, setOpenMenu] = useState(null);
   const [showMoveHistory, setShowMoveHistory] = useState(true);
   const [showEngineWindow, setShowEngineWindow] = useState(true);
+  const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState("white");
   const [redoStack, setRedoStack] = useState([]);
-
-  function cloneGame(sourceGame) {
-    const next = new Chess();
-
-    if (sourceGame.history().length) {
-      next.loadPgn(sourceGame.pgn());
-    }
-
-    return next;
-  }
 
   const fen = useMemo(() => game.fen(), [game]);
   const canUndo = game.history().length > 0;
@@ -66,7 +125,7 @@ function App() {
     );
   }
 
-  function undoMove() {
+  const undoMove = useCallback(() => {
     const next = cloneGame(game);
     const undoneMove = next.undo();
 
@@ -84,9 +143,9 @@ function App() {
       ...currentValue,
     ]);
     setEngineResult(null);
-  }
+  }, [game]);
 
-  function redoMove() {
+  const redoMove = useCallback(() => {
     const moveToRedo = redoStack[0];
 
     if (!moveToRedo) {
@@ -108,7 +167,7 @@ function App() {
     setGame(next);
     setRedoStack((currentValue) => currentValue.slice(1));
     setEngineResult(null);
-  }
+  }, [game, redoStack]);
 
   function toggleMenu(menuName) {
     setOpenMenu((currentMenu) => (currentMenu === menuName ? null : menuName));
@@ -121,6 +180,14 @@ function App() {
       action();
     }
   }
+
+  const openShortcutsPopup = useCallback(() => {
+    setShowShortcutsPopup(true);
+  }, []);
+
+  const closeShortcutsPopup = useCallback(() => {
+    setShowShortcutsPopup(false);
+  }, []);
 
   async function analyzePosition() {
     setShowEngineWindow(true);
@@ -194,6 +261,22 @@ function App() {
         }
       }
 
+      if (showShortcutsPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeShortcutsPopup();
+        }
+
+        return;
+      }
+
+      if (event.key === "?") {
+        event.preventDefault();
+        setOpenMenu(null);
+        openShortcutsPopup();
+        return;
+      }
+
       if (event.key === "ArrowLeft") {
         event.preventDefault();
         undoMove();
@@ -210,13 +293,23 @@ function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [undoMove, redoMove]);
+  }, [
+    closeShortcutsPopup,
+    openShortcutsPopup,
+    redoMove,
+    showShortcutsPopup,
+    undoMove,
+  ]);
 
   return (
     <div className="app">
       <nav className="top-menu" aria-label="Application menu">
         <div className="menu-group">
-          <button type="button" className="menu-trigger" onClick={() => toggleMenu("engine")}>
+          <button
+            type="button"
+            className="menu-trigger"
+            onClick={() => toggleMenu("engine")}
+          >
             Engine
           </button>
           {openMenu === "engine" && (
@@ -233,7 +326,11 @@ function App() {
         </div>
 
         <div className="menu-group">
-          <button type="button" className="menu-trigger" onClick={() => toggleMenu("edit")}>
+          <button
+            type="button"
+            className="menu-trigger"
+            onClick={() => toggleMenu("edit")}
+          >
             Edit
           </button>
           {openMenu === "edit" && (
@@ -254,7 +351,11 @@ function App() {
               >
                 Redo
               </button>
-              <button type="button" className="menu-entry" onClick={() => handleMenuAction()}>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction()}
+              >
                 Copy FEN
               </button>
               <button
@@ -269,7 +370,11 @@ function App() {
         </div>
 
         <div className="menu-group">
-          <button type="button" className="menu-trigger" onClick={() => toggleMenu("view")}>
+          <button
+            type="button"
+            className="menu-trigger"
+            onClick={() => toggleMenu("view")}
+          >
             View
           </button>
           {openMenu === "view" && (
@@ -300,7 +405,11 @@ function App() {
         </div>
 
         <div className="menu-group">
-          <button type="button" className="menu-trigger" onClick={() => toggleMenu("help")}>
+          <button
+            type="button"
+            className="menu-trigger"
+            onClick={() => toggleMenu("help")}
+          >
             Help
           </button>
           {openMenu === "help" && (
@@ -320,7 +429,11 @@ function App() {
               >
                 About ChessLense
               </button>
-              <button type="button" className="menu-entry" onClick={() => handleMenuAction()}>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(openShortcutsPopup)}
+              >
                 Keyboard Shortcuts
               </button>
             </div>
@@ -344,7 +457,6 @@ function App() {
       </div>
 
       <div className="side-panel">
-
         {showEngineWindow && (
           <div className="card">
             <h2>Engine</h2>
@@ -376,6 +488,49 @@ function App() {
           />
         )}
       </div>
+
+      {showShortcutsPopup && (
+        <div
+          style={shortcutOverlayStyle}
+          onClick={closeShortcutsPopup}
+          role="presentation"
+        >
+          <div
+            style={shortcutModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="keyboard-shortcuts-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="keyboard-shortcuts-title">Keyboard Shortcuts</h2>
+            <ul style={shortcutListStyle}>
+              <li style={shortcutItemStyle}>
+                <span>Open shortcuts popup</span>
+                <kbd style={shortcutKeyStyle}>?</kbd>
+              </li>
+              <li style={shortcutItemStyle}>
+                <span>Undo move</span>
+                <kbd style={shortcutKeyStyle}>←</kbd>
+              </li>
+              <li style={shortcutItemStyle}>
+                <span>Redo move</span>
+                <kbd style={shortcutKeyStyle}>→</kbd>
+              </li>
+              <li style={shortcutItemStyle}>
+                <span>Close popup</span>
+                <kbd style={shortcutKeyStyle}>Esc</kbd>
+              </li>
+            </ul>
+            <button
+              type="button"
+              style={shortcutCloseButtonStyle}
+              onClick={closeShortcutsPopup}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
