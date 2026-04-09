@@ -158,6 +158,7 @@ function App() {
   const [boardOrientation, setBoardOrientation] = useState("white");
   const [redoStack, setRedoStack] = useState([]);
   const [shortcutConfig, setShortcutConfig] = useState(DEFAULT_SHORTCUT_CONFIG);
+  const [copyNotification, setCopyNotification] = useState("");
   const shortcutConfigSignatureRef = useRef(
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
@@ -275,6 +276,47 @@ function App() {
   const closeShortcutsPopup = useCallback(() => {
     setShowShortcutsPopup(false);
   }, []);
+
+  async function copyFenToClipboard() {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(fen);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = fen;
+        textArea.setAttribute("readonly", "");
+        textArea.style.position = "absolute";
+        textArea.style.left = "-9999px";
+        document.body.appendChild(textArea);
+        textArea.select();
+
+        const copied = document.execCommand("copy");
+        document.body.removeChild(textArea);
+
+        if (!copied) {
+          throw new Error("Copy command failed");
+        }
+      }
+
+      setCopyNotification("FEN copied to clipboard.");
+    } catch (error) {
+      console.error("Failed to copy FEN to clipboard:", error);
+    }
+  }
+
+  useEffect(() => {
+    if (!copyNotification) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCopyNotification("");
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [copyNotification]);
 
   useEffect(() => {
     let ignore = false;
@@ -485,7 +527,7 @@ function App() {
               <button
                 type="button"
                 className="menu-entry"
-                onClick={() => handleMenuAction()}
+                onClick={() => handleMenuAction(copyFenToClipboard)}
               >
                 Copy FEN
               </button>
@@ -652,6 +694,12 @@ function App() {
               Close
             </button>
           </div>
+
+        </div>
+      )}
+      {copyNotification && (
+        <div className="copy-notification" role="status" aria-live="polite">
+          {copyNotification}
         </div>
       )}
     </div>
