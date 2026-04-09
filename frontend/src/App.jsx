@@ -104,6 +104,8 @@ const DEFAULT_SHORTCUT_CONFIG_SIGNATURE = JSON.stringify(
   DEFAULT_SHORTCUT_CONFIG,
 );
 
+const FRONTEND_STATE_STORAGE_KEY = "chesslense.frontend-state";
+
 function normalizeShortcutConfig(config) {
   if (!config || typeof config !== "object") {
     return DEFAULT_SHORTCUT_CONFIG;
@@ -142,6 +144,87 @@ function getShortcutDisplayLabel(shortcutKey) {
   return SHORTCUT_DISPLAY_LABELS[shortcutKey] || shortcutKey;
 }
 
+function createGameFromPgn(pgn) {
+  const next = new Chess();
+
+  if (typeof pgn !== "string" || !pgn.trim()) {
+    return next;
+  }
+
+  try {
+    const didLoad = next.loadPgn(pgn);
+
+    if (didLoad === false) {
+      return new Chess();
+    }
+
+    return next;
+  } catch {
+    return new Chess();
+  }
+}
+
+function loadPersistedAppState() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const rawState = window.localStorage.getItem(FRONTEND_STATE_STORAGE_KEY);
+
+    if (!rawState) {
+      return null;
+    }
+
+    const parsedState = JSON.parse(rawState);
+
+    if (!parsedState || typeof parsedState !== "object") {
+      return null;
+    }
+
+    const redoStack = Array.isArray(parsedState.redoStack)
+      ? parsedState.redoStack.reduce((moves, move) => {
+        if (
+          !move ||
+          typeof move !== "object" ||
+          typeof move.from !== "string" ||
+          typeof move.to !== "string"
+        ) {
+          return moves;
+        }
+
+        moves.push({
+          from: move.from,
+          to: move.to,
+          ...(typeof move.promotion === "string"
+            ? { promotion: move.promotion }
+            : {}),
+        });
+
+        return moves;
+      }, [])
+      : [];
+
+    return {
+      gamePgn:
+        typeof parsedState.gamePgn === "string" ? parsedState.gamePgn : "",
+      redoStack,
+      boardOrientation:
+        parsedState.boardOrientation === "black" ? "black" : "white",
+      showMoveHistory:
+        typeof parsedState.showMoveHistory === "boolean"
+          ? parsedState.showMoveHistory
+          : true,
+      showEngineWindow:
+        typeof parsedState.showEngineWindow === "boolean"
+          ? parsedState.showEngineWindow
+          : true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function cloneGame(sourceGame) {
   const next = new Chess();
 
@@ -153,15 +236,26 @@ function cloneGame(sourceGame) {
 }
 
 function App() {
-  const [game, setGame] = useState(new Chess());
+  const persistedAppState = useMemo(() => loadPersistedAppState(), []);
+  const [game, setGame] = useState(() =>
+    createGameFromPgn(persistedAppState?.gamePgn),
+  );
   const [engineResult, setEngineResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [openMenu, setOpenMenu] = useState(null);
-  const [showMoveHistory, setShowMoveHistory] = useState(true);
-  const [showEngineWindow, setShowEngineWindow] = useState(true);
+  const [showMoveHistory, setShowMoveHistory] = useState(
+    () => persistedAppState?.showMoveHistory ?? true,
+  );
+  const [showEngineWindow, setShowEngineWindow] = useState(
+    () => persistedAppState?.showEngineWindow ?? true,
+  );
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
-  const [boardOrientation, setBoardOrientation] = useState("white");
-  const [redoStack, setRedoStack] = useState([]);
+  const [boardOrientation, setBoardOrientation] = useState(
+    () => persistedAppState?.boardOrientation ?? "white",
+  );
+  const [redoStack, setRedoStack] = useState(
+    () => persistedAppState?.redoStack ?? [],
+  );
   const [shortcutConfig, setShortcutConfig] = useState(DEFAULT_SHORTCUT_CONFIG);
   const [copyNotification, setCopyNotification] = useState("");
   const shortcutConfigSignatureRef = useRef(
@@ -364,6 +458,23 @@ function App() {
       window.clearInterval(intervalId);
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(
+      FRONTEND_STATE_STORAGE_KEY,
+      JSON.stringify({
+        gamePgn: game.pgn(),
+        redoStack,
+        boardOrientation,
+        showMoveHistory,
+        showEngineWindow,
+      }),
+    );
+  }, [boardOrientation, game, redoStack, showEngineWindow, showMoveHistory]);
 
   async function analyzePosition() {
     setShowEngineWindow(true);
