@@ -319,6 +319,24 @@ function serializeMove(move) {
   };
 }
 
+function serializePersistedAppState({
+  game,
+  redoStack,
+  boardOrientation,
+  showMoveHistory,
+  showEngineWindow,
+  showEvaluationBar,
+}) {
+  return JSON.stringify({
+    gamePgn: game.pgn(),
+    redoStack: redoStack.map(serializeMove),
+    boardOrientation,
+    showMoveHistory,
+    showEngineWindow,
+    showEvaluationBar,
+  });
+}
+
 function App() {
   const persistedAppState = useMemo(() => loadPersistedAppState(), []);
   const [game, setGame] = useState(() =>
@@ -576,6 +594,30 @@ function App() {
       window.clearTimeout(timeoutId);
     };
   }, [copyNotification]);
+
+  useEffect(() => {
+    const serializedState = serializePersistedAppState({
+      game,
+      redoStack,
+      boardOrientation,
+      showMoveHistory,
+      showEngineWindow,
+      showEvaluationBar,
+    });
+
+    try {
+      window.localStorage.setItem(FRONTEND_STATE_STORAGE_KEY, serializedState);
+    } catch (error) {
+      console.error("Failed to persist app state:", error);
+    }
+  }, [
+    boardOrientation,
+    game,
+    redoStack,
+    showEngineWindow,
+    showEvaluationBar,
+    showMoveHistory,
+  ]);
 
   useEffect(() => {
     let ignore = false;
