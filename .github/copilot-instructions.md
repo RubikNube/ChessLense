@@ -12,24 +12,27 @@ Local chess analysis tool: React frontend + Node.js/Express backend that spawns 
 cd frontend && npm run dev      # dev server (Vite, default port 5173)
 cd frontend && npm run build    # production build
 cd frontend && npm run lint     # ESLint
+cd frontend && npm run test     # run frontend unit tests
+cd frontend && npm run test -- src/utils/appState.test.js   # run one test file
 
 # Server only
 cd server && npm run dev        # Express server on port 3001
 ```
 
-There is no test suite.
-
 ## Architecture
 
 ```
 ChessLense/
-├── frontend/   React + Vite SPA
+├── frontend/   React + Vite SPA + Vitest unit tests
 │   └── src/
-│       ├── App.jsx             # All app state and logic
+│       ├── App.jsx             # Main UI orchestration
 │       ├── shortcuts.json      # Default keyboard shortcut config
 │       └── components/
 │           ├── EvaluationBar.jsx
 │           └── MoveHistory.jsx
+│       └── utils/
+│           ├── appState.js     # PGN, persistence, shortcut, and move helpers
+│           └── evaluation.js   # Evaluation normalization/formatting helpers
 └── server/
     └── index.js                # Express app, single POST /api/analyze endpoint
 ```
@@ -42,14 +45,18 @@ ChessLense/
 
 ### Game state in `App.jsx`
 - The `chess.js` `Chess` instance (`game`) is the single source of truth for board state.
-- All mutations go through `safeGameMutate(modify)`: it clones the game via `cloneGame()` (which uses `loadPgn`), calls `modify(next)`, and only calls `setGame` if the mutation succeeds.
+- All mutations go through `safeGameMutate(modify)`: it clones the game via `cloneGame()` from `src/utils/appState.js`, calls `modify(next)`, and only calls `setGame` if the mutation succeeds.
 - Redo is implemented manually as a `redoStack` of `{ from, to, promotion? }` move objects, because `chess.js` has no built-in redo.
-- Frontend state (game PGN, redo stack, orientation, panel visibility) is persisted to `localStorage` under the key `chesslense.frontend-state` and loaded via `loadPersistedAppState()`.
+- Frontend state (game PGN, redo stack, orientation, panel visibility) is persisted to `localStorage` under the key `chesslense.frontend-state` via `savePersistedAppState()` and restored via `loadPersistedAppState()`.
 
 ### Evaluation format
 - The server returns `evaluation: { type: "cp" | "mate", value: number }` where `value` is always from the **side to move**'s perspective (raw Stockfish output).
-- `EvaluationBar.jsx` normalizes it to White's perspective via `normalizeEvaluationForWhite(evaluation, turn)` before rendering. Always pass `turn` (from `game.turn()`) when displaying evaluations.
+- `EvaluationBar.jsx` uses helpers from `src/utils/evaluation.js` to normalize it to White's perspective via `normalizeEvaluationForWhite(evaluation, turn)` before rendering. Always pass `turn` (from `game.turn()`) when displaying evaluations.
 - Centipawn values use `value / 100` to convert to pawns.
+
+### Logic tests
+- Frontend unit tests live next to the extracted helper modules in `src/utils/*.test.js`.
+- Prefer adding tests for pure helpers in `src/utils/` before reaching for component-level tests.
 
 ### Styling
 - Components use **plain JavaScript style objects** (defined as `const xStyle = { ... }` at the top of the file) — no CSS modules, no Tailwind, no styled-components.

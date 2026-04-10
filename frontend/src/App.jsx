@@ -3,6 +3,20 @@ import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import EvaluationBar from "./components/EvaluationBar.jsx";
 import MoveHistory from "./components/MoveHistory.jsx";
+import {
+  DEFAULT_SHORTCUT_CONFIG,
+  DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
+  SHORTCUT_ACTION_ORDER,
+  cloneGame,
+  createGameFromPgn,
+  getShortcutDisplayLabel,
+  loadPersistedAppState,
+  matchesShortcut,
+  normalizeShortcutConfig,
+  parseGameFromPgn,
+  savePersistedAppState,
+  serializeMove,
+} from "./utils/appState.js";
 import "./App.css";
 
 const shortcutOverlayStyle = {
@@ -106,236 +120,6 @@ const modalErrorStyle = {
   marginTop: "0.75rem",
   color: "#dc2626",
 };
-
-const SHORTCUT_ACTION_ORDER = [
-  "openShortcutsPopup",
-  "goToStart",
-  "undoMove",
-  "redoMove",
-  "goToEnd",
-  "flipBoard",
-  "closeShortcutsPopup",
-];
-
-const SHORTCUT_DISPLAY_LABELS = {
-  ArrowLeft: "←",
-  ArrowRight: "→",
-  ArrowUp: "↑",
-  ArrowDown: "↓",
-  Escape: "Esc",
-  " ": "Space",
-};
-
-const DEFAULT_SHORTCUT_CONFIG = {
-  openShortcutsPopup: {
-    label: "Open shortcuts popup",
-    keys: ["?"],
-  },
-  goToStart: {
-    label: "Go to start",
-    keys: ["ArrowUp"],
-  },
-  undoMove: {
-    label: "Undo move",
-    keys: ["ArrowLeft"],
-  },
-  redoMove: {
-    label: "Redo move",
-    keys: ["ArrowRight"],
-  },
-  goToEnd: {
-    label: "Go to end",
-    keys: ["ArrowDown"],
-  },
-  flipBoard: {
-    label: "Flip board",
-    keys: ["ü"],
-  },
-  closeShortcutsPopup: {
-    label: "Close popup",
-    keys: ["Escape"],
-  },
-};
-
-const DEFAULT_SHORTCUT_CONFIG_SIGNATURE = JSON.stringify(
-  DEFAULT_SHORTCUT_CONFIG,
-);
-
-const FRONTEND_STATE_STORAGE_KEY = "chesslense.frontend-state";
-
-function normalizeShortcutConfig(config) {
-  if (!config || typeof config !== "object") {
-    return DEFAULT_SHORTCUT_CONFIG;
-  }
-
-  return SHORTCUT_ACTION_ORDER.reduce((normalizedConfig, actionName) => {
-    const defaultShortcut = DEFAULT_SHORTCUT_CONFIG[actionName];
-    const candidateShortcut = config[actionName];
-    const shortcutKeys =
-      Array.isArray(candidateShortcut?.keys) &&
-        candidateShortcut.keys.every(
-          (shortcutKey) =>
-            typeof shortcutKey === "string" && shortcutKey.trim().length > 0,
-        )
-        ? candidateShortcut.keys
-        : defaultShortcut.keys;
-
-    normalizedConfig[actionName] = {
-      label:
-        typeof candidateShortcut?.label === "string" &&
-          candidateShortcut.label.trim().length > 0
-          ? candidateShortcut.label
-          : defaultShortcut.label,
-      keys: shortcutKeys,
-    };
-
-    return normalizedConfig;
-  }, {});
-}
-
-function matchesShortcut(event, shortcutKeys) {
-  return shortcutKeys.some((shortcutKey) => event.key === shortcutKey);
-}
-
-function getShortcutDisplayLabel(shortcutKey) {
-  return SHORTCUT_DISPLAY_LABELS[shortcutKey] || shortcutKey;
-}
-
-function parseGameFromPgn(pgn, options = {}) {
-  const { allowEmpty = true } = options;
-
-  if (typeof pgn !== "string" || !pgn.trim()) {
-    return allowEmpty
-      ? { game: new Chess(), error: null }
-      : { game: null, error: "Paste a PGN to import." };
-  }
-
-  const next = new Chess();
-
-  try {
-    const didLoad = next.loadPgn(pgn.trim());
-
-    if (didLoad === false) {
-      return {
-        game: null,
-        error: "Invalid PGN. Please check the notation and try again.",
-      };
-    }
-
-    return { game: next, error: null };
-  } catch {
-    return {
-      game: null,
-      error: "Invalid PGN. Please check the notation and try again.",
-    };
-  }
-}
-
-function createGameFromPgn(pgn) {
-  const { game } = parseGameFromPgn(pgn);
-  return game ?? new Chess();
-}
-
-function loadPersistedAppState() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const rawState = window.localStorage.getItem(FRONTEND_STATE_STORAGE_KEY);
-
-    if (!rawState) {
-      return null;
-    }
-
-    const parsedState = JSON.parse(rawState);
-
-    if (!parsedState || typeof parsedState !== "object") {
-      return null;
-    }
-
-    const redoStack = Array.isArray(parsedState.redoStack)
-      ? parsedState.redoStack.reduce((moves, move) => {
-        if (
-          !move ||
-          typeof move !== "object" ||
-          typeof move.from !== "string" ||
-          typeof move.to !== "string"
-        ) {
-          return moves;
-        }
-
-        moves.push({
-          from: move.from,
-          to: move.to,
-          ...(typeof move.promotion === "string"
-            ? { promotion: move.promotion }
-            : {}),
-        });
-
-        return moves;
-      }, [])
-      : [];
-
-    return {
-      gamePgn:
-        typeof parsedState.gamePgn === "string" ? parsedState.gamePgn : "",
-      redoStack,
-      boardOrientation:
-        parsedState.boardOrientation === "black" ? "black" : "white",
-      showMoveHistory:
-        typeof parsedState.showMoveHistory === "boolean"
-          ? parsedState.showMoveHistory
-          : true,
-      showEngineWindow:
-        typeof parsedState.showEngineWindow === "boolean"
-          ? parsedState.showEngineWindow
-          : true,
-      showEvaluationBar:
-        typeof parsedState.showEvaluationBar === "boolean"
-          ? parsedState.showEvaluationBar
-          : true,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function cloneGame(sourceGame) {
-  const next = new Chess();
-
-  if (sourceGame.history().length) {
-    next.loadPgn(sourceGame.pgn());
-  }
-
-  return next;
-}
-
-function serializeMove(move) {
-  return {
-    from: move.from,
-    to: move.to,
-    ...(move.promotion ? { promotion: move.promotion } : {}),
-  };
-}
-
-function serializePersistedAppState({
-  game,
-  redoStack,
-  boardOrientation,
-  showMoveHistory,
-  showEngineWindow,
-  showEvaluationBar,
-}) {
-  return JSON.stringify({
-    gamePgn: game.pgn(),
-    redoStack: redoStack.map(serializeMove),
-    boardOrientation,
-    showMoveHistory,
-    showEngineWindow,
-    showEvaluationBar,
-  });
-}
 
 function App() {
   const persistedAppState = useMemo(() => loadPersistedAppState(), []);
@@ -581,6 +365,7 @@ function App() {
       console.error("Failed to copy FEN to clipboard:", error);
     }
   }
+
   useEffect(() => {
     if (!copyNotification) {
       return undefined;
@@ -596,17 +381,15 @@ function App() {
   }, [copyNotification]);
 
   useEffect(() => {
-    const serializedState = serializePersistedAppState({
-      game,
-      redoStack,
-      boardOrientation,
-      showMoveHistory,
-      showEngineWindow,
-      showEvaluationBar,
-    });
-
     try {
-      window.localStorage.setItem(FRONTEND_STATE_STORAGE_KEY, serializedState);
+      savePersistedAppState({
+        game,
+        redoStack,
+        boardOrientation,
+        showMoveHistory,
+        showEngineWindow,
+        showEvaluationBar,
+      });
     } catch (error) {
       console.error("Failed to persist app state:", error);
     }
