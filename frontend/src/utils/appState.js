@@ -1,4 +1,5 @@
 import { Chess } from "chess.js";
+import { normalizeImportedPgnData } from "./annotatedPgn.js";
 
 export const SHORTCUT_ACTION_ORDER = [
   "openShortcutsPopup",
@@ -195,6 +196,15 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showEvaluationBar === "boolean"
           ? parsedState.showEvaluationBar
           : true,
+      showComments:
+        typeof parsedState.showComments === "boolean"
+          ? parsedState.showComments
+          : true,
+      showImportedPgn:
+        typeof parsedState.showImportedPgn === "boolean"
+          ? parsedState.showImportedPgn
+          : true,
+      importedPgnData: normalizeImportedPgnData(parsedState.importedPgnData),
     };
   } catch {
     return null;
@@ -226,6 +236,9 @@ export function serializePersistedAppState({
   showMoveHistory,
   showEngineWindow,
   showEvaluationBar,
+  showComments,
+  showImportedPgn,
+  importedPgnData,
 }) {
   return JSON.stringify({
     gamePgn: game.pgn(),
@@ -234,6 +247,9 @@ export function serializePersistedAppState({
     showMoveHistory,
     showEngineWindow,
     showEvaluationBar,
+    showComments,
+    showImportedPgn,
+    importedPgnData: normalizeImportedPgnData(importedPgnData),
   });
 }
 

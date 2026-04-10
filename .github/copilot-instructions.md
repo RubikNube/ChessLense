@@ -32,6 +32,7 @@ ChessLense/
 │           └── MoveHistory.jsx
 │       └── utils/
 │           ├── appState.js     # PGN, persistence, shortcut, and move helpers
+│           ├── annotatedPgn.js  # Annotated PGN header/comment extraction
 │           └── evaluation.js   # Evaluation normalization/formatting helpers
 └── server/
     └── index.js                # Express app, single POST /api/analyze endpoint
@@ -47,7 +48,8 @@ ChessLense/
 - The `chess.js` `Chess` instance (`game`) is the single source of truth for board state.
 - All mutations go through `safeGameMutate(modify)`: it clones the game via `cloneGame()` from `src/utils/appState.js`, calls `modify(next)`, and only calls `setGame` if the mutation succeeds.
 - Redo is implemented manually as a `redoStack` of `{ from, to, promotion? }` move objects, because `chess.js` has no built-in redo.
-- Frontend state (game PGN, redo stack, orientation, panel visibility) is persisted to `localStorage` under the key `chesslense.frontend-state` via `savePersistedAppState()` and restored via `loadPersistedAppState()`.
+- Frontend state (game PGN, redo stack, orientation, panel visibility, and imported PGN metadata/comments) is persisted to `localStorage` under the key `chesslense.frontend-state` via `savePersistedAppState()` and restored via `loadPersistedAppState()`.
+- Annotated PGN import uses `parseAnnotatedPgn()` from `src/utils/annotatedPgn.js`: `chess.js` still reconstructs the game state, while headers/comments/variation snippets are preserved separately in `importedPgnData`.
 
 ### Evaluation format
 - The server returns `evaluation: { type: "cp" | "mate", value: number }` where `value` is always from the **side to move**'s perspective (raw Stockfish output).

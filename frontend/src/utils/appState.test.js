@@ -69,6 +69,15 @@ describe("persisted app state", () => {
         showMoveHistory: false,
         showEngineWindow: "yes",
         showEvaluationBar: true,
+        showComments: false,
+        showImportedPgn: false,
+        importedPgnData: {
+          rawPgn: "[Event \"Test\"] 1. e4",
+          headers: [{ name: "Event", value: "Test" }, { foo: "bar" }],
+          mainlineComments: [{ comment: "First note", ply: 1, moveNumber: 1 }],
+          additionalComments: [{ text: "Variation note", inVariation: true }],
+          variationSnippets: ["1... c5", 9],
+        },
       }),
     );
 
@@ -82,6 +91,24 @@ describe("persisted app state", () => {
       showMoveHistory: false,
       showEngineWindow: true,
       showEvaluationBar: true,
+      showComments: false,
+      showImportedPgn: false,
+      importedPgnData: {
+        rawPgn: "[Event \"Test\"] 1. e4",
+        headers: [{ name: "Event", value: "Test" }],
+        mainlineComments: [
+          {
+            comment: "First note",
+            fen: null,
+            ply: 1,
+            moveNumber: 1,
+            side: null,
+            san: null,
+          },
+        ],
+        additionalComments: [{ text: "Variation note", inVariation: true }],
+        variationSnippets: ["1... c5"],
+      },
     });
   });
 
@@ -104,6 +131,15 @@ describe("persisted app state", () => {
         showMoveHistory: false,
         showEngineWindow: true,
         showEvaluationBar: false,
+        showComments: true,
+        showImportedPgn: false,
+        importedPgnData: {
+          rawPgn: "[Event \"Test\"] 1. e4",
+          headers: [{ name: "Event", value: "Test" }],
+          mainlineComments: [{ comment: "First note", ply: 1, moveNumber: 1 }],
+          additionalComments: [{ text: "Variation note", inVariation: true }],
+          variationSnippets: ["1... c5"],
+        },
       },
       storage,
     );
@@ -116,6 +152,24 @@ describe("persisted app state", () => {
       showMoveHistory: false,
       showEngineWindow: true,
       showEvaluationBar: false,
+      showComments: true,
+      showImportedPgn: false,
+      importedPgnData: {
+        rawPgn: "[Event \"Test\"] 1. e4",
+        headers: [{ name: "Event", value: "Test" }],
+        mainlineComments: [
+          {
+            comment: "First note",
+            fen: null,
+            ply: 1,
+            moveNumber: 1,
+            side: null,
+            san: null,
+          },
+        ],
+        additionalComments: [{ text: "Variation note", inVariation: true }],
+        variationSnippets: ["1... c5"],
+      },
     });
   });
 });

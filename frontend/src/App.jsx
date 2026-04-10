@@ -13,10 +13,10 @@ import {
   loadPersistedAppState,
   matchesShortcut,
   normalizeShortcutConfig,
-  parseGameFromPgn,
   savePersistedAppState,
   serializeMove,
 } from "./utils/appState.js";
+import { parseAnnotatedPgn } from "./utils/annotatedPgn.js";
 import "./App.css";
 
 const shortcutOverlayStyle = {
@@ -121,6 +121,47 @@ const modalErrorStyle = {
   color: "#dc2626",
 };
 
+function formatPgnCommentLabel(comment) {
+  if (!comment || typeof comment !== "object") {
+    return "Annotation";
+  }
+
+  if (comment.ply === 0) {
+    return "Game introduction";
+  }
+
+  if (
+    typeof comment.moveNumber === "number" &&
+    comment.moveNumber > 0 &&
+    typeof comment.san === "string" &&
+    comment.san
+  ) {
+    return comment.side === "black"
+      ? `${comment.moveNumber}... ${comment.san}`
+      : `${comment.moveNumber}. ${comment.san}`;
+  }
+
+  return "Annotation";
+}
+
+function isLinkValue(value) {
+  return /^https?:\/\//i.test(value);
+}
+
+function getCurrentMoveLabel(moveHistory) {
+  if (!Array.isArray(moveHistory) || moveHistory.length === 0) {
+    return "Game introduction";
+  }
+
+  const lastMove = moveHistory[moveHistory.length - 1];
+  const moveNumber = Math.floor((moveHistory.length - 1) / 2) + 1;
+  const isBlackMove = moveHistory.length % 2 === 0;
+
+  return isBlackMove
+    ? `${moveNumber}... ${lastMove}`
+    : `${moveNumber}. ${lastMove}`;
+}
+
 function App() {
   const persistedAppState = useMemo(() => loadPersistedAppState(), []);
   const [game, setGame] = useState(() =>
@@ -139,6 +180,12 @@ function App() {
   const [showEvaluationBar, setShowEvaluationBar] = useState(
     () => persistedAppState?.showEvaluationBar ?? true,
   );
+  const [showComments, setShowComments] = useState(
+    () => persistedAppState?.showComments ?? true,
+  );
+  const [showImportedPgn, setShowImportedPgn] = useState(
+    () => persistedAppState?.showImportedPgn ?? true,
+  );
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState(
@@ -151,11 +198,15 @@ function App() {
   const [copyNotification, setCopyNotification] = useState("");
   const [importPgnValue, setImportPgnValue] = useState("");
   const [importPgnError, setImportPgnError] = useState("");
+  const [importedPgnData, setImportedPgnData] = useState(
+    () => persistedAppState?.importedPgnData ?? null,
+  );
   const shortcutConfigSignatureRef = useRef(
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
 
   const fen = useMemo(() => game.fen(), [game]);
+  const moveHistory = useMemo(() => game.history(), [game]);
   const canUndo = game.history().length > 0;
   const canRedo = redoStack.length > 0;
   const shortcutEntries = useMemo(
@@ -165,6 +216,30 @@ function App() {
         ...shortcutConfig[actionName],
       })),
     [shortcutConfig],
+  );
+  const currentPositionComments = useMemo(
+    () =>
+      importedPgnData?.mainlineComments?.filter(
+        (commentEntry) => commentEntry.fen === fen,
+      ) ?? [],
+    [fen, importedPgnData],
+  );
+  const hasImportedPgnDetails = useMemo(
+    () =>
+      !!(
+        importedPgnData &&
+        (
+          importedPgnData.headers.length ||
+          importedPgnData.mainlineComments.length ||
+          importedPgnData.additionalComments.length ||
+          importedPgnData.variationSnippets.length
+        )
+      ),
+    [importedPgnData],
+  );
+  const currentMoveLabel = useMemo(
+    () => getCurrentMoveLabel(moveHistory),
+    [moveHistory],
   );
 
   function safeGameMutate(modify) {
@@ -309,10 +384,10 @@ function App() {
   }, []);
 
   const openImportPgnPopup = useCallback(() => {
-    setImportPgnValue(game.pgn());
+    setImportPgnValue(importedPgnData?.rawPgn ?? game.pgn());
     setImportPgnError("");
     setShowImportPgnPopup(true);
-  }, [game]);
+  }, [game, importedPgnData]);
 
   const closeImportPgnPopup = useCallback(() => {
     setShowImportPgnPopup(false);
@@ -321,7 +396,11 @@ function App() {
   }, []);
 
   function importPgn() {
-    const { game: importedGame, error } = parseGameFromPgn(importPgnValue, {
+    const {
+      game: importedGame,
+      importedPgnData: nextImportedPgnData,
+      error,
+    } = parseAnnotatedPgn(importPgnValue, {
       allowEmpty: false,
     });
 
@@ -336,6 +415,7 @@ function App() {
     setRedoStack([]);
     setEngineResult(null);
     setEvaluationResult(null);
+    setImportedPgnData(nextImportedPgnData);
     closeImportPgnPopup();
   }
 
@@ -389,6 +469,9 @@ function App() {
         showMoveHistory,
         showEngineWindow,
         showEvaluationBar,
+        showComments,
+        showImportedPgn,
+        importedPgnData,
       });
     } catch (error) {
       console.error("Failed to persist app state:", error);
@@ -396,9 +479,12 @@ function App() {
   }, [
     boardOrientation,
     game,
+    importedPgnData,
     redoStack,
     showEngineWindow,
     showEvaluationBar,
+    showComments,
+    showImportedPgn,
     showMoveHistory,
   ]);
 
@@ -520,6 +606,7 @@ function App() {
     setRedoStack([]);
     setEngineResult(null);
     setEvaluationResult(null);
+    setImportedPgnData(null);
   }
 
   function toggleMoveHistory() {
@@ -532,6 +619,14 @@ function App() {
 
   function toggleEvaluationBar() {
     setShowEvaluationBar((currentValue) => !currentValue);
+  }
+
+  function toggleComments() {
+    setShowComments((currentValue) => !currentValue);
+  }
+
+  function toggleImportedPgn() {
+    setShowImportedPgn((currentValue) => !currentValue);
   }
 
   const toggleBoardOrientation = useCallback(() => {
@@ -747,6 +842,20 @@ function App() {
               >
                 {showEvaluationBar ? "Hide Evaluation Bar" : "Show Evaluation Bar"}
               </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(toggleComments)}
+              >
+                {showComments ? "Hide Comments" : "Show Comments"}
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(toggleImportedPgn)}
+              >
+                {showImportedPgn ? "Hide Imported PGN" : "Show Imported PGN"}
+              </button>
             </div>
           )}
         </div>
@@ -813,6 +922,116 @@ function App() {
       </div>
 
       <div className="side-panel">
+        {showComments && importedPgnData && (
+          <div className="card">
+            <h2>Comments</h2>
+            <p className="current-move-label">{currentMoveLabel}</p>
+            {currentPositionComments.length > 0 ? (
+              <ul className="annotation-list">
+                {currentPositionComments.map((commentEntry, index) => (
+                  <li
+                    key={`${commentEntry.fen ?? "current"}-${index}`}
+                    className="annotation-item"
+                  >
+                    <p>{commentEntry.comment}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="annotation-empty">
+                No annotation is available for the current move.
+              </p>
+            )}
+          </div>
+        )}
+
+        {showImportedPgn && hasImportedPgnDetails && (
+          <div className="card">
+            <h2>Imported PGN</h2>
+            {!!importedPgnData.headers.length && (
+              <dl className="pgn-metadata-list">
+                {importedPgnData.headers.map(({ name, value }) => (
+                  <div key={`${name}-${value}`} className="pgn-metadata-row">
+                    <dt>{name}</dt>
+                    <dd>
+                      {isLinkValue(value) ? (
+                        <a
+                          href={value}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="pgn-link"
+                        >
+                          {value}
+                        </a>
+                      ) : (
+                        value
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+
+            {!!importedPgnData.mainlineComments.length && (
+              <div className="annotation-section">
+                <h3>All Main Line Notes</h3>
+                <ul className="annotation-list">
+                  {importedPgnData.mainlineComments.map((commentEntry, index) => (
+                    <li
+                      key={`${commentEntry.fen ?? "mainline"}-${index}`}
+                      className="annotation-item"
+                    >
+                      <span className="annotation-label">
+                        {formatPgnCommentLabel(commentEntry)}
+                      </span>
+                      <p>{commentEntry.comment}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {!!importedPgnData.additionalComments.length && (
+              <div className="annotation-section">
+                <h3>Additional Notes</h3>
+                <ul className="annotation-list">
+                  {importedPgnData.additionalComments.map((commentEntry, index) => (
+                    <li
+                      key={`${commentEntry.text}-${index}`}
+                      className="annotation-item"
+                    >
+                      <span className="annotation-label">
+                        {commentEntry.inVariation ? "Variation note" : "General note"}
+                      </span>
+                      <p>{commentEntry.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {!!importedPgnData.variationSnippets.length && (
+              <details className="annotation-section">
+                <summary>
+                  Variation snippets ({importedPgnData.variationSnippets.length})
+                </summary>
+                <ul className="variation-list">
+                  {importedPgnData.variationSnippets.map((snippet, index) => (
+                    <li key={`${snippet}-${index}`}>
+                      <code>{snippet}</code>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
+            <details className="annotation-section">
+              <summary>Raw imported PGN</summary>
+              <code>{importedPgnData.rawPgn}</code>
+            </details>
+          </div>
+        )}
+
         {showEngineWindow && (
           <div className="card">
             <h2>Engine</h2>
