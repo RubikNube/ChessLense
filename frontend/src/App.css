@@ -15,15 +15,25 @@ body {
 
 .app {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(320px, 720px) 360px;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
   padding: 24px;
   box-sizing: border-box;
 }
 
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns:
+    minmax(360px, 1.45fr)
+    minmax(280px, 0.85fr)
+    minmax(280px, 0.85fr);
+  gap: 24px;
+  align-items: start;
+}
+
 .top-menu {
-  grid-column: 1 / -1;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -73,22 +83,25 @@ body {
 
 .board-panel {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  min-width: 0;
 }
 
 .board-and-evaluation {
   width: 100%;
-  max-width: 720px;
+  max-width: min(100%, 860px);
   display: flex;
   align-items: stretch;
   justify-content: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .chessboard-wrapper {
   width: 100%;
-  max-width: 720px;
+  max-width: 800px;
+  min-width: 0;
 }
 
 .evaluation-bar-container {
@@ -155,10 +168,11 @@ body {
   color: #e5e7eb;
 }
 
-.side-panel {
+.info-column {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .card {
@@ -394,4 +408,30 @@ code {
   border-radius: 10px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   z-index: 1000;
+}
+
+@media (max-width: 1280px) {
+  .workspace {
+    grid-template-columns: minmax(320px, 1.35fr) minmax(260px, 1fr);
+  }
+
+  .board-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 860px) {
+  .app {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .board-panel {
+    grid-column: auto;
+  }
 }

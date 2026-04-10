@@ -897,188 +897,192 @@ function App() {
         </div>
       </nav>
 
-      <div className="board-panel">
-        <div className="board-and-evaluation">
-          <div className="chessboard-wrapper">
-            <Chessboard
-              position={fen}
-              onPieceDrop={handlePieceDrop}
-              boardOrientation={boardOrientation}
-              options={{
-                position: fen,
-                onPieceDrop: handlePieceDrop,
-                boardOrientation,
-              }}
-            />
+      <div className="workspace">
+        <div className="board-panel">
+          <div className="board-and-evaluation">
+            <div className="chessboard-wrapper">
+              <Chessboard
+                position={fen}
+                onPieceDrop={handlePieceDrop}
+                boardOrientation={boardOrientation}
+                options={{
+                  position: fen,
+                  onPieceDrop: handlePieceDrop,
+                  boardOrientation,
+                }}
+              />
+            </div>
+            {showEvaluationBar && (
+              <EvaluationBar
+                evaluation={evaluationResult?.evaluation}
+                boardOrientation={boardOrientation}
+                turn={game.turn()}
+              />
+            )}
           </div>
-          {showEvaluationBar && (
-            <EvaluationBar
-              evaluation={evaluationResult?.evaluation}
-              boardOrientation={boardOrientation}
-              turn={game.turn()}
+        </div>
+
+        <div className="info-column info-column-navigation">
+          {showMoveHistory && (
+            <MoveHistory
+              moveHistory={moveHistory}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={undoMove}
+              onRedo={redoMove}
+              onGoToStart={goToStart}
+              onGoToEnd={goToEnd}
             />
           )}
         </div>
-      </div>
 
-      <div className="side-panel">
-        {showComments && importedPgnData && (
-          <div className="card">
-            <h2>Comments</h2>
-            <p className="current-move-label">{currentMoveLabel}</p>
-            {currentPositionComments.length > 0 ? (
-              <ul className="annotation-list">
-                {currentPositionComments.map((commentEntry, index) => (
-                  <li
-                    key={`${commentEntry.fen ?? "current"}-${index}`}
-                    className="annotation-item"
-                  >
-                    <p>{commentEntry.comment}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="annotation-empty">
-                No annotation is available for the current move.
-              </p>
-            )}
-          </div>
-        )}
+        <div className="info-column info-column-reference">
+          {showEngineWindow && (
+            <div className="card">
+              <h2>Engine</h2>
+              {engineResult?.error && <p className="error">{engineResult.error}</p>}
+              {!engineResult && !loading && <p>No analysis yet.</p>}
+              {engineResult?.bestmove && (
+                <>
+                  <p>
+                    <strong>Best move:</strong> {engineResult.bestmove}
+                  </p>
+                  <p>
+                    <strong>Evaluation:</strong>{" "}
+                    {engineResult.evaluation
+                      ? `${engineResult.evaluation.type} ${engineResult.evaluation.value}`
+                      : "n/a"}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
-        {showImportedPgn && hasImportedPgnDetails && (
-          <div className="card">
-            <h2>Imported PGN</h2>
-            {!!importedPgnData.headers.length && (
-              <dl className="pgn-metadata-list">
-                {importedPgnData.headers.map(({ name, value }) => (
-                  <div key={`${name}-${value}`} className="pgn-metadata-row">
-                    <dt>{name}</dt>
-                    <dd>
-                      {isLinkValue(value) ? (
-                        <a
-                          href={value}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="pgn-link"
-                        >
-                          {value}
-                        </a>
-                      ) : (
-                        value
-                      )}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-
-            {!!importedPgnData.mainlineComments.length && (
-              <div className="annotation-section">
-                <h3>All Main Line Notes</h3>
+          {showComments && importedPgnData && (
+            <div className="card">
+              <h2>Comments</h2>
+              <p className="current-move-label">{currentMoveLabel}</p>
+              {currentPositionComments.length > 0 ? (
                 <ul className="annotation-list">
-                  {importedPgnData.mainlineComments.map((commentEntry, index) => (
+                  {currentPositionComments.map((commentEntry, index) => (
                     <li
-                      key={`${commentEntry.fen ?? "mainline"}-${index}`}
+                      key={`${commentEntry.fen ?? "current"}-${index}`}
                       className="annotation-item"
                     >
-                      <span className="annotation-label">
-                        {formatPgnCommentLabel(commentEntry)}
-                      </span>
                       <p>{commentEntry.comment}</p>
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
+              ) : (
+                <p className="annotation-empty">
+                  No annotation is available for the current move.
+                </p>
+              )}
+            </div>
+          )}
 
-            {!!importedPgnData.additionalComments.length && (
-              <div className="annotation-section">
-                <h3>Additional Notes</h3>
-                <ul className="annotation-list">
-                  {importedPgnData.additionalComments.map((commentEntry, index) => (
-                    <li
-                      key={`${commentEntry.text}-${index}`}
-                      className="annotation-item"
-                    >
-                      <span className="annotation-label">
-                        {commentEntry.inVariation ? "Variation note" : "General note"}
-                      </span>
-                      <p>{commentEntry.text}</p>
-                    </li>
+          {showVariants && (
+            <VariantsView
+              variantLines={variantLines}
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onSelectLine={selectVariant}
+              onPromoteLine={promoteVariant}
+              onDemoteLine={demoteVariant}
+              onUndo={undoMove}
+              onRedo={redoMove}
+              onGoToStart={goToStart}
+              onGoToEnd={goToEnd}
+            />
+          )}
+
+          {showImportedPgn && hasImportedPgnDetails && (
+            <div className="card">
+              <h2>Imported PGN</h2>
+              {!!importedPgnData.headers.length && (
+                <dl className="pgn-metadata-list">
+                  {importedPgnData.headers.map(({ name, value }) => (
+                    <div key={`${name}-${value}`} className="pgn-metadata-row">
+                      <dt>{name}</dt>
+                      <dd>
+                        {isLinkValue(value) ? (
+                          <a
+                            href={value}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="pgn-link"
+                          >
+                            {value}
+                          </a>
+                        ) : (
+                          value
+                        )}
+                      </dd>
+                    </div>
                   ))}
-                </ul>
-              </div>
-            )}
+                </dl>
+              )}
 
-            {!!importedPgnData.variationSnippets.length && (
+              {!!importedPgnData.mainlineComments.length && (
+                <div className="annotation-section">
+                  <h3>All Main Line Notes</h3>
+                  <ul className="annotation-list">
+                    {importedPgnData.mainlineComments.map((commentEntry, index) => (
+                      <li
+                        key={`${commentEntry.fen ?? "mainline"}-${index}`}
+                        className="annotation-item"
+                      >
+                        <span className="annotation-label">
+                          {formatPgnCommentLabel(commentEntry)}
+                        </span>
+                        <p>{commentEntry.comment}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!!importedPgnData.additionalComments.length && (
+                <div className="annotation-section">
+                  <h3>Additional Notes</h3>
+                  <ul className="annotation-list">
+                    {importedPgnData.additionalComments.map((commentEntry, index) => (
+                      <li
+                        key={`${commentEntry.text}-${index}`}
+                        className="annotation-item"
+                      >
+                        <span className="annotation-label">
+                          {commentEntry.inVariation ? "Variation note" : "General note"}
+                        </span>
+                        <p>{commentEntry.text}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!!importedPgnData.variationSnippets.length && (
+                <details className="annotation-section">
+                  <summary>
+                    Variation snippets ({importedPgnData.variationSnippets.length})
+                  </summary>
+                  <ul className="variation-list">
+                    {importedPgnData.variationSnippets.map((snippet, index) => (
+                      <li key={`${snippet}-${index}`}>
+                        <code>{snippet}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+
               <details className="annotation-section">
-                <summary>
-                  Variation snippets ({importedPgnData.variationSnippets.length})
-                </summary>
-                <ul className="variation-list">
-                  {importedPgnData.variationSnippets.map((snippet, index) => (
-                    <li key={`${snippet}-${index}`}>
-                      <code>{snippet}</code>
-                    </li>
-                  ))}
-                </ul>
+                <summary>Raw imported PGN</summary>
+                <code>{importedPgnData.rawPgn}</code>
               </details>
-            )}
-
-            <details className="annotation-section">
-              <summary>Raw imported PGN</summary>
-              <code>{importedPgnData.rawPgn}</code>
-            </details>
-          </div>
-        )}
-
-        {showEngineWindow && (
-          <div className="card">
-            <h2>Engine</h2>
-            {engineResult?.error && <p className="error">{engineResult.error}</p>}
-            {!engineResult && !loading && <p>No analysis yet.</p>}
-            {engineResult?.bestmove && (
-              <>
-                <p>
-                  <strong>Best move:</strong> {engineResult.bestmove}
-                </p>
-                <p>
-                  <strong>Evaluation:</strong>{" "}
-                  {engineResult.evaluation
-                    ? `${engineResult.evaluation.type} ${engineResult.evaluation.value}`
-                    : "n/a"}
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-        {showMoveHistory && (
-          <MoveHistory
-            moveHistory={moveHistory}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={undoMove}
-            onRedo={redoMove}
-            onGoToStart={goToStart}
-            onGoToEnd={goToEnd}
-          />
-        )}
-
-        {showVariants && (
-          <VariantsView
-            variantLines={variantLines}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onSelectLine={selectVariant}
-            onPromoteLine={promoteVariant}
-            onDemoteLine={demoteVariant}
-            onUndo={undoMove}
-            onRedo={redoMove}
-            onGoToStart={goToStart}
-            onGoToEnd={goToEnd}
-          />
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       {showImportPgnPopup && (
