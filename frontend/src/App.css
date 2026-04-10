@@ -354,6 +354,11 @@ code {
   white-space: nowrap;
 }
 
+.search-result-source {
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
 .move-history {
   list-style: none;
   margin: 0;

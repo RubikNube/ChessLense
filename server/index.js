@@ -1,7 +1,9 @@
 const express = require("express");
 const cors = require("cors");
 const { spawn } = require("child_process");
-const { HttpError, getGame, searchGames } = require("./lichess");
+const { HttpError } = require("./httpError");
+const { getGame: getLichessGame, searchGames: searchLichessGames } = require("./lichess");
+const { getGame: getOtbGame, searchGames: searchOtbGames } = require("./otb");
 
 const app = express();
 const PORT = 3001;
@@ -138,7 +140,7 @@ app.post("/api/analyze", async (req, res) => {
 
 app.get("/api/lichess/games", async (req, res) => {
 	try {
-		const { search, games } = await searchGames(req.query || {});
+		const { search, games } = await searchLichessGames(req.query || {});
 
 		return res.json({
 			search,
@@ -151,7 +153,30 @@ app.get("/api/lichess/games", async (req, res) => {
 
 app.get("/api/lichess/games/:gameId", async (req, res) => {
 	try {
-		const game = await getGame(req.params.gameId);
+		const game = await getLichessGame(req.params.gameId);
+
+		return res.json(game);
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.get("/api/otb/games", async (req, res) => {
+	try {
+		const { search, games } = await searchOtbGames(req.query || {});
+
+		return res.json({
+			search,
+			games,
+		});
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.get("/api/otb/games/:gameId", async (req, res) => {
+	try {
+		const game = await getOtbGame(req.params.gameId);
 
 		return res.json(game);
 	} catch (error) {

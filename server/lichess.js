@@ -1,3 +1,5 @@
+const { HttpError } = require("./httpError");
+
 const LICHESS_API_BASE_URL = "https://lichess.org";
 const DEFAULT_MAX_RESULTS = 10;
 const MAX_RESULTS_LIMIT = 50;
@@ -19,15 +21,6 @@ const PERF_TYPES = new Set([
 	"racingKings",
 	"threeCheck",
 ]);
-
-class HttpError extends Error {
-	constructor(status, code, message) {
-		super(message);
-		this.name = "HttpError";
-		this.status = status;
-		this.code = code;
-	}
-}
 
 function normalizeString(value) {
 	return typeof value === "string" ? value.trim() : "";

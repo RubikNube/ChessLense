@@ -23,6 +23,13 @@ import {
   LICHESS_PERF_TYPE_OPTIONS,
 } from "./utils/lichessSearch.js";
 import {
+  buildOtbSearchQuery,
+  DEFAULT_OTB_SEARCH_FILTERS,
+  formatOtbGameDate,
+  formatOtbResult,
+  OTB_RESULT_OPTIONS,
+} from "./utils/otbSearch.js";
+import {
   applyMoveToVariantTree,
   buildGameToNode,
   canRedoInVariantTree,
@@ -251,6 +258,7 @@ function App() {
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
   const [showLichessSearchPopup, setShowLichessSearchPopup] = useState(false);
+  const [showOtbSearchPopup, setShowOtbSearchPopup] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState(
     () => persistedAppState?.boardOrientation ?? "white",
   );
@@ -267,6 +275,15 @@ function App() {
   const [lichessSearchLoading, setLichessSearchLoading] = useState(false);
   const [lichessImportingGameId, setLichessImportingGameId] = useState("");
   const [hasSearchedLichess, setHasSearchedLichess] = useState(false);
+  const [otbSearchFilters, setOtbSearchFilters] = useState(
+    DEFAULT_OTB_SEARCH_FILTERS,
+  );
+  const [otbSearchResults, setOtbSearchResults] = useState([]);
+  const [otbSearchError, setOtbSearchError] = useState("");
+  const [otbImportError, setOtbImportError] = useState("");
+  const [otbSearchLoading, setOtbSearchLoading] = useState(false);
+  const [otbImportingGameId, setOtbImportingGameId] = useState("");
+  const [hasSearchedOtb, setHasSearchedOtb] = useState(false);
   const [boardPanelHeight, setBoardPanelHeight] = useState(0);
   const [importedPgnData, setImportedPgnData] = useState(
     () => persistedAppState?.importedPgnData ?? null,
@@ -487,6 +504,19 @@ function App() {
     setLichessImportingGameId("");
   }, []);
 
+  const openOtbSearchPopup = useCallback(() => {
+    setShowOtbSearchPopup(true);
+    setOtbSearchError("");
+    setOtbImportError("");
+  }, []);
+
+  const closeOtbSearchPopup = useCallback(() => {
+    setShowOtbSearchPopup(false);
+    setOtbSearchError("");
+    setOtbImportError("");
+    setOtbImportingGameId("");
+  }, []);
+
   function importPgn() {
     const nextError = applyImportedPgn(importPgnValue);
 
@@ -545,6 +575,56 @@ function App() {
       setLichessImportError(error.message);
     } finally {
       setLichessImportingGameId("");
+    }
+  }
+
+  async function searchOtbGames() {
+    const { query, error } = buildOtbSearchQuery(otbSearchFilters);
+
+    if (error) {
+      setOtbSearchError(error);
+      setOtbImportError("");
+      setOtbSearchResults([]);
+      setHasSearchedOtb(false);
+      return;
+    }
+
+    setOtbSearchLoading(true);
+    setOtbSearchError("");
+    setOtbImportError("");
+    setHasSearchedOtb(true);
+
+    try {
+      const data = await fetchJson(`/api/otb/games?${query}`);
+      setOtbSearchResults(Array.isArray(data.games) ? data.games : []);
+    } catch (error) {
+      setOtbSearchResults([]);
+      setOtbSearchError(error.message);
+    } finally {
+      setOtbSearchLoading(false);
+    }
+  }
+
+  async function importOtbGame(gameId) {
+    setOtbImportError("");
+    setOtbImportingGameId(gameId);
+
+    try {
+      const data = await fetchJson(`/api/otb/games/${gameId}`);
+      const nextError = applyImportedPgn(data.pgn);
+
+      if (nextError) {
+        setOtbImportError(nextError);
+        return;
+      }
+
+      setShowImportedPgn(true);
+      setShowComments(true);
+      closeOtbSearchPopup();
+    } catch (error) {
+      setOtbImportError(error.message);
+    } finally {
+      setOtbImportingGameId("");
     }
   }
 
@@ -816,6 +896,15 @@ function App() {
         return;
       }
 
+      if (showOtbSearchPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeOtbSearchPopup();
+        }
+
+        return;
+      }
+
       if (showShortcutsPopup) {
         if (matchesShortcut(event, shortcutConfig.closeShortcutsPopup.keys)) {
           event.preventDefault();
@@ -885,6 +974,7 @@ function App() {
   }, [
     closeImportPgnPopup,
     closeLichessSearchPopup,
+    closeOtbSearchPopup,
     closeShortcutsPopup,
     goToEnd,
     goToStart,
@@ -892,6 +982,7 @@ function App() {
     redoMove,
     shortcutConfig,
     showLichessSearchPopup,
+    showOtbSearchPopup,
     showImportPgnPopup,
     showShortcutsPopup,
     toggleBoardOrientation,
@@ -995,6 +1086,13 @@ function App() {
                 onClick={() => handleMenuAction(openLichessSearchPopup)}
               >
                 Search Lichess
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(openOtbSearchPopup)}
+              >
+                Search OTB Master Games
               </button>
             </div>
           )}
@@ -1540,6 +1638,279 @@ function App() {
                           disabled={lichessImportingGameId === gameResult.id}
                         >
                           {lichessImportingGameId === gameResult.id
+                            ? "Importing..."
+                            : "Import PGN"}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showOtbSearchPopup && (
+        <div
+          style={shortcutOverlayStyle}
+          onClick={closeOtbSearchPopup}
+          role="presentation"
+        >
+          <div
+            style={wideModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="otb-search-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="otb-search-title">Search OTB Master Games</h2>
+            <p>
+              Search a local archive of historical master-game PGNs by player,
+              event, year range, result, ECO, or opening. Configure the archive
+              with <code>OTB_PGN_DIR</code> or by adding PGN files under
+              <code>server/data/otb</code>.
+            </p>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                searchOtbGames();
+              }}
+            >
+              <div className="modal-form-grid">
+                <label className="modal-field">
+                  <span>Player</span>
+                  <input
+                    className="modal-input"
+                    type="text"
+                    value={otbSearchFilters.player}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        player: event.target.value,
+                      }));
+                      setOtbSearchError("");
+                    }}
+                    placeholder="Morphy"
+                    autoFocus
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>White</span>
+                  <input
+                    className="modal-input"
+                    type="text"
+                    value={otbSearchFilters.white}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        white: event.target.value,
+                      }));
+                    }}
+                    placeholder="Optional"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>Black</span>
+                  <input
+                    className="modal-input"
+                    type="text"
+                    value={otbSearchFilters.black}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        black: event.target.value,
+                      }));
+                    }}
+                    placeholder="Optional"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>Event</span>
+                  <input
+                    className="modal-input"
+                    type="text"
+                    value={otbSearchFilters.event}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        event: event.target.value,
+                      }));
+                    }}
+                    placeholder="London"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>From year</span>
+                  <input
+                    className="modal-input"
+                    type="number"
+                    min="1000"
+                    max={new Date().getFullYear()}
+                    value={otbSearchFilters.yearFrom}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        yearFrom: event.target.value,
+                      }));
+                      setOtbSearchError("");
+                    }}
+                    placeholder="1851"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>To year</span>
+                  <input
+                    className="modal-input"
+                    type="number"
+                    min="1000"
+                    max={new Date().getFullYear()}
+                    value={otbSearchFilters.yearTo}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        yearTo: event.target.value,
+                      }));
+                      setOtbSearchError("");
+                    }}
+                    placeholder="1900"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>Result</span>
+                  <select
+                    className="modal-input"
+                    value={otbSearchFilters.result}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        result: event.target.value,
+                      }));
+                    }}
+                  >
+                    {OTB_RESULT_OPTIONS.map(({ value, label }) => (
+                      <option key={value || "any"} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="modal-field">
+                  <span>ECO</span>
+                  <input
+                    className="modal-input"
+                    type="text"
+                    value={otbSearchFilters.eco}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        eco: event.target.value,
+                      }));
+                    }}
+                    placeholder="C50"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>Opening</span>
+                  <input
+                    className="modal-input"
+                    type="text"
+                    value={otbSearchFilters.opening}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        opening: event.target.value,
+                      }));
+                    }}
+                    placeholder="Italian"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>Max results</span>
+                  <input
+                    className="modal-input"
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={otbSearchFilters.max}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        max: event.target.value,
+                      }));
+                    }}
+                  />
+                </label>
+              </div>
+              {otbSearchError && <p style={modalErrorStyle}>{otbSearchError}</p>}
+              {otbImportError && <p style={modalErrorStyle}>{otbImportError}</p>}
+              <div style={modalActionRowStyle}>
+                <button
+                  type="button"
+                  style={modalButtonStyle}
+                  onClick={closeOtbSearchPopup}
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  style={modalPrimaryButtonStyle}
+                  disabled={otbSearchLoading}
+                >
+                  {otbSearchLoading ? "Searching..." : "Search"}
+                </button>
+              </div>
+            </form>
+
+            <div className="search-results-section">
+              <h3>OTB results</h3>
+              {otbSearchLoading && <p>Loading games...</p>}
+              {!otbSearchLoading && !hasSearchedOtb && (
+                <p>Run a search to browse matching historical games.</p>
+              )}
+              {!otbSearchLoading &&
+                hasSearchedOtb &&
+                !otbSearchError &&
+                otbSearchResults.length === 0 && (
+                  <p>No games matched those filters.</p>
+                )}
+              {!!otbSearchResults.length && (
+                <ul className="search-results-list">
+                  {otbSearchResults.map((gameResult) => (
+                    <li key={gameResult.id} className="search-result-card">
+                      <div className="search-result-header">
+                        <strong>
+                          {formatPlayerLabel(gameResult.players.white)} vs{" "}
+                          {formatPlayerLabel(gameResult.players.black)}
+                        </strong>
+                        <span className="search-result-score">
+                          {formatOtbResult(gameResult)}
+                        </span>
+                      </div>
+                      <p className="search-result-meta">
+                        {formatOtbGameDate(gameResult)}
+                        {gameResult.event ? ` · ${gameResult.event}` : ""}
+                        {gameResult.site ? ` · ${gameResult.site}` : ""}
+                      </p>
+                      <p className="search-result-meta">
+                        {gameResult.opening || gameResult.eco
+                          ? `${gameResult.opening ?? "Opening unknown"}${
+                              gameResult.eco ? ` (${gameResult.eco})` : ""
+                            }`
+                          : "Opening unknown"}
+                        {gameResult.sourceFile ? ` · ${gameResult.sourceFile}` : ""}
+                      </p>
+                      <div className="search-result-actions">
+                        <span className="search-result-source">
+                          Local PGN archive
+                        </span>
+                        <button
+                          type="button"
+                          style={modalPrimaryButtonStyle}
+                          onClick={() => importOtbGame(gameResult.id)}
+                          disabled={otbImportingGameId === gameResult.id}
+                        >
+                          {otbImportingGameId === gameResult.id
                             ? "Importing..."
                             : "Import PGN"}
                         </button>

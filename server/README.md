@@ -1,7 +1,7 @@
 # ChessLense Server
 
 Local Express backend for running Stockfish analysis on a chess
-position and proxying Lichess game search/import requests.
+position, proxying Lichess game search/import requests, and searching a local OTB PGN archive.
 
 ## Stack
 
@@ -9,6 +9,7 @@ position and proxying Lichess game search/import requests.
 - Express
 - Stockfish
 - Lichess public API
+- Local PGN archive for OTB master games
 
 ## Requirements
 
@@ -57,6 +58,22 @@ If not set, the server uses:
 
 ```text
 stockfish
+```
+
+### `OTB_PGN_DIR`
+
+Optional path to a directory containing `.pgn` files for historical OTB master-game search.
+
+If not set, the server looks in:
+
+```text
+/home/roland/own_projects/ChessLense/server/data/otb
+```
+
+Example:
+
+```bash
+OTB_PGN_DIR=/path/to/master-pgn-archive npm run dev
 ```
 
 ## API
@@ -209,9 +226,90 @@ Fetch a single public Lichess game plus its PGN for import into the frontend.
 }
 ```
 
+### `GET /api/otb/games`
+
+Search historical OTB games from the configured local PGN archive.
+
+#### Query parameters
+
+- `player` (optional): match either player
+- `white` (optional): filter white player
+- `black` (optional): filter black player
+- `event` (optional): event name contains filter
+- `yearFrom` / `yearTo` (optional): inclusive year range
+- `result` (optional): `1-0`, `0-1`, `1/2-1/2`, or `*`
+- `eco` (optional): ECO contains filter
+- `opening` (optional): opening contains filter
+- `max` (optional): number of results to return, from `1` to `100`, defaults to `25`
+
+At least one non-`max` filter is required.
+
+#### Success response
+
+```json
+{
+  "search": {
+    "player": "Morphy",
+    "white": "",
+    "black": "",
+    "event": "",
+    "eco": "",
+    "opening": "",
+    "result": "",
+    "yearFrom": 1858,
+    "yearTo": 1858,
+    "max": 5
+  },
+  "games": [
+    {
+      "id": "base64url-id",
+      "source": "local-pgn",
+      "dateLabel": "1858.01.01",
+      "year": 1858,
+      "result": "1-0",
+      "event": "Paris Exhibition",
+      "site": "Paris",
+      "eco": "C50",
+      "opening": "Italian Game",
+      "sourceFile": "master-games.pgn",
+      "players": {
+        "white": { "name": "Paul Morphy" },
+        "black": { "name": "Adolf Anderssen" }
+      }
+    }
+  ]
+}
+```
+
+If no archive is configured, the API returns:
+
+```json
+{
+  "error": "otb_source_not_configured",
+  "details": "OTB PGN directory not found. Set OTB_PGN_DIR or add PGN files under /home/roland/own_projects/ChessLense/server/data/otb."
+}
+```
+
+### `GET /api/otb/games/:gameId`
+
+Fetch one OTB game plus its full PGN for import into the frontend.
+
+#### Success response
+
+```json
+{
+  "game": {
+    "id": "base64url-id",
+    "source": "local-pgn"
+  },
+  "pgn": "[Event \"Paris Exhibition\"]\n..."
+}
+```
+
 ## Notes
 
 - The engine process is started per request
 - Lichess search is public and player-centered: the frontend requires a player name before searching
+- OTB search uses a local PGN archive so the source can be swapped later without changing the frontend workflow
 - The API is intended for local development use
 - CORS is enabled for the frontend
