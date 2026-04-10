@@ -288,8 +288,22 @@ code {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 320px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+}
+
+.move-history-card {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.move-history-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .move-row {
@@ -309,6 +323,14 @@ code {
 
 .move-entry {
   font-family: ui-monospace, SFMono-Regular, monospace;
+  display: block;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.move-entry-selected {
+  background: rgba(37, 99, 235, 0.18);
+  color: #bfdbfe;
 }
 
 .variant-lines {

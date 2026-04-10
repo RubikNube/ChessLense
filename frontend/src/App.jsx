@@ -215,12 +215,14 @@ function App() {
   const [copyNotification, setCopyNotification] = useState("");
   const [importPgnValue, setImportPgnValue] = useState("");
   const [importPgnError, setImportPgnError] = useState("");
+  const [boardPanelHeight, setBoardPanelHeight] = useState(0);
   const [importedPgnData, setImportedPgnData] = useState(
     () => persistedAppState?.importedPgnData ?? null,
   );
   const shortcutConfigSignatureRef = useRef(
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
+  const boardPanelRef = useRef(null);
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
@@ -281,6 +283,7 @@ function App() {
     () => getCurrentMoveLabel(moveHistory),
     [moveHistory],
   );
+  const currentMoveIndex = moveHistory.length - 1;
 
   function handlePieceDrop(sourceSquareOrMove, maybeTargetSquare) {
     const sourceSquare =
@@ -534,6 +537,37 @@ function App() {
       window.clearInterval(intervalId);
     };
   }, []);
+
+  useEffect(() => {
+    const boardPanelElement = boardPanelRef.current;
+
+    if (!boardPanelElement) {
+      return undefined;
+    }
+
+    function updateBoardPanelHeight() {
+      setBoardPanelHeight(boardPanelElement.getBoundingClientRect().height);
+    }
+
+    updateBoardPanelHeight();
+
+    if (typeof ResizeObserver !== "function") {
+      window.addEventListener("resize", updateBoardPanelHeight);
+
+      return () => {
+        window.removeEventListener("resize", updateBoardPanelHeight);
+      };
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateBoardPanelHeight();
+    });
+    resizeObserver.observe(boardPanelElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [showEvaluationBar]);
 
   useEffect(() => {
     let ignore = false;
@@ -924,7 +958,7 @@ function App() {
       </nav>
 
       <div className="workspace">
-        <div className="board-panel">
+        <div className="board-panel" ref={boardPanelRef}>
           <div className="board-and-evaluation">
             <div className="chessboard-wrapper">
               <Chessboard
@@ -954,6 +988,8 @@ function App() {
           {showMoveHistory && (
             <MoveHistory
               moveHistory={moveHistory}
+              currentMoveIndex={currentMoveIndex}
+              boardPanelHeight={boardPanelHeight}
               canUndo={canUndo}
               canRedo={canRedo}
               onUndo={undoMove}

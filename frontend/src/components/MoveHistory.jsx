@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 const actionRowStyle = {
   display: "flex",
@@ -32,6 +32,8 @@ const disabledActionButtonStyle = {
 
 function MoveHistory({
   moveHistory,
+  currentMoveIndex,
+  boardPanelHeight,
   canUndo,
   canRedo,
   onUndo,
@@ -39,17 +41,22 @@ function MoveHistory({
   onGoToStart,
   onGoToEnd,
 }) {
+  const moveHistoryRef = useRef(null);
+  const selectedMoveRef = useRef(null);
   const groupedMoveHistory = useMemo(
     () =>
       moveHistory.reduce((pairs, move, index) => {
         if (index % 2 === 0) {
           pairs.push({
             moveNumber: Math.floor(index / 2) + 1,
-          white: move,
-          black: null,
-        });
-      } else {
-        pairs[pairs.length - 1].black = move;
+            white: move,
+            whiteIndex: index,
+            black: null,
+            blackIndex: null,
+          });
+        } else {
+          pairs[pairs.length - 1].black = move;
+          pairs[pairs.length - 1].blackIndex = index;
         }
 
         return pairs;
@@ -57,21 +64,61 @@ function MoveHistory({
     [moveHistory],
   );
 
+  useEffect(() => {
+    const moveHistoryElement = moveHistoryRef.current;
+    const selectedMoveElement = selectedMoveRef.current;
+
+    if (!moveHistoryElement || !selectedMoveElement) {
+      return;
+    }
+
+    const containerRect = moveHistoryElement.getBoundingClientRect();
+    const selectedRect = selectedMoveElement.getBoundingClientRect();
+    const topOffset = selectedRect.top - containerRect.top;
+    const bottomOffset = selectedRect.bottom - containerRect.bottom;
+
+    if (topOffset < 0) {
+      moveHistoryElement.scrollTop += topOffset - 8;
+      return;
+    }
+
+    if (bottomOffset > 0) {
+      moveHistoryElement.scrollTop += bottomOffset + 8;
+    }
+  }, [currentMoveIndex]);
+
   return (
-    <div className="card">
+    <div
+      className="card move-history-card"
+      style={boardPanelHeight ? { height: `${boardPanelHeight}px` } : undefined}
+    >
       <h2>Move History</h2>
-      {!groupedMoveHistory.length && <p>No moves yet.</p>}
-      {!!groupedMoveHistory.length && (
-        <ol className="move-history">
-          {groupedMoveHistory.map(({ moveNumber, white, black }) => (
-            <li key={moveNumber} className="move-row">
-              <span className="move-number">{moveNumber}.</span>
-              <span className="move-entry">{white}</span>
-              <span className="move-entry">{black || "..."}</span>
-            </li>
-          ))}
-        </ol>
-      )}
+      <div className="move-history-body">
+        {!groupedMoveHistory.length && <p className="annotation-empty">No moves yet.</p>}
+        {!!groupedMoveHistory.length && (
+          <ol className="move-history" ref={moveHistoryRef}>
+            {groupedMoveHistory.map(
+              ({ moveNumber, white, whiteIndex, black, blackIndex }) => (
+                <li key={moveNumber} className="move-row">
+                  <span className="move-number">{moveNumber}.</span>
+                  <span
+                    ref={whiteIndex === currentMoveIndex ? selectedMoveRef : null}
+                    className={`move-entry${whiteIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
+                  >
+                    {white}
+                  </span>
+                  <span
+                    ref={blackIndex === currentMoveIndex ? selectedMoveRef : null}
+                    className={`move-entry${blackIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
+                  >
+                    {black || "..."}
+                  </span>
+                </li>
+              ),
+            )}
+          </ol>
+        )}
+      </div>
       <div style={actionRowStyle}>
         <button
           type="button"
