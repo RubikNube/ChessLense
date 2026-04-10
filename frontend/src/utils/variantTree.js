@@ -104,6 +104,7 @@ function createBaseVariantTree(initialFen = DEFAULT_POSITION) {
     rootId: ROOT_VARIANT_NODE_ID,
     currentNodeId: ROOT_VARIANT_NODE_ID,
     activeLineLeafId: ROOT_VARIANT_NODE_ID,
+    rememberedMainlineNodeId: ROOT_VARIANT_NODE_ID,
     nextNodeIndex: 1,
     nodes: {
       [ROOT_VARIANT_NODE_ID]: createRootNode(normalizedInitialFen),
@@ -246,6 +247,49 @@ function getDeepestMainlineNodeId(tree, startNodeId = tree.rootId) {
   return currentNodeId;
 }
 
+function getMainlineLeafId(tree) {
+  return getDeepestMainlineNodeId(tree, tree.rootId);
+}
+
+function getLineNodeIdAtPly(tree, leafId, targetPly) {
+  const pathNodeIds = findNodePathIds(tree, leafId);
+  const normalizedPly = Math.max(0, targetPly);
+  const targetIndex = Math.min(normalizedPly, pathNodeIds.length - 1);
+
+  return pathNodeIds[targetIndex] ?? tree.rootId;
+}
+
+function getClosestMainlineNodeId(tree, targetNodeId) {
+  const mainlineLeafId = getMainlineLeafId(tree);
+  const targetPly = tree.nodes[targetNodeId]?.ply ?? 0;
+
+  return getLineNodeIdAtPly(tree, mainlineLeafId, targetPly);
+}
+
+function getVariationStartNodeId(tree, leafId) {
+  return (
+    getFirstDivergenceNodeId(tree, leafId) ??
+    getFirstMoveNodeIdForLine(tree, leafId) ??
+    tree.rootId
+  );
+}
+
+function finalizeVariantTree(tree, { preserveRememberedMainline = false } = {}) {
+  const mainlineLeafId = getMainlineLeafId(tree);
+  const rememberedSourceId =
+    preserveRememberedMainline || tree.activeLineLeafId !== mainlineLeafId
+      ? tree.rememberedMainlineNodeId
+      : tree.currentNodeId;
+
+  return {
+    ...tree,
+    rememberedMainlineNodeId: getClosestMainlineNodeId(
+      tree,
+      rememberedSourceId ?? tree.rootId,
+    ),
+  };
+}
+
 function findLeafNodeIds(tree) {
   return collectLeafNodeIdsFromNode(tree, tree.rootId);
 }
@@ -376,21 +420,30 @@ function normalizeVariantTreeFromRaw(rawTree) {
     typeof rawTree.activeLineLeafId === "string" && rawTree.activeLineLeafId in nodes
       ? rawTree.activeLineLeafId
       : getDeepestMainlineNodeId({ rootId, nodes }, rootId);
+  const rememberedMainlineNodeId =
+    typeof rawTree.rememberedMainlineNodeId === "string" &&
+    rawTree.rememberedMainlineNodeId in nodes
+      ? rawTree.rememberedMainlineNodeId
+      : currentNodeId;
 
-  return {
-    version: VARIANT_TREE_VERSION,
-    initialFen,
-    rootId,
-    currentNodeId,
-    activeLineLeafId: isAncestorNode({ nodes }, rootId, activeLineLeafId)
-      ? activeLineLeafId
-      : getDeepestMainlineNodeId({ rootId, nodes }, rootId),
-    nextNodeIndex:
-      Number.isInteger(rawTree.nextNodeIndex) && rawTree.nextNodeIndex > 0
-        ? rawTree.nextNodeIndex
-        : Object.keys(nodes).length,
-    nodes,
-  };
+  return finalizeVariantTree(
+    {
+      version: VARIANT_TREE_VERSION,
+      initialFen,
+      rootId,
+      currentNodeId,
+      activeLineLeafId: isAncestorNode({ nodes }, rootId, activeLineLeafId)
+        ? activeLineLeafId
+        : getDeepestMainlineNodeId({ rootId, nodes }, rootId),
+      nextNodeIndex:
+        Number.isInteger(rawTree.nextNodeIndex) && rawTree.nextNodeIndex > 0
+          ? rawTree.nextNodeIndex
+          : Object.keys(nodes).length,
+      rememberedMainlineNodeId,
+      nodes,
+    },
+    { preserveRememberedMainline: true },
+  );
 }
 
 export function createEmptyVariantTree(initialFen = DEFAULT_POSITION) {
@@ -455,10 +508,10 @@ export function undoInVariantTree(tree) {
     return normalizedTree;
   }
 
-  return {
+  return finalizeVariantTree({
     ...normalizedTree,
     currentNodeId: parentId,
-  };
+  });
 }
 
 export function redoInVariantTree(tree) {
@@ -469,42 +522,47 @@ export function redoInVariantTree(tree) {
     return normalizedTree;
   }
 
-  return {
+  return finalizeVariantTree({
     ...normalizedTree,
     currentNodeId: nextRedoNodeId,
-  };
+  });
 }
 
 export function goToStartInVariantTree(tree) {
   const normalizedTree = normalizeVariantTree(tree);
 
-  return {
+  return finalizeVariantTree({
     ...normalizedTree,
     currentNodeId: normalizedTree.rootId,
-  };
+  });
 }
 
 export function goToEndInVariantTree(tree) {
   const normalizedTree = normalizeVariantTree(tree);
 
-  return {
+  return finalizeVariantTree({
     ...normalizedTree,
     currentNodeId: normalizedTree.activeLineLeafId,
-  };
+  });
 }
 
 export function selectVariantLine(tree, leafId) {
   const normalizedTree = normalizeVariantTree(tree);
+  const mainlineLeafId = getMainlineLeafId(normalizedTree);
   const normalizedLeafId =
     leafId in normalizedTree.nodes
       ? getDeepestMainlineNodeId(normalizedTree, leafId)
       : normalizedTree.activeLineLeafId;
+  const nextCurrentNodeId =
+    normalizedLeafId === mainlineLeafId
+      ? normalizedTree.rememberedMainlineNodeId
+      : getVariationStartNodeId(normalizedTree, normalizedLeafId);
 
-  return {
+  return finalizeVariantTree({
     ...normalizedTree,
-    currentNodeId: normalizedLeafId,
+    currentNodeId: nextCurrentNodeId,
     activeLineLeafId: normalizedLeafId,
-  };
+  });
 }
 
 export function applyMoveToVariantTree(tree, move) {
@@ -529,11 +587,11 @@ export function applyMoveToVariantTree(tree, move) {
   });
 
   if (matchingChildId) {
-    return {
+    return finalizeVariantTree({
       ...normalizedTree,
       currentNodeId: matchingChildId,
       activeLineLeafId: getDeepestMainlineNodeId(normalizedTree, matchingChildId),
-    };
+    });
   }
 
   const nextTree = {
@@ -553,7 +611,7 @@ export function applyMoveToVariantTree(tree, move) {
   nextTree.currentNodeId = nextNodeId;
   nextTree.activeLineLeafId = nextNodeId;
 
-  return nextTree;
+  return finalizeVariantTree(nextTree);
 }
 
 export function promoteVariantLine(tree, leafId) {
@@ -576,7 +634,9 @@ export function promoteVariantLine(tree, leafId) {
     }
   }
 
-  return didPromote ? nextTree : normalizedTree;
+  return didPromote
+    ? finalizeVariantTree(nextTree, { preserveRememberedMainline: true })
+    : normalizedTree;
 }
 
 export function demoteVariantLine(tree, leafId) {
@@ -600,7 +660,7 @@ export function demoteVariantLine(tree, leafId) {
         nextTree.nodes[parentId].children.length - 1,
       );
 
-      return nextTree;
+      return finalizeVariantTree(nextTree, { preserveRememberedMainline: true });
     }
   }
 
@@ -695,7 +755,7 @@ export function createVariantTreeFromMoves(moves, { initialFen = DEFAULT_POSITIO
   tree.currentNodeId = parentId;
   tree.activeLineLeafId = parentId;
 
-  return tree;
+  return finalizeVariantTree(tree);
 }
 
 export function createVariantTreeFromGameAndRedo(game, redoMoves = []) {
@@ -725,7 +785,7 @@ export function createVariantTreeFromGameAndRedo(game, redoMoves = []) {
 
   tree.activeLineLeafId = activeLeafId;
 
-  return tree;
+  return finalizeVariantTree(tree);
 }
 
 export function createVariantTreeFromParsedPgn(parsedPgn) {
@@ -802,5 +862,5 @@ export function createVariantTreeFromParsedPgn(parsedPgn) {
   tree.currentNodeId = mainlineLeafId;
   tree.activeLineLeafId = mainlineLeafId;
 
-  return tree;
+  return finalizeVariantTree(tree);
 }

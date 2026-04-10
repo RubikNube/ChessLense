@@ -13,6 +13,7 @@ import {
   getMoveHistoryForNode,
   getRelevantVariantLines,
   getVariantLines,
+  goToEndInVariantTree,
   goToStartInVariantTree,
   promoteVariantLine,
   redoInVariantTree,
@@ -116,7 +117,7 @@ describe("variantTree", () => {
     const selectedTree = selectVariantLine(tree, c5Line.id);
     const game = buildGameToNode(selectedTree);
 
-    expect(game.history()).toEqual(["e4", "c5", "Nf3"]);
+    expect(game.history()).toEqual(["e4", "c5"]);
   });
 
   it("builds a tree from a move sequence", () => {
@@ -174,5 +175,92 @@ describe("variantTree", () => {
     expect(getAlternativeVariantFirstMoves(tree)).toEqual([
       { from: "g1", to: "f3" },
     ]);
+  });
+
+  it("restores the mainline cursor when switching back from a sideline", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = applyMoveToVariantTree(tree, { from: "b8", to: "c6" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "g8", to: "f6" });
+    tree = applyMoveToVariantTree(tree, { from: "g2", to: "g3" });
+
+    const mainlineId = getVariantLines(tree).find((line) => line.isMainLine)?.id;
+    tree = selectVariantLine(tree, mainlineId);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3"]);
+    expect(tree.rememberedMainlineNodeId).toBe(tree.currentNodeId);
+  });
+
+  it("opens a sideline at the start of the variation instead of the leaf", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = applyMoveToVariantTree(tree, { from: "b8", to: "c6" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "g8", to: "f6" });
+    tree = applyMoveToVariantTree(tree, { from: "g2", to: "g3" });
+
+    const mainlineId = getVariantLines(tree).find((line) => line.isMainLine)?.id;
+    const sidelineId = tree.activeLineLeafId;
+
+    tree = selectVariantLine(tree, mainlineId);
+    tree = selectVariantLine(tree, sidelineId);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nf6"]);
+    expect(canRedoInVariantTree(tree)).toBe(true);
+
+    tree = redoInVariantTree(tree);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nf6", "g3"]);
+  });
+
+  it("reopens sidelines at their start on every reselection", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = applyMoveToVariantTree(tree, { from: "b8", to: "c6" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "g8", to: "f6" });
+    tree = applyMoveToVariantTree(tree, { from: "g2", to: "g3" });
+
+    const mainlineId = getVariantLines(tree).find((line) => line.isMainLine)?.id;
+    const sidelineId = tree.activeLineLeafId;
+
+    tree = selectVariantLine(tree, sidelineId);
+    tree = redoInVariantTree(tree);
+    tree = selectVariantLine(tree, mainlineId);
+    tree = selectVariantLine(tree, sidelineId);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nf6"]);
+  });
+
+  it("keeps the remembered mainline cursor aligned when a sideline is promoted", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = applyMoveToVariantTree(tree, { from: "b8", to: "c6" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "c7", to: "c5" });
+
+    const promotedLineId = tree.activeLineLeafId;
+    const mainlineId = getVariantLines(tree).find((line) => line.isMainLine)?.id;
+
+    tree = selectVariantLine(tree, mainlineId);
+    tree = goToEndInVariantTree(tree);
+    tree = promoteVariantLine(tree, promotedLineId);
+    tree = selectVariantLine(tree, promotedLineId);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "c5"]);
+    expect(tree.rememberedMainlineNodeId).toBe(tree.currentNodeId);
   });
 });
