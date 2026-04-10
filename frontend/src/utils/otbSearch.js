@@ -124,3 +124,16 @@ export function formatOtbResult(game) {
 
   return "Unknown result";
 }
+
+export function formatOtbMoveCount(game) {
+  if (Number.isInteger(game?.moveCount) && game.moveCount > 0) {
+    return `${game.moveCount} ${game.moveCount === 1 ? "move" : "moves"}`;
+  }
+
+  if (Number.isInteger(game?.plyCount) && game.plyCount > 0) {
+    const moveCount = Math.ceil(game.plyCount / 2);
+    return `${moveCount} ${moveCount === 1 ? "move" : "moves"}`;
+  }
+
+  return "Move count unavailable";
+}

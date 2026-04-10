@@ -138,12 +138,35 @@ async function listPgnFiles(rootDir) {
 			if (entry.isDirectory()) {
 				directories.push(fullPath);
 			} else if (entry.isFile() && entry.name.toLowerCase().endsWith(".pgn")) {
-				files.push(fullPath);
+				const stats = await fs.stat(fullPath);
+				files.push({
+					fullPath,
+					relativePath: path.relative(rootDir, fullPath),
+					size: stats.size,
+					mtimeMs: stats.mtimeMs,
+				});
 			}
 		}
 	}
 
-	return files.sort();
+	return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+}
+
+function hasSameFileSignature(leftFiles, rightFiles) {
+	if (!Array.isArray(leftFiles) || !Array.isArray(rightFiles) || leftFiles.length !== rightFiles.length) {
+		return false;
+	}
+
+	return leftFiles.every((leftFile, index) => {
+		const rightFile = rightFiles[index];
+
+		return (
+			rightFile &&
+			leftFile.relativePath === rightFile.relativePath &&
+			leftFile.size === rightFile.size &&
+			leftFile.mtimeMs === rightFile.mtimeMs
+		);
+	});
 }
 
 function splitGames(rawContent) {
@@ -199,6 +222,50 @@ function parseDateMetadata(dateValue) {
 	};
 }
 
+function parsePlyCount(value) {
+	const normalized = normalizeString(value);
+
+	if (!/^\d+$/.test(normalized)) {
+		return null;
+	}
+
+	return Number(normalized);
+}
+
+function countMoves(rawPgn) {
+	const headerPlyCountMatch = rawPgn.match(/\[\s*PlyCount\s+"(\d+)"\s*\]/i);
+
+	if (headerPlyCountMatch) {
+		const plyCount = parsePlyCount(headerPlyCountMatch[1]);
+
+		if (Number.isInteger(plyCount) && plyCount > 0) {
+			return {
+				plyCount,
+				moveCount: Math.ceil(plyCount / 2),
+			};
+		}
+	}
+
+	const movetext = rawPgn
+		.replace(/\r\n/g, "\n")
+		.replace(/\[\s*[A-Za-z0-9_]+\s+"(?:\\.|[^"\\])*"\s*\]\s*/g, " ")
+		.replace(/\{[^}]*\}/g, " ")
+		.replace(/;[^\n]*/g, " ")
+		.replace(/\([^)]*\)/g, " ");
+	const sanTokens = movetext
+		.split(/\s+/)
+		.map((token) => token.trim().replace(/^\d+\.(?:\.\.)?/, ""))
+		.filter(Boolean)
+		.filter((token) => !/^\$\d+$/.test(token))
+		.filter((token) => !["1-0", "0-1", "1/2-1/2", "*"].includes(token));
+	const plyCount = sanTokens.length;
+
+	return {
+		plyCount,
+		moveCount: plyCount > 0 ? Math.ceil(plyCount / 2) : 0,
+	};
+}
+
 function createGameId(relativePath, index) {
 	return Buffer.from(JSON.stringify({ file: relativePath, index }), "utf8").toString("base64url");
 }
@@ -238,6 +305,8 @@ function mapGameSummary(game) {
 		dateLabel: game.date.rawDate,
 		year: game.date.year,
 		result: normalizeString(game.headers.Result) || null,
+		moveCount: game.moveCount,
+		plyCount: game.plyCount,
 		event: normalizeString(game.headers.Event) || null,
 		site: normalizeString(game.headers.Site) || null,
 		round: normalizeString(game.headers.Round) || null,
@@ -315,25 +384,25 @@ function matchesSearch(game, search) {
 	return true;
 }
 
-async function buildIndex(rootDir) {
-	const files = await listPgnFiles(rootDir);
+async function buildIndex(rootDir, files = null) {
+	const resolvedFiles = files ?? (await listPgnFiles(rootDir));
 	const games = [];
 	const gamesById = new Map();
 
-	for (const filePath of files) {
-		const relativePath = path.relative(rootDir, filePath);
-		const content = await fs.readFile(filePath, "utf8");
+	for (const file of resolvedFiles) {
+		const content = await fs.readFile(file.fullPath, "utf8");
 		const fileGames = splitGames(content);
 
 		fileGames.forEach((rawPgn, index) => {
 			const headers = buildHeaderMap(extractHeaderEntries(rawPgn));
-			const id = createGameId(relativePath, index);
+			const id = createGameId(file.relativePath, index);
 			const game = {
 				id,
 				rawPgn,
 				headers,
-				relativePath,
+				relativePath: file.relativePath,
 				date: parseDateMetadata(headers.Date),
+				...countMoves(rawPgn),
 			};
 
 			games.push(game);
@@ -343,7 +412,7 @@ async function buildIndex(rootDir) {
 
 	cache = {
 		rootDir,
-		files,
+		files: resolvedFiles,
 		games,
 		gamesById,
 	};
@@ -362,11 +431,13 @@ async function loadIndex() {
 		);
 	}
 
-	if (cache && cache.rootDir === configuredRoot) {
+	const files = await listPgnFiles(configuredRoot);
+
+	if (cache && cache.rootDir === configuredRoot && hasSameFileSignature(cache.files, files)) {
 		return cache;
 	}
 
-	return buildIndex(configuredRoot);
+	return buildIndex(configuredRoot, files);
 }
 
 async function searchGames(rawQuery) {

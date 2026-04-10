@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildOtbSearchQuery,
   formatOtbGameDate,
+  formatOtbMoveCount,
   formatOtbResult,
   normalizeOtbSearchFilters,
 } from "./otbSearch.js";
@@ -80,5 +81,14 @@ describe("formatOtbResult", () => {
   it("shows the PGN result or a fallback", () => {
     expect(formatOtbResult({ result: "1-0" })).toBe("1-0");
     expect(formatOtbResult({ result: "" })).toBe("Unknown result");
+  });
+});
+
+describe("formatOtbMoveCount", () => {
+  it("formats move counts with a fallback", () => {
+    expect(formatOtbMoveCount({ moveCount: 31 })).toBe("31 moves");
+    expect(formatOtbMoveCount({ moveCount: 1 })).toBe("1 move");
+    expect(formatOtbMoveCount({ plyCount: 93 })).toBe("47 moves");
+    expect(formatOtbMoveCount({ moveCount: 0 })).toBe("Move count unavailable");
   });
 });

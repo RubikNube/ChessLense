@@ -26,6 +26,7 @@ import {
   buildOtbSearchQuery,
   DEFAULT_OTB_SEARCH_FILTERS,
   formatOtbGameDate,
+  formatOtbMoveCount,
   formatOtbResult,
   OTB_RESULT_OPTIONS,
 } from "./utils/otbSearch.js";
@@ -1891,6 +1892,10 @@ function App() {
                         {formatOtbGameDate(gameResult)}
                         {gameResult.event ? ` · ${gameResult.event}` : ""}
                         {gameResult.site ? ` · ${gameResult.site}` : ""}
+                      </p>
+                      <p className="search-result-meta">
+                        {gameResult.round ? `Round ${gameResult.round} · ` : ""}
+                        {formatOtbMoveCount(gameResult)}
                       </p>
                       <p className="search-result-meta">
                         {gameResult.opening || gameResult.eco
