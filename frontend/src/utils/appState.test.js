@@ -79,6 +79,7 @@ describe("persisted app state", () => {
         showComments: false,
         showImportedPgn: false,
         showVariants: false,
+        showVariantArrows: true,
         importedPgnData: {
           rawPgn: "[Event \"Test\"] 1. e4",
           headers: [{ name: "Event", value: "Test" }, { foo: "bar" }],
@@ -107,6 +108,7 @@ describe("persisted app state", () => {
       showComments: false,
       showImportedPgn: false,
       showVariants: false,
+      showVariantArrows: true,
       importedPgnData: {
         rawPgn: "[Event \"Test\"] 1. e4",
         headers: [{ name: "Event", value: "Test" }],
@@ -149,6 +151,7 @@ describe("persisted app state", () => {
         showComments: true,
         showImportedPgn: false,
         showVariants: false,
+        showVariantArrows: true,
         importedPgnData: {
           rawPgn: "[Event \"Test\"] 1. e4",
           headers: [{ name: "Event", value: "Test" }],
@@ -170,6 +173,7 @@ describe("persisted app state", () => {
       showComments: true,
       showImportedPgn: false,
       showVariants: false,
+      showVariantArrows: true,
       importedPgnData: {
         rawPgn: "[Event \"Test\"] 1. e4",
         headers: [{ name: "Event", value: "Test" }],
@@ -205,6 +209,7 @@ describe("persisted app state", () => {
       showComments: true,
       showImportedPgn: true,
       showVariants: true,
+      showVariantArrows: false,
       importedPgnData: null,
     });
   });

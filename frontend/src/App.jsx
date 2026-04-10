@@ -21,6 +21,7 @@ import {
   canUndoInVariantTree,
   createEmptyVariantTree,
   demoteVariantLine,
+  getAlternativeVariantFirstMoves,
   getMoveHistoryForNode,
   getRelevantVariantLines,
   goToEndInVariantTree,
@@ -202,6 +203,9 @@ function App() {
   const [showVariants, setShowVariants] = useState(
     () => persistedAppState?.showVariants ?? true,
   );
+  const [showVariantArrows, setShowVariantArrows] = useState(
+    () => persistedAppState?.showVariantArrows ?? false,
+  );
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState(
@@ -234,6 +238,15 @@ function App() {
   );
   const canRedo = useMemo(
     () => canRedoInVariantTree(variantTree),
+    [variantTree],
+  );
+  const variantArrows = useMemo(
+    () =>
+      getAlternativeVariantFirstMoves(variantTree).map(({ from, to }) => ({
+        startSquare: from,
+        endSquare: to,
+        color: "#2563eb",
+      })),
     [variantTree],
   );
   const shortcutEntries = useMemo(
@@ -461,6 +474,7 @@ function App() {
         showComments,
         showImportedPgn,
         showVariants,
+        showVariantArrows,
         importedPgnData,
       });
     } catch (error) {
@@ -475,6 +489,7 @@ function App() {
     showImportedPgn,
     showMoveHistory,
     showVariants,
+    showVariantArrows,
     variantTree,
   ]);
 
@@ -622,6 +637,10 @@ function App() {
     setShowVariants((currentValue) => !currentValue);
   }
 
+  function toggleVariantArrows() {
+    setShowVariantArrows((currentValue) => !currentValue);
+  }
+
   const toggleBoardOrientation = useCallback(() => {
     setBoardOrientation((currentValue) =>
       currentValue === "white" ? "black" : "white",
@@ -741,6 +760,13 @@ function App() {
                 onClick={() => handleMenuAction(analyzePosition)}
               >
                 Analyze with Stockfish
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(toggleVariantArrows)}
+              >
+                {showVariantArrows ? "Hide Variant Arrows" : "Show Variant Arrows"}
               </button>
             </div>
           )}
@@ -905,10 +931,12 @@ function App() {
                 position={fen}
                 onPieceDrop={handlePieceDrop}
                 boardOrientation={boardOrientation}
+                arrows={showVariantArrows ? variantArrows : []}
                 options={{
                   position: fen,
                   onPieceDrop: handlePieceDrop,
                   boardOrientation,
+                  arrows: showVariantArrows ? variantArrows : [],
                 }}
               />
             </div>

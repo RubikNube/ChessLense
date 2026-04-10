@@ -656,6 +656,28 @@ export function getRelevantVariantLines(tree) {
   return getVariantLines(normalizedTree).filter((line) => leafNodeIds.includes(line.id));
 }
 
+export function getAlternativeVariantFirstMoves(tree) {
+  const normalizedTree = normalizeVariantTree(tree);
+  const currentNode = normalizedTree.nodes[normalizedTree.currentNodeId];
+
+  if (!currentNode || currentNode.children.length <= 1) {
+    return [];
+  }
+
+  const activePathNodeIds = findNodePathIds(
+    normalizedTree,
+    normalizedTree.activeLineLeafId,
+  );
+  const currentPathIndex = activePathNodeIds.indexOf(normalizedTree.currentNodeId);
+  const selectedChildId =
+    currentPathIndex >= 0 ? activePathNodeIds[currentPathIndex + 1] ?? null : null;
+
+  return currentNode.children
+    .filter((childId) => childId !== selectedChildId)
+    .map((childId) => normalizedTree.nodes[childId]?.move)
+    .filter(Boolean);
+}
+
 export function createVariantTreeFromMoves(moves, { initialFen = DEFAULT_POSITION } = {}) {
   const tree = createBaseVariantTree(initialFen);
   let parentId = tree.rootId;

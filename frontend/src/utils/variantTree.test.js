@@ -9,6 +9,7 @@ import {
   createVariantTreeFromParsedPgn,
   createVariantTreeFromMoves,
   demoteVariantLine,
+  getAlternativeVariantFirstMoves,
   getMoveHistoryForNode,
   getRelevantVariantLines,
   getVariantLines,
@@ -149,5 +150,29 @@ describe("variantTree", () => {
     tree = undoInVariantTree(tree);
 
     expect(getRelevantVariantLines(tree)).toEqual([]);
+  });
+
+  it("derives first moves for non-selected alternative branches", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "f1", to: "c4" });
+
+    expect(getAlternativeVariantFirstMoves(tree)).toEqual([]);
+
+    tree = undoInVariantTree(tree);
+
+    expect(getAlternativeVariantFirstMoves(tree)).toEqual([
+      { from: "g1", to: "f3" },
+    ]);
+
+    tree = promoteVariantLine(tree, tree.activeLineLeafId);
+
+    expect(getAlternativeVariantFirstMoves(tree)).toEqual([
+      { from: "g1", to: "f3" },
+    ]);
   });
 });

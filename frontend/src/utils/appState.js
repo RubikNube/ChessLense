@@ -219,6 +219,10 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showVariants === "boolean"
           ? parsedState.showVariants
           : true,
+      showVariantArrows:
+        typeof parsedState.showVariantArrows === "boolean"
+          ? parsedState.showVariantArrows
+          : false,
       importedPgnData: normalizeImportedPgnData(parsedState.importedPgnData),
     };
   } catch {
@@ -253,6 +257,7 @@ export function serializePersistedAppState({
   showComments,
   showImportedPgn,
   showVariants,
+  showVariantArrows,
   importedPgnData,
 }) {
   return JSON.stringify({
@@ -264,6 +269,7 @@ export function serializePersistedAppState({
     showComments,
     showImportedPgn,
     showVariants,
+    showVariantArrows,
     importedPgnData: normalizeImportedPgnData(importedPgnData),
   });
 }
