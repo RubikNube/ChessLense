@@ -1,6 +1,6 @@
 # ChessLense Frontend
 
-React frontend for a local chess analysis app. It renders the board, tracks game state, and sends the current position to the local backend for Stockfish analysis.
+React frontend for a local chess analysis app. It renders the board, tracks game state, sends the current position to the local backend for Stockfish analysis, and provides a Lichess search/import workflow.
 
 ## Stack
 
@@ -15,6 +15,9 @@ React frontend for a local chess analysis app. It renders the board, tracks game
 - Legal move handling with `chess.js`
 - Current position shown as FEN
 - Local analysis request to Stockfish through the backend
+- PGN import into the current board state
+- Public Lichess game search by player with optional opponent, year, color, and speed filters
+- One-click import of a selected Lichess result into the existing PGN/annotation flow
 - Reset to starting position
 
 ## Project structure

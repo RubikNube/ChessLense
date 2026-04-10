@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const { spawn } = require("child_process");
+const { HttpError, getGame, searchGames } = require("./lichess");
 
 const app = express();
 const PORT = 3001;
@@ -8,6 +9,20 @@ const STOCKFISH_PATH = process.env.STOCKFISH_PATH || "stockfish";
 
 app.use(cors());
 app.use(express.json());
+
+function sendApiError(res, error) {
+	if (error instanceof HttpError) {
+		return res.status(error.status).json({
+			error: error.code,
+			details: error.message,
+		});
+	}
+
+	return res.status(500).json({
+		error: "internal_error",
+		details: error.message,
+	});
+}
 
 function waitForLine(stream, matcher, timeoutMs = 5000) {
 	return new Promise((resolve, reject) => {
@@ -118,6 +133,29 @@ app.post("/api/analyze", async (req, res) => {
 			details: error.message,
 			stderr,
 		});
+	}
+});
+
+app.get("/api/lichess/games", async (req, res) => {
+	try {
+		const { search, games } = await searchGames(req.query || {});
+
+		return res.json({
+			search,
+			games,
+		});
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.get("/api/lichess/games/:gameId", async (req, res) => {
+	try {
+		const game = await getGame(req.params.gameId);
+
+		return res.json(game);
+	} catch (error) {
+		return sendApiError(res, error);
 	}
 });
 

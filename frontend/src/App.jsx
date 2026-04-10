@@ -15,6 +15,14 @@ import {
 } from "./utils/appState.js";
 import { parseAnnotatedPgn } from "./utils/annotatedPgn.js";
 import {
+  buildLichessSearchQuery,
+  DEFAULT_LICHESS_SEARCH_FILTERS,
+  formatLichessGameDate,
+  formatLichessResult,
+  LICHESS_COLOR_OPTIONS,
+  LICHESS_PERF_TYPE_OPTIONS,
+} from "./utils/lichessSearch.js";
+import {
   applyMoveToVariantTree,
   buildGameToNode,
   canRedoInVariantTree,
@@ -51,6 +59,13 @@ const shortcutModalStyle = {
   borderRadius: "0.75rem",
   boxShadow: "0 20px 45px rgba(15, 23, 42, 0.35)",
   padding: "1.5rem",
+};
+
+const wideModalStyle = {
+  ...shortcutModalStyle,
+  width: "min(100%, 48rem)",
+  maxHeight: "90vh",
+  overflowY: "auto",
 };
 
 const shortcutListStyle = {
@@ -176,6 +191,33 @@ function getCurrentMoveLabel(moveHistory) {
     : `${moveNumber}. ${lastMove}`;
 }
 
+async function fetchJson(path, options = {}) {
+  let response;
+
+  try {
+    response = await fetch(path, options);
+  } catch {
+    throw new Error(
+      "Backend unavailable. Start the server on port 3001 or run ./dev.sh from the project root.",
+    );
+  }
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.details || data.error || "Request failed");
+  }
+
+  return data;
+}
+
+function formatPlayerLabel(player) {
+  const prefix = player?.title ? `${player.title} ` : "";
+  const rating = Number.isFinite(player?.rating) ? ` (${player.rating})` : "";
+
+  return `${prefix}${player?.name ?? "Anonymous"}${rating}`;
+}
+
 function App() {
   const persistedAppState = useMemo(() => loadPersistedAppState(), []);
   const [variantTree, setVariantTree] = useState(
@@ -208,6 +250,7 @@ function App() {
   );
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
+  const [showLichessSearchPopup, setShowLichessSearchPopup] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState(
     () => persistedAppState?.boardOrientation ?? "white",
   );
@@ -215,6 +258,15 @@ function App() {
   const [copyNotification, setCopyNotification] = useState("");
   const [importPgnValue, setImportPgnValue] = useState("");
   const [importPgnError, setImportPgnError] = useState("");
+  const [lichessSearchFilters, setLichessSearchFilters] = useState(
+    DEFAULT_LICHESS_SEARCH_FILTERS,
+  );
+  const [lichessSearchResults, setLichessSearchResults] = useState([]);
+  const [lichessSearchError, setLichessSearchError] = useState("");
+  const [lichessImportError, setLichessImportError] = useState("");
+  const [lichessSearchLoading, setLichessSearchLoading] = useState(false);
+  const [lichessImportingGameId, setLichessImportingGameId] = useState("");
+  const [hasSearchedLichess, setHasSearchedLichess] = useState(false);
   const [boardPanelHeight, setBoardPanelHeight] = useState(0);
   const [importedPgnData, setImportedPgnData] = useState(
     () => persistedAppState?.importedPgnData ?? null,
@@ -283,6 +335,26 @@ function App() {
     () => getCurrentMoveLabel(moveHistory),
     [moveHistory],
   );
+
+  function applyImportedPgn(rawPgn) {
+    const {
+      variantTree: importedVariantTree,
+      importedPgnData: nextImportedPgnData,
+      error,
+    } = parseAnnotatedPgn(rawPgn, {
+      allowEmpty: false,
+    });
+
+    if (error || !importedVariantTree) {
+      return error ?? "Invalid PGN. Please check the notation and try again.";
+    }
+
+    setVariantTree(importedVariantTree);
+    setEngineResult(null);
+    setEvaluationResult(null);
+    setImportedPgnData(nextImportedPgnData);
+    return "";
+  }
   const currentMoveIndex = moveHistory.length - 1;
 
   function handlePieceDrop(sourceSquareOrMove, maybeTargetSquare) {
@@ -402,27 +474,78 @@ function App() {
     setImportPgnError("");
   }, []);
 
-  function importPgn() {
-    const {
-      variantTree: importedVariantTree,
-      importedPgnData: nextImportedPgnData,
-      error,
-    } = parseAnnotatedPgn(importPgnValue, {
-      allowEmpty: false,
-    });
+  const openLichessSearchPopup = useCallback(() => {
+    setShowLichessSearchPopup(true);
+    setLichessSearchError("");
+    setLichessImportError("");
+  }, []);
 
-    if (error || !importedVariantTree) {
-      setImportPgnError(
-        error ?? "Invalid PGN. Please check the notation and try again.",
-      );
+  const closeLichessSearchPopup = useCallback(() => {
+    setShowLichessSearchPopup(false);
+    setLichessSearchError("");
+    setLichessImportError("");
+    setLichessImportingGameId("");
+  }, []);
+
+  function importPgn() {
+    const nextError = applyImportedPgn(importPgnValue);
+
+    if (nextError) {
+      setImportPgnError(nextError);
       return;
     }
 
-    setVariantTree(importedVariantTree);
-    setEngineResult(null);
-    setEvaluationResult(null);
-    setImportedPgnData(nextImportedPgnData);
     closeImportPgnPopup();
+  }
+
+  async function searchLichessGames() {
+    const { query, error } = buildLichessSearchQuery(lichessSearchFilters);
+
+    if (error) {
+      setLichessSearchError(error);
+      setLichessImportError("");
+      setLichessSearchResults([]);
+      setHasSearchedLichess(false);
+      return;
+    }
+
+    setLichessSearchLoading(true);
+    setLichessSearchError("");
+    setLichessImportError("");
+    setHasSearchedLichess(true);
+
+    try {
+      const data = await fetchJson(`/api/lichess/games?${query}`);
+      setLichessSearchResults(Array.isArray(data.games) ? data.games : []);
+    } catch (error) {
+      setLichessSearchResults([]);
+      setLichessSearchError(error.message);
+    } finally {
+      setLichessSearchLoading(false);
+    }
+  }
+
+  async function importLichessGame(gameId) {
+    setLichessImportError("");
+    setLichessImportingGameId(gameId);
+
+    try {
+      const data = await fetchJson(`/api/lichess/games/${gameId}`);
+      const nextError = applyImportedPgn(data.pgn);
+
+      if (nextError) {
+        setLichessImportError(nextError);
+        return;
+      }
+
+      setShowImportedPgn(true);
+      setShowComments(true);
+      closeLichessSearchPopup();
+    } catch (error) {
+      setLichessImportError(error.message);
+    } finally {
+      setLichessImportingGameId("");
+    }
   }
 
   async function copyFenToClipboard() {
@@ -575,7 +698,7 @@ function App() {
 
     const timeoutId = window.setTimeout(async () => {
       try {
-        const response = await fetch("http://localhost:3001/api/analyze", {
+        const data = await fetchJson("/api/analyze", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -585,12 +708,6 @@ function App() {
             depth: 10,
           }),
         });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.details || data.error || "Request failed");
-        }
 
         if (!ignore) {
           console.log("Position evaluation:", data);
@@ -615,7 +732,7 @@ function App() {
     setEngineResult(null);
 
     try {
-      const response = await fetch("http://localhost:3001/api/analyze", {
+      const data = await fetchJson("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -625,12 +742,6 @@ function App() {
           depth: 12,
         }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.details || data.error || "Request failed");
-      }
 
       setEngineResult(data);
     } catch (error) {
@@ -691,6 +802,15 @@ function App() {
         if (event.key === "Escape") {
           event.preventDefault();
           closeImportPgnPopup();
+        }
+
+        return;
+      }
+
+      if (showLichessSearchPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeLichessSearchPopup();
         }
 
         return;
@@ -764,12 +884,14 @@ function App() {
     };
   }, [
     closeImportPgnPopup,
+    closeLichessSearchPopup,
     closeShortcutsPopup,
     goToEnd,
     goToStart,
     openShortcutsPopup,
     redoMove,
     shortcutConfig,
+    showLichessSearchPopup,
     showImportPgnPopup,
     showShortcutsPopup,
     toggleBoardOrientation,
@@ -852,6 +974,27 @@ function App() {
                 onClick={() => handleMenuAction(resetGame)}
               >
                 Reset
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="menu-group">
+          <button
+            type="button"
+            className="menu-trigger"
+            onClick={() => toggleMenu("search")}
+          >
+            Search
+          </button>
+          {openMenu === "search" && (
+            <div className="menu-dropdown">
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(openLichessSearchPopup)}
+              >
+                Search Lichess
               </button>
             </div>
           )}
@@ -1196,6 +1339,216 @@ function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showLichessSearchPopup && (
+        <div
+          style={shortcutOverlayStyle}
+          onClick={closeLichessSearchPopup}
+          role="presentation"
+        >
+          <div
+            style={wideModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lichess-search-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="lichess-search-title">Search Lichess</h2>
+            <p>
+              Search public Lichess games by player, then narrow results with
+              filters like opponent, year, color, and speed.
+            </p>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                searchLichessGames();
+              }}
+            >
+              <div className="modal-form-grid">
+                <label className="modal-field">
+                  <span>Player</span>
+                  <input
+                    className="modal-input"
+                    type="text"
+                    value={lichessSearchFilters.player}
+                    onChange={(event) => {
+                      setLichessSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        player: event.target.value,
+                      }));
+                      setLichessSearchError("");
+                    }}
+                    placeholder="MagnusCarlsen"
+                    autoFocus
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>Opponent</span>
+                  <input
+                    className="modal-input"
+                    type="text"
+                    value={lichessSearchFilters.opponent}
+                    onChange={(event) => {
+                      setLichessSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        opponent: event.target.value,
+                      }));
+                    }}
+                    placeholder="Optional"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>Year</span>
+                  <input
+                    className="modal-input"
+                    type="number"
+                    min="2013"
+                    max={new Date().getFullYear()}
+                    value={lichessSearchFilters.year}
+                    onChange={(event) => {
+                      setLichessSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        year: event.target.value,
+                      }));
+                      setLichessSearchError("");
+                    }}
+                    placeholder="2024"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>Color</span>
+                  <select
+                    className="modal-input"
+                    value={lichessSearchFilters.color}
+                    onChange={(event) => {
+                      setLichessSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        color: event.target.value,
+                      }));
+                    }}
+                  >
+                    {LICHESS_COLOR_OPTIONS.map(({ value, label }) => (
+                      <option key={value || "any"} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="modal-field">
+                  <span>Speed / Variant</span>
+                  <select
+                    className="modal-input"
+                    value={lichessSearchFilters.perfType}
+                    onChange={(event) => {
+                      setLichessSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        perfType: event.target.value,
+                      }));
+                    }}
+                  >
+                    {LICHESS_PERF_TYPE_OPTIONS.map(({ value, label }) => (
+                      <option key={value || "any"} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="modal-field">
+                  <span>Max results</span>
+                  <input
+                    className="modal-input"
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={lichessSearchFilters.max}
+                    onChange={(event) => {
+                      setLichessSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        max: event.target.value,
+                      }));
+                    }}
+                  />
+                </label>
+              </div>
+              {lichessSearchError && <p style={modalErrorStyle}>{lichessSearchError}</p>}
+              {lichessImportError && <p style={modalErrorStyle}>{lichessImportError}</p>}
+              <div style={modalActionRowStyle}>
+                <button
+                  type="button"
+                  style={modalButtonStyle}
+                  onClick={closeLichessSearchPopup}
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  style={modalPrimaryButtonStyle}
+                  disabled={lichessSearchLoading}
+                >
+                  {lichessSearchLoading ? "Searching..." : "Search"}
+                </button>
+              </div>
+            </form>
+
+            <div className="search-results-section">
+              <h3>Lichess results</h3>
+              {lichessSearchLoading && <p>Loading games...</p>}
+              {!lichessSearchLoading && !hasSearchedLichess && (
+                <p>Run a search to browse matching games.</p>
+              )}
+              {!lichessSearchLoading &&
+                hasSearchedLichess &&
+                !lichessSearchError &&
+                lichessSearchResults.length === 0 && (
+                  <p>No games matched those filters.</p>
+                )}
+              {!!lichessSearchResults.length && (
+                <ul className="search-results-list">
+                  {lichessSearchResults.map((gameResult) => (
+                    <li key={gameResult.id} className="search-result-card">
+                      <div className="search-result-header">
+                        <strong>
+                          {formatPlayerLabel(gameResult.players.white)} vs{" "}
+                          {formatPlayerLabel(gameResult.players.black)}
+                        </strong>
+                        <span className="search-result-score">
+                          {formatLichessResult(gameResult)}
+                        </span>
+                      </div>
+                      <p className="search-result-meta">
+                        {formatLichessGameDate(gameResult.createdAt)} ·{" "}
+                        {gameResult.perf ?? gameResult.variant ?? "Unknown"} ·{" "}
+                        {gameResult.rated ? "Rated" : "Casual"}
+                        {gameResult.opening ? ` · ${gameResult.opening}` : ""}
+                      </p>
+                      <div className="search-result-actions">
+                        <a
+                          className="pgn-link"
+                          href={gameResult.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Open on Lichess
+                        </a>
+                        <button
+                          type="button"
+                          style={modalPrimaryButtonStyle}
+                          onClick={() => importLichessGame(gameResult.id)}
+                          disabled={lichessImportingGameId === gameResult.id}
+                        >
+                          {lichessImportingGameId === gameResult.id
+                            ? "Importing..."
+                            : "Import PGN"}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       )}

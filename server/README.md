@@ -1,13 +1,14 @@
 # ChessLense Server
 
 Local Express backend for running Stockfish analysis on a chess
-position.
+position and proxying Lichess game search/import requests.
 
 ## Stack
 
 - Node.js
 - Express
 - Stockfish
+- Lichess public API
 
 ## Requirements
 
@@ -116,8 +117,101 @@ Engine failure:
 }
 ```
 
+### `GET /api/lichess/games`
+
+Search public Lichess games for a player and return compact game summaries for the frontend.
+
+#### Query parameters
+
+- `player` (required): Lichess username used as the search anchor
+- `opponent` (optional): exact opponent filter
+- `year` (optional): 4-digit UTC year, from `2013` to the current year
+- `color` (optional): `white` or `black`
+- `perfType` (optional): Lichess speed/variant filter such as `blitz`, `rapid`, or `atomic`
+- `max` (optional): number of results to return, from `1` to `50`, defaults to `10`
+
+#### Success response
+
+```json
+{
+  "search": {
+    "player": "MagnusCarlsen",
+    "opponent": "Hikaru",
+    "year": 2024,
+    "color": "",
+    "perfType": "blitz",
+    "max": 5
+  },
+  "games": [
+    {
+      "id": "abcd1234",
+      "url": "https://lichess.org/abcd1234",
+      "rated": true,
+      "perf": "blitz",
+      "speed": "blitz",
+      "variant": "standard",
+      "status": "mate",
+      "winner": "white",
+      "createdAt": 1712083200000,
+      "lastMoveAt": 1712083500000,
+      "opening": "Sicilian Defense",
+      "players": {
+        "white": {
+          "name": "MagnusCarlsen",
+          "id": "magnuscarlsen",
+          "title": "GM",
+          "rating": 3200,
+          "ratingDiff": 4
+        },
+        "black": {
+          "name": "Hikaru",
+          "id": "hikaru",
+          "title": "GM",
+          "rating": 3185,
+          "ratingDiff": -4
+        }
+      },
+      "opponent": "Hikaru"
+    }
+  ]
+}
+```
+
+#### Validation and upstream errors
+
+```json
+{
+  "error": "invalid_query",
+  "details": "player is required"
+}
+```
+
+```json
+{
+  "error": "rate_limited",
+  "details": "Lichess rate limit exceeded"
+}
+```
+
+### `GET /api/lichess/games/:gameId`
+
+Fetch a single public Lichess game plus its PGN for import into the frontend.
+
+#### Success response
+
+```json
+{
+  "game": {
+    "id": "abcd1234",
+    "url": "https://lichess.org/abcd1234"
+  },
+  "pgn": "[Event \"Rated Blitz game\"]\n..."
+}
+```
+
 ## Notes
 
 - The engine process is started per request
+- Lichess search is public and player-centered: the frontend requires a player name before searching
 - The API is intended for local development use
 - CORS is enabled for the frontend
