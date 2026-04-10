@@ -3,6 +3,7 @@ import {
   normalizeImportedPgnData,
   parseAnnotatedPgn,
 } from "./annotatedPgn.js";
+import { getVariantLines } from "./variantTree.js";
 
 describe("parseAnnotatedPgn", () => {
   it("preserves headers, comments, and variations from annotated PGN", () => {
@@ -19,7 +20,7 @@ describe("parseAnnotatedPgn", () => {
 2. c4 (2. e4 { A possible transposition. }) 2... e6 *
 `.trim();
 
-    const { game, importedPgnData, error } = parseAnnotatedPgn(annotatedPgn, {
+    const { game, importedPgnData, variantTree, error } = parseAnnotatedPgn(annotatedPgn, {
       allowEmpty: false,
     });
 
@@ -70,6 +71,10 @@ describe("parseAnnotatedPgn", () => {
       "2. e4 { A possible transposition. }",
     ]);
     expect(importedPgnData.rawPgn).toBe(annotatedPgn);
+    expect(getVariantLines(variantTree).map((line) => line.moves)).toEqual([
+      ["Nf3", "d5", "c4", "e6"],
+      ["Nf3", "d5", "e4"],
+    ]);
   });
 
   it("rejects invalid annotated PGN", () => {
@@ -79,6 +84,7 @@ describe("parseAnnotatedPgn", () => {
 
     expect(result.game).toBeNull();
     expect(result.importedPgnData).toBeNull();
+    expect(result.variantTree).toBeNull();
     expect(result.error).toBe("Invalid PGN. Please check the notation and try again.");
   });
 });

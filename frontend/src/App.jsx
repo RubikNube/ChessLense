@@ -1,22 +1,35 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import EvaluationBar from "./components/EvaluationBar.jsx";
 import MoveHistory from "./components/MoveHistory.jsx";
+import VariantsView from "./components/VariantsView.jsx";
 import {
   DEFAULT_SHORTCUT_CONFIG,
   DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   SHORTCUT_ACTION_ORDER,
-  cloneGame,
-  createGameFromPgn,
   getShortcutDisplayLabel,
   loadPersistedAppState,
   matchesShortcut,
   normalizeShortcutConfig,
   savePersistedAppState,
-  serializeMove,
 } from "./utils/appState.js";
 import { parseAnnotatedPgn } from "./utils/annotatedPgn.js";
+import {
+  applyMoveToVariantTree,
+  buildGameToNode,
+  canRedoInVariantTree,
+  canUndoInVariantTree,
+  createEmptyVariantTree,
+  demoteVariantLine,
+  getMoveHistoryForNode,
+  getRelevantVariantLines,
+  goToEndInVariantTree,
+  goToStartInVariantTree,
+  promoteVariantLine,
+  redoInVariantTree,
+  selectVariantLine,
+  undoInVariantTree,
+} from "./utils/variantTree.js";
 import "./App.css";
 
 const shortcutOverlayStyle = {
@@ -164,8 +177,8 @@ function getCurrentMoveLabel(moveHistory) {
 
 function App() {
   const persistedAppState = useMemo(() => loadPersistedAppState(), []);
-  const [game, setGame] = useState(() =>
-    createGameFromPgn(persistedAppState?.gamePgn),
+  const [variantTree, setVariantTree] = useState(
+    () => persistedAppState?.variantTree ?? createEmptyVariantTree(),
   );
   const [engineResult, setEngineResult] = useState(null);
   const [evaluationResult, setEvaluationResult] = useState(null);
@@ -186,13 +199,13 @@ function App() {
   const [showImportedPgn, setShowImportedPgn] = useState(
     () => persistedAppState?.showImportedPgn ?? true,
   );
+  const [showVariants, setShowVariants] = useState(
+    () => persistedAppState?.showVariants ?? true,
+  );
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState(
     () => persistedAppState?.boardOrientation ?? "white",
-  );
-  const [redoStack, setRedoStack] = useState(
-    () => persistedAppState?.redoStack ?? [],
   );
   const [shortcutConfig, setShortcutConfig] = useState(DEFAULT_SHORTCUT_CONFIG);
   const [copyNotification, setCopyNotification] = useState("");
@@ -205,10 +218,24 @@ function App() {
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
 
+  const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
-  const moveHistory = useMemo(() => game.history(), [game]);
-  const canUndo = game.history().length > 0;
-  const canRedo = redoStack.length > 0;
+  const moveHistory = useMemo(
+    () => getMoveHistoryForNode(variantTree),
+    [variantTree],
+  );
+  const variantLines = useMemo(
+    () => getRelevantVariantLines(variantTree),
+    [variantTree],
+  );
+  const canUndo = useMemo(
+    () => canUndoInVariantTree(variantTree),
+    [variantTree],
+  );
+  const canRedo = useMemo(
+    () => canRedoInVariantTree(variantTree),
+    [variantTree],
+  );
   const shortcutEntries = useMemo(
     () =>
       SHORTCUT_ACTION_ORDER.map((actionName) => ({
@@ -242,22 +269,6 @@ function App() {
     [moveHistory],
   );
 
-  function safeGameMutate(modify) {
-    const next = cloneGame(game);
-    const result = modify(next);
-
-    if (!result) {
-      return null;
-    }
-
-    setGame(next);
-    setRedoStack([]);
-    setEngineResult(null);
-    setEvaluationResult(null);
-
-    return result;
-  }
-
   function handlePieceDrop(sourceSquareOrMove, maybeTargetSquare) {
     const sourceSquare =
       typeof sourceSquareOrMove === "string"
@@ -272,96 +283,76 @@ function App() {
       return false;
     }
 
-    return !!safeGameMutate((next) =>
-      next.move({
+    const nextVariantTree = applyMoveToVariantTree(variantTree, {
         from: sourceSquare,
         to: targetSquare,
         promotion: "q",
-      }),
-    );
+      });
+
+    if (!nextVariantTree) {
+      return false;
+    }
+
+    setVariantTree(nextVariantTree);
+    setEngineResult(null);
+    setEvaluationResult(null);
+
+    return true;
   }
 
   const undoMove = useCallback(() => {
-    const next = cloneGame(game);
-    const undoneMove = next.undo();
-
-    if (!undoneMove) {
+    if (!canUndo) {
       return;
     }
 
-    setGame(next);
-    setRedoStack((currentValue) => [serializeMove(undoneMove), ...currentValue]);
+    setVariantTree((currentValue) => undoInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [game]);
+  }, [canUndo]);
 
   const redoMove = useCallback(() => {
-    const moveToRedo = redoStack[0];
-
-    if (!moveToRedo) {
+    if (!canRedo) {
       return;
     }
 
-    const next = cloneGame(game);
-    const redoneMove = next.move(moveToRedo);
-
-    if (!redoneMove) {
-      return;
-    }
-
-    setGame(next);
-    setRedoStack((currentValue) => currentValue.slice(1));
+    setVariantTree((currentValue) => redoInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [game, redoStack]);
+  }, [canRedo]);
 
   const goToStart = useCallback(() => {
-    const next = cloneGame(game);
-    const undoneMoves = [];
-    let undoneMove = next.undo();
-
-    while (undoneMove) {
-      undoneMoves.unshift(serializeMove(undoneMove));
-      undoneMove = next.undo();
-    }
-
-    if (!undoneMoves.length) {
+    if (!canUndo) {
       return;
     }
 
-    setGame(next);
-    setRedoStack([...undoneMoves, ...redoStack]);
+    setVariantTree((currentValue) => goToStartInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [game, redoStack]);
+  }, [canUndo]);
 
   const goToEnd = useCallback(() => {
-    if (!redoStack.length) {
+    if (!canRedo) {
       return;
     }
 
-    const next = cloneGame(game);
-    let appliedMoveCount = 0;
-
-    for (const moveToRedo of redoStack) {
-      const redoneMove = next.move(moveToRedo);
-
-      if (!redoneMove) {
-        break;
-      }
-
-      appliedMoveCount += 1;
-    }
-
-    if (!appliedMoveCount) {
-      return;
-    }
-
-    setGame(next);
-    setRedoStack(redoStack.slice(appliedMoveCount));
+    setVariantTree((currentValue) => goToEndInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [game, redoStack]);
+  }, [canRedo]);
+
+  const selectVariant = useCallback((lineId) => {
+    setVariantTree((currentValue) => selectVariantLine(currentValue, lineId));
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, []);
+
+  const promoteVariant = useCallback((lineId) => {
+    setVariantTree((currentValue) => promoteVariantLine(currentValue, lineId));
+  }, []);
+
+  const demoteVariant = useCallback((lineId) => {
+    setVariantTree((currentValue) => demoteVariantLine(currentValue, lineId));
+  }, []);
 
   function toggleMenu(menuName) {
     setOpenMenu((currentMenu) => (currentMenu === menuName ? null : menuName));
@@ -397,22 +388,21 @@ function App() {
 
   function importPgn() {
     const {
-      game: importedGame,
+      variantTree: importedVariantTree,
       importedPgnData: nextImportedPgnData,
       error,
     } = parseAnnotatedPgn(importPgnValue, {
       allowEmpty: false,
     });
 
-    if (error || !importedGame) {
+    if (error || !importedVariantTree) {
       setImportPgnError(
         error ?? "Invalid PGN. Please check the notation and try again.",
       );
       return;
     }
 
-    setGame(importedGame);
-    setRedoStack([]);
+    setVariantTree(importedVariantTree);
     setEngineResult(null);
     setEvaluationResult(null);
     setImportedPgnData(nextImportedPgnData);
@@ -463,14 +453,14 @@ function App() {
   useEffect(() => {
     try {
       savePersistedAppState({
-        game,
-        redoStack,
+        variantTree,
         boardOrientation,
         showMoveHistory,
         showEngineWindow,
         showEvaluationBar,
         showComments,
         showImportedPgn,
+        showVariants,
         importedPgnData,
       });
     } catch (error) {
@@ -478,14 +468,14 @@ function App() {
     }
   }, [
     boardOrientation,
-    game,
     importedPgnData,
-    redoStack,
     showEngineWindow,
     showEvaluationBar,
     showComments,
     showImportedPgn,
     showMoveHistory,
+    showVariants,
+    variantTree,
   ]);
 
   useEffect(() => {
@@ -602,8 +592,7 @@ function App() {
   }
 
   function resetGame() {
-    setGame(new Chess());
-    setRedoStack([]);
+    setVariantTree(createEmptyVariantTree());
     setEngineResult(null);
     setEvaluationResult(null);
     setImportedPgnData(null);
@@ -627,6 +616,10 @@ function App() {
 
   function toggleImportedPgn() {
     setShowImportedPgn((currentValue) => !currentValue);
+  }
+
+  function toggleVariants() {
+    setShowVariants((currentValue) => !currentValue);
   }
 
   const toggleBoardOrientation = useCallback(() => {
@@ -856,6 +849,13 @@ function App() {
               >
                 {showImportedPgn ? "Hide Imported PGN" : "Show Imported PGN"}
               </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(toggleVariants)}
+              >
+                {showVariants ? "Hide Variants" : "Show Variants"}
+              </button>
             </div>
           )}
         </div>
@@ -1055,9 +1055,24 @@ function App() {
 
         {showMoveHistory && (
           <MoveHistory
-            game={game}
+            moveHistory={moveHistory}
             canUndo={canUndo}
             canRedo={canRedo}
+            onUndo={undoMove}
+            onRedo={redoMove}
+            onGoToStart={goToStart}
+            onGoToEnd={goToEnd}
+          />
+        )}
+
+        {showVariants && (
+          <VariantsView
+            variantLines={variantLines}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onSelectLine={selectVariant}
+            onPromoteLine={promoteVariant}
+            onDemoteLine={demoteVariant}
             onUndo={undoMove}
             onRedo={redoMove}
             onGoToStart={goToStart}

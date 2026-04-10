@@ -1,4 +1,6 @@
 import { Chess } from "chess.js";
+import { parse } from "chess.js/src/pgn.js";
+import { createEmptyVariantTree, createVariantTreeFromParsedPgn } from "./variantTree.js";
 
 const HEADER_PATTERN = /\[\s*([A-Za-z0-9_]+)\s+"((?:\\.|[^"\\])*)"\s*\]/g;
 
@@ -348,20 +350,33 @@ export function parseAnnotatedPgn(pgn, options = {}) {
 
   if (typeof pgn !== "string" || !pgn.trim()) {
     return allowEmpty
-      ? { game: new Chess(), importedPgnData: null, error: null }
-      : { game: null, importedPgnData: null, error: "Paste a PGN to import." };
+      ? {
+          game: new Chess(),
+          importedPgnData: null,
+          variantTree: createEmptyVariantTree(),
+          error: null,
+        }
+      : {
+          game: null,
+          importedPgnData: null,
+          variantTree: null,
+          error: "Paste a PGN to import.",
+        };
   }
 
   const trimmedPgn = pgn.trim();
   const game = new Chess();
 
   try {
-    const didLoad = game.loadPgn(sanitizePgnForChessJs(trimmedPgn));
+    const sanitizedPgn = sanitizePgnForChessJs(trimmedPgn);
+    const parsedPgn = parse(sanitizedPgn);
+    const didLoad = game.loadPgn(sanitizedPgn);
 
     if (didLoad === false) {
       return {
         game: null,
         importedPgnData: null,
+        variantTree: null,
         error: "Invalid PGN. Please check the notation and try again.",
       };
     }
@@ -386,12 +401,14 @@ export function parseAnnotatedPgn(pgn, options = {}) {
         additionalComments,
         variationSnippets,
       }),
+      variantTree: createVariantTreeFromParsedPgn(parsedPgn),
       error: null,
     };
   } catch {
     return {
       game: null,
       importedPgnData: null,
+      variantTree: null,
       error: "Invalid PGN. Please check the notation and try again.",
     };
   }

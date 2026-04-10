@@ -9,6 +9,13 @@ import {
   savePersistedAppState,
   serializeMove,
 } from "./appState.js";
+import {
+  buildGameToNode,
+  createEmptyVariantTree,
+  createVariantTreeFromMoves,
+  getMoveHistoryForNode,
+  redoInVariantTree,
+} from "./variantTree.js";
 
 function createStorage(value) {
   return {
@@ -56,14 +63,14 @@ describe("parseGameFromPgn", () => {
 });
 
 describe("persisted app state", () => {
-  it("normalizes persisted fields and filters invalid redo moves", () => {
+  it("migrates linear persisted history into the variant tree", () => {
     const storage = createStorage(
       JSON.stringify({
         gamePgn: "1. e4 e5",
         redoStack: [
-          { from: "e2", to: "e4" },
+          { from: "g1", to: "f3" },
+          { from: "b8", to: "c6" },
           { from: "a7" },
-          { from: "g7", to: "g8", promotion: "q" },
         ],
         boardOrientation: "black",
         showMoveHistory: false,
@@ -71,6 +78,7 @@ describe("persisted app state", () => {
         showEvaluationBar: true,
         showComments: false,
         showImportedPgn: false,
+        showVariants: false,
         importedPgnData: {
           rawPgn: "[Event \"Test\"] 1. e4",
           headers: [{ name: "Event", value: "Test" }, { foo: "bar" }],
@@ -81,18 +89,24 @@ describe("persisted app state", () => {
       }),
     );
 
-    expect(loadPersistedAppState(storage)).toEqual({
-      gamePgn: "1. e4 e5",
-      redoStack: [
-        { from: "e2", to: "e4" },
-        { from: "g7", to: "g8", promotion: "q" },
-      ],
+    const loadedState = loadPersistedAppState(storage);
+
+    expect(getMoveHistoryForNode(loadedState.variantTree)).toEqual(["e4", "e5"]);
+    expect(
+      buildGameToNode(redoInVariantTree(redoInVariantTree(loadedState.variantTree))).history(),
+    ).toEqual(["e4", "e5", "Nf3", "Nc6"]);
+    expect(loadedState).toEqual({
+      variantTree: expect.objectContaining({
+        currentNodeId: expect.any(String),
+        activeLineLeafId: expect.any(String),
+      }),
       boardOrientation: "black",
       showMoveHistory: false,
       showEngineWindow: true,
       showEvaluationBar: true,
       showComments: false,
       showImportedPgn: false,
+      showVariants: false,
       importedPgnData: {
         rawPgn: "[Event \"Test\"] 1. e4",
         headers: [{ name: "Event", value: "Test" }],
@@ -120,19 +134,21 @@ describe("persisted app state", () => {
 
   it("serializes and saves the durable UI state", () => {
     const storage = createStorage();
-    const game = new Chess();
-    game.move("e4");
+    const variantTree = createVariantTreeFromMoves([
+      { from: "e2", to: "e4" },
+      { from: "e7", to: "e5" },
+    ]);
 
     const didSave = savePersistedAppState(
       {
-        game,
-        redoStack: [{ from: "e7", to: "e5", promotion: "q", color: "b" }],
+        variantTree,
         boardOrientation: "black",
         showMoveHistory: false,
         showEngineWindow: true,
         showEvaluationBar: false,
         showComments: true,
         showImportedPgn: false,
+        showVariants: false,
         importedPgnData: {
           rawPgn: "[Event \"Test\"] 1. e4",
           headers: [{ name: "Event", value: "Test" }],
@@ -146,14 +162,14 @@ describe("persisted app state", () => {
 
     expect(didSave).toBe(true);
     expect(JSON.parse(storage.storedValue)).toEqual({
-      gamePgn: game.pgn(),
-      redoStack: [{ from: "e7", to: "e5", promotion: "q" }],
+      variantTree,
       boardOrientation: "black",
       showMoveHistory: false,
       showEngineWindow: true,
       showEvaluationBar: false,
       showComments: true,
       showImportedPgn: false,
+      showVariants: false,
       importedPgnData: {
         rawPgn: "[Event \"Test\"] 1. e4",
         headers: [{ name: "Event", value: "Test" }],
@@ -170,6 +186,26 @@ describe("persisted app state", () => {
         additionalComments: [{ text: "Variation note", inVariation: true }],
         variationSnippets: ["1... c5"],
       },
+    });
+  });
+
+  it("falls back to an empty tree when the persisted variant tree is invalid", () => {
+    const storage = createStorage(
+      JSON.stringify({
+        variantTree: { initialFen: "bad fen" },
+      }),
+    );
+
+    expect(loadPersistedAppState(storage)).toEqual({
+      variantTree: createEmptyVariantTree(),
+      boardOrientation: "white",
+      showMoveHistory: true,
+      showEngineWindow: true,
+      showEvaluationBar: true,
+      showComments: true,
+      showImportedPgn: true,
+      showVariants: true,
+      importedPgnData: null,
     });
   });
 });

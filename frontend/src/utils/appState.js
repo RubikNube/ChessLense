@@ -1,5 +1,10 @@
 import { Chess } from "chess.js";
 import { normalizeImportedPgnData } from "./annotatedPgn.js";
+import {
+  createEmptyVariantTree,
+  createVariantTreeFromGameAndRedo,
+  normalizeVariantTree,
+} from "./variantTree.js";
 
 export const SHORTCUT_ACTION_ORDER = [
   "openShortcutsPopup",
@@ -179,9 +184,15 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         }, [])
       : [];
 
+    const gamePgn = typeof parsedState.gamePgn === "string" ? parsedState.gamePgn : "";
+    const game = createGameFromPgn(gamePgn);
+    const variantTree =
+      parsedState.variantTree && typeof parsedState.variantTree === "object"
+        ? normalizeVariantTree(parsedState.variantTree)
+        : createVariantTreeFromGameAndRedo(game, redoStack);
+
     return {
-      gamePgn: typeof parsedState.gamePgn === "string" ? parsedState.gamePgn : "",
-      redoStack,
+      variantTree,
       boardOrientation:
         parsedState.boardOrientation === "black" ? "black" : "white",
       showMoveHistory:
@@ -203,6 +214,10 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
       showImportedPgn:
         typeof parsedState.showImportedPgn === "boolean"
           ? parsedState.showImportedPgn
+          : true,
+      showVariants:
+        typeof parsedState.showVariants === "boolean"
+          ? parsedState.showVariants
           : true,
       importedPgnData: normalizeImportedPgnData(parsedState.importedPgnData),
     };
@@ -230,25 +245,25 @@ export function serializeMove(move) {
 }
 
 export function serializePersistedAppState({
-  game,
-  redoStack,
+  variantTree,
   boardOrientation,
   showMoveHistory,
   showEngineWindow,
   showEvaluationBar,
   showComments,
   showImportedPgn,
+  showVariants,
   importedPgnData,
 }) {
   return JSON.stringify({
-    gamePgn: game.pgn(),
-    redoStack: redoStack.map(serializeMove),
+    variantTree: normalizeVariantTree(variantTree ?? createEmptyVariantTree()),
     boardOrientation,
     showMoveHistory,
     showEngineWindow,
     showEvaluationBar,
     showComments,
     showImportedPgn,
+    showVariants,
     importedPgnData: normalizeImportedPgnData(importedPgnData),
   });
 }

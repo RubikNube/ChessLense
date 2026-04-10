@@ -297,6 +297,92 @@ code {
   font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
+.variant-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.variant-line {
+  padding: 12px;
+  border-radius: 10px;
+  background: #111827;
+  border: 1px solid transparent;
+}
+
+.variant-line-selected {
+  border-color: #2563eb;
+}
+
+.variant-line-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.variant-line-title {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.variant-line-branch {
+  display: block;
+  margin-top: 4px;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+.variant-line-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.18);
+  color: #bfdbfe;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.variant-line-select {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  background: #1f2937;
+  color: #e5e7eb;
+  text-align: left;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  cursor: pointer;
+}
+
+.variant-line-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.variant-action-button {
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  color: #e5e7eb;
+  cursor: pointer;
+}
+
+.variant-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .copy-notification {
   position: fixed;
   top: 24px;

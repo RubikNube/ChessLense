@@ -1,5 +1,3 @@
-import { useMemo } from "react";
-
 const actionRowStyle = {
   display: "flex",
   justifyContent: "flex-end",
@@ -30,47 +28,66 @@ const disabledActionButtonStyle = {
   opacity: 0.75,
 };
 
-function MoveHistory({
-  moveHistory,
+function VariantsView({
+  variantLines,
   canUndo,
   canRedo,
+  onSelectLine,
+  onPromoteLine,
+  onDemoteLine,
   onUndo,
   onRedo,
   onGoToStart,
   onGoToEnd,
 }) {
-  const groupedMoveHistory = useMemo(
-    () =>
-      moveHistory.reduce((pairs, move, index) => {
-        if (index % 2 === 0) {
-          pairs.push({
-            moveNumber: Math.floor(index / 2) + 1,
-          white: move,
-          black: null,
-        });
-      } else {
-        pairs[pairs.length - 1].black = move;
-        }
-
-        return pairs;
-      }, []),
-    [moveHistory],
-  );
-
   return (
     <div className="card">
-      <h2>Move History</h2>
-      {!groupedMoveHistory.length && <p>No moves yet.</p>}
-      {!!groupedMoveHistory.length && (
-        <ol className="move-history">
-          {groupedMoveHistory.map(({ moveNumber, white, black }) => (
-            <li key={moveNumber} className="move-row">
-              <span className="move-number">{moveNumber}.</span>
-              <span className="move-entry">{white}</span>
-              <span className="move-entry">{black || "..."}</span>
+      <h2>Variants</h2>
+      {!variantLines.length && <p>No variants branch from this move.</p>}
+      {!!variantLines.length && (
+        <ul className="variant-lines">
+          {variantLines.map((line) => (
+            <li
+              key={line.id}
+              className={`variant-line${line.isSelected ? " variant-line-selected" : ""}`}
+            >
+              <div className="variant-line-header">
+                <div>
+                  <span className="variant-line-title">
+                    {line.isMainLine ? "Main line" : "Sideline"}
+                  </span>
+                  <span className="variant-line-branch">{line.branchLabel}</span>
+                </div>
+                {line.isSelected && <span className="variant-line-badge">Selected</span>}
+              </div>
+              <button
+                type="button"
+                className="variant-line-select"
+                onClick={() => onSelectLine(line.id)}
+              >
+                {line.displayText || "Starting position"}
+              </button>
+              <div className="variant-line-actions">
+                <button
+                  type="button"
+                  className="variant-action-button"
+                  onClick={() => onPromoteLine(line.id)}
+                  disabled={!line.canPromote}
+                >
+                  Promote
+                </button>
+                <button
+                  type="button"
+                  className="variant-action-button"
+                  onClick={() => onDemoteLine(line.id)}
+                  disabled={!line.canDemote}
+                >
+                  Make sideline
+                </button>
+              </div>
             </li>
           ))}
-        </ol>
+        </ul>
       )}
       <div style={actionRowStyle}>
         <button
@@ -118,4 +135,4 @@ function MoveHistory({
   );
 }
 
-export default MoveHistory;
+export default VariantsView;
