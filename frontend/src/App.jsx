@@ -254,6 +254,18 @@ function isLinkValue(value) {
   return /^https?:\/\//i.test(value);
 }
 
+function getPgnHeaderValue(importedPgnData, headerName) {
+  if (!importedPgnData?.headers?.length || typeof headerName !== "string") {
+    return "";
+  }
+
+  const matchingHeader = importedPgnData.headers.find(
+    ({ name }) => typeof name === "string" && name.toLowerCase() === headerName.toLowerCase(),
+  );
+
+  return typeof matchingHeader?.value === "string" ? matchingHeader.value.trim() : "";
+}
+
 function getCurrentMoveLabel(moveHistory) {
   if (!Array.isArray(moveHistory) || moveHistory.length === 0) {
     return "Game introduction";
@@ -608,6 +620,14 @@ function App() {
     () => getCurrentMoveLabel(currentMoveHistory),
     [currentMoveHistory],
   );
+  const whiteTrainingLabel = useMemo(() => {
+    const playerName = getPgnHeaderValue(importedPgnData, "White");
+    return playerName ? `White (${playerName})` : "White";
+  }, [importedPgnData]);
+  const blackTrainingLabel = useMemo(() => {
+    const playerName = getPgnHeaderValue(importedPgnData, "Black");
+    return playerName ? `Black (${playerName})` : "Black";
+  }, [importedPgnData]);
   const engineVariants = useMemo(
     () =>
       (engineResult?.principalVariations ?? []).map((variation, index) => {
@@ -2152,7 +2172,7 @@ function App() {
                         onClick={() => setTrainingPlayerSide(TRAINING_SIDE_WHITE)}
                         disabled={isReplayTrainingActive || trainingLoading}
                       >
-                        White
+                        {whiteTrainingLabel}
                       </button>
                       <button
                         type="button"
@@ -2164,7 +2184,7 @@ function App() {
                         onClick={() => setTrainingPlayerSide(TRAINING_SIDE_BLACK)}
                         disabled={isReplayTrainingActive || trainingLoading}
                       >
-                        Black
+                        {blackTrainingLabel}
                       </button>
                     </div>
                   </div>
