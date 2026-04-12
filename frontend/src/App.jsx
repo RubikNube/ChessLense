@@ -42,8 +42,10 @@ import {
   createEmptyVariantTree,
   demoteVariantLine,
   getAlternativeVariantFirstMoves,
+  getMoveHistoryEntries,
   getMoveHistoryForNode,
   getRelevantVariantLines,
+  goToNodeInVariantTree,
   goToEndInVariantTree,
   goToStartInVariantTree,
   importMoveSequenceToVariantTree,
@@ -414,8 +416,12 @@ function App() {
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
-  const moveHistory = useMemo(
+  const currentMoveHistory = useMemo(
     () => getMoveHistoryForNode(variantTree),
+    [variantTree],
+  );
+  const moveHistoryEntries = useMemo(
+    () => getMoveHistoryEntries(variantTree),
     [variantTree],
   );
   const variantLines = useMemo(
@@ -476,8 +482,8 @@ function App() {
     [importedPgnData],
   );
   const currentMoveLabel = useMemo(
-    () => getCurrentMoveLabel(moveHistory),
-    [moveHistory],
+    () => getCurrentMoveLabel(currentMoveHistory),
+    [currentMoveHistory],
   );
   const engineVariants = useMemo(
     () =>
@@ -528,7 +534,27 @@ function App() {
     setImportedPgnData(nextImportedPgnData);
     return "";
   }
-  const currentMoveIndex = moveHistory.length - 1;
+  const currentMoveIndex = useMemo(
+    () => moveHistoryEntries.findIndex((entry) => entry.isSelected),
+    [moveHistoryEntries],
+  );
+  const moveHistoryCommentFens = useMemo(
+    () =>
+      new Set(
+        (importedPgnData?.mainlineComments ?? [])
+          .map((commentEntry) => commentEntry.fen)
+          .filter(Boolean),
+      ),
+    [importedPgnData],
+  );
+  const moveHistoryItems = useMemo(
+    () =>
+      moveHistoryEntries.map((entry) => ({
+        ...entry,
+        hasComments: moveHistoryCommentFens.has(entry.fen),
+      })),
+    [moveHistoryCommentFens, moveHistoryEntries],
+  );
 
   function handlePieceDrop(sourceSquareOrMove, maybeTargetSquare) {
     const sourceSquare =
@@ -620,6 +646,12 @@ function App() {
     setEngineResult(null);
     setEvaluationResult(null);
   }, [canJumpBackToSideline]);
+
+  const goToMoveHistoryNode = useCallback((nodeId) => {
+    setVariantTree((currentValue) => goToNodeInVariantTree(currentValue, nodeId));
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, []);
 
   const selectVariant = useCallback((lineId) => {
     setVariantTree((currentValue) => selectVariantLine(currentValue, lineId));
@@ -1470,12 +1502,13 @@ function App() {
         <div className="info-column info-column-navigation">
           {showMoveHistory && (
             <MoveHistory
-              moveHistory={moveHistory}
+              moveHistoryItems={moveHistoryItems}
               currentMoveIndex={currentMoveIndex}
               boardPanelHeight={boardPanelHeight}
               canUndo={canUndo}
               canRedo={canRedo}
               onClose={closeMoveHistory}
+              onSelectMove={goToMoveHistoryNode}
               onUndo={undoMove}
               onRedo={redoMove}
               onGoToStart={goToStart}

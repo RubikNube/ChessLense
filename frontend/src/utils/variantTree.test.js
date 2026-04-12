@@ -12,9 +12,11 @@ import {
   createVariantTreeFromMoves,
   demoteVariantLine,
   getAlternativeVariantFirstMoves,
+  getMoveHistoryEntries,
   getMoveHistoryForNode,
   getRelevantVariantLines,
   getVariantLines,
+  goToNodeInVariantTree,
   goToEndInVariantTree,
   goToStartInVariantTree,
   importMoveSequenceToVariantTree,
@@ -133,6 +135,56 @@ describe("variantTree", () => {
     ]);
 
     expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3"]);
+  });
+
+  it("exposes rich move-history entries for the active line", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "f1", to: "c4" });
+    tree = undoInVariantTree(tree);
+
+    expect(getMoveHistoryEntries(tree)).toEqual([
+      expect.objectContaining({
+        san: "e4",
+        moveNumber: 1,
+        side: "white",
+        hasVariants: false,
+        isSelected: false,
+      }),
+      expect.objectContaining({
+        san: "e5",
+        moveNumber: 1,
+        side: "black",
+        hasVariants: true,
+        isSelected: true,
+      }),
+      expect.objectContaining({
+        san: "Bc4",
+        moveNumber: 2,
+        side: "white",
+        hasVariants: false,
+        isSelected: false,
+      }),
+    ]);
+  });
+
+  it("jumps directly to a node on the active line", () => {
+    const tree = createVariantTreeFromMoves([
+      { from: "e2", to: "e4" },
+      { from: "e7", to: "e5" },
+      { from: "g1", to: "f3" },
+    ]);
+    const historyEntries = getMoveHistoryEntries(tree);
+    const e5NodeId = historyEntries[1].nodeId;
+    const jumpedTree = goToNodeInVariantTree(tree, e5NodeId);
+
+    expect(getMoveHistoryForNode(jumpedTree)).toEqual(["e4", "e5"]);
+    expect(jumpedTree.activeLineLeafId).toBe(tree.activeLineLeafId);
+    expect(jumpedTree.currentNodeId).toBe(e5NodeId);
   });
 
   it("filters variants to the current move context", () => {

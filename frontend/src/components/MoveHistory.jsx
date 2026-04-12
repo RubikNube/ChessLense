@@ -31,12 +31,13 @@ const disabledActionButtonStyle = {
 };
 
 function MoveHistory({
-  moveHistory,
+  moveHistoryItems,
   currentMoveIndex,
   boardPanelHeight,
   canUndo,
   canRedo,
   onClose,
+  onSelectMove,
   onUndo,
   onRedo,
   onGoToStart,
@@ -46,23 +47,35 @@ function MoveHistory({
   const selectedMoveRef = useRef(null);
   const groupedMoveHistory = useMemo(
     () =>
-      moveHistory.reduce((pairs, move, index) => {
-        if (index % 2 === 0) {
+      moveHistoryItems.reduce((pairs, moveEntry, index) => {
+        if (moveEntry.side === "white") {
           pairs.push({
-            moveNumber: Math.floor(index / 2) + 1,
-            white: move,
+            moveNumber: moveEntry.moveNumber,
+            white: moveEntry,
             whiteIndex: index,
             black: null,
             blackIndex: null,
           });
         } else {
-          pairs[pairs.length - 1].black = move;
-          pairs[pairs.length - 1].blackIndex = index;
+          const lastPair = pairs[pairs.length - 1];
+
+          if (!lastPair || lastPair.black) {
+            pairs.push({
+              moveNumber: moveEntry.moveNumber,
+              white: null,
+              whiteIndex: null,
+              black: moveEntry,
+              blackIndex: index,
+            });
+          } else {
+            lastPair.black = moveEntry;
+            lastPair.blackIndex = index;
+          }
         }
 
         return pairs;
       }, []),
-    [moveHistory],
+    [moveHistoryItems],
   );
 
   useEffect(() => {
@@ -111,20 +124,44 @@ function MoveHistory({
           <ol className="move-history" ref={moveHistoryRef}>
             {groupedMoveHistory.map(
               ({ moveNumber, white, whiteIndex, black, blackIndex }) => (
-                <li key={moveNumber} className="move-row">
+                <li key={`${moveNumber}-${white?.nodeId ?? black?.nodeId ?? "row"}`} className="move-row">
                   <span className="move-number">{moveNumber}.</span>
-                  <span
-                    ref={whiteIndex === currentMoveIndex ? selectedMoveRef : null}
-                    className={`move-entry${whiteIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
-                  >
-                    {white}
-                  </span>
-                  <span
-                    ref={blackIndex === currentMoveIndex ? selectedMoveRef : null}
-                    className={`move-entry${blackIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
-                  >
-                    {black || "..."}
-                  </span>
+                  {white ? (
+                    <button
+                      type="button"
+                      ref={whiteIndex === currentMoveIndex ? selectedMoveRef : null}
+                      className={`move-entry move-entry-button${whiteIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
+                      onClick={() => onSelectMove(white.nodeId)}
+                    >
+                      <span>{white.san}</span>
+                      {(white.hasVariants || white.hasComments) && (
+                        <span className="move-entry-indicators" aria-hidden="true">
+                          {white.hasVariants && <span className="move-entry-indicator">V</span>}
+                          {white.hasComments && <span className="move-entry-indicator">C</span>}
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <span className="move-entry move-entry-placeholder">...</span>
+                  )}
+                  {black ? (
+                    <button
+                      type="button"
+                      ref={blackIndex === currentMoveIndex ? selectedMoveRef : null}
+                      className={`move-entry move-entry-button${blackIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
+                      onClick={() => onSelectMove(black.nodeId)}
+                    >
+                      <span>{black.san}</span>
+                      {(black.hasVariants || black.hasComments) && (
+                        <span className="move-entry-indicators" aria-hidden="true">
+                          {black.hasVariants && <span className="move-entry-indicator">V</span>}
+                          {black.hasComments && <span className="move-entry-indicator">C</span>}
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <span className="move-entry move-entry-placeholder">...</span>
+                  )}
                 </li>
               ),
             )}

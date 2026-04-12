@@ -533,6 +533,26 @@ export function getMoveHistoryForNode(tree, targetNodeId = tree.currentNodeId) {
     .filter(Boolean);
 }
 
+export function getMoveHistoryEntries(tree, targetNodeId = tree.activeLineLeafId) {
+  const normalizedTree = normalizeVariantTree(tree);
+  const pathNodeIds = findNodePathIds(normalizedTree, targetNodeId);
+
+  return pathNodeIds
+    .slice(1)
+    .map((nodeId) => normalizedTree.nodes[nodeId])
+    .filter(Boolean)
+    .map((node) => ({
+      nodeId: node.id,
+      san: node.san,
+      fen: node.fen,
+      ply: node.ply,
+      moveNumber: node.moveNumber,
+      side: node.side,
+      hasVariants: node.children.length > 1,
+      isSelected: node.id === normalizedTree.currentNodeId,
+    }));
+}
+
 export function canUndoInVariantTree(tree) {
   const normalizedTree = normalizeVariantTree(tree);
   return normalizedTree.currentNodeId !== normalizedTree.rootId;
@@ -613,6 +633,20 @@ export function goToEndInVariantTree(tree) {
   return finalizeVariantTree({
     ...normalizedTree,
     currentNodeId: normalizedTree.activeLineLeafId,
+  });
+}
+
+export function goToNodeInVariantTree(tree, nodeId) {
+  const normalizedTree = normalizeVariantTree(tree);
+  const activePathNodeIds = findNodePathIds(normalizedTree, normalizedTree.activeLineLeafId);
+
+  if (!activePathNodeIds.includes(nodeId)) {
+    return normalizedTree;
+  }
+
+  return finalizeVariantTree({
+    ...normalizedTree,
+    currentNodeId: nodeId,
   });
 }
 
