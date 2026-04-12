@@ -286,6 +286,22 @@ code {
   background: #111827;
 }
 
+.annotation-item-header,
+.annotation-editor-header,
+.annotation-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.annotation-item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .annotation-item p {
   margin: 8px 0 0;
   white-space: pre-wrap;
@@ -308,6 +324,79 @@ code {
 .annotation-empty {
   margin: 0;
   color: #9ca3af;
+}
+
+.annotation-editor {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.annotation-editor-header h3 {
+  margin: 0;
+}
+
+.annotation-editor-input {
+  min-height: 7rem;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #111827;
+  color: #e5e7eb;
+  font: inherit;
+}
+
+.annotation-action-button,
+.annotation-primary-button,
+.annotation-secondary-button,
+.annotation-danger-button {
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.annotation-action-button,
+.annotation-secondary-button,
+.annotation-danger-button {
+  border: 1px solid #4b5563;
+  background: transparent;
+  color: #d1d5db;
+}
+
+.annotation-primary-button {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.annotation-action-button:hover,
+.annotation-secondary-button:hover {
+  background: #374151;
+}
+
+.annotation-danger-button {
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+.annotation-danger-button:hover {
+  background: #3f1d1d;
+}
+
+.annotation-primary-button:hover {
+  background: #1d4ed8;
+}
+
+.annotation-action-button:disabled,
+.annotation-primary-button:disabled,
+.annotation-secondary-button:disabled,
+.annotation-danger-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .variation-list li {

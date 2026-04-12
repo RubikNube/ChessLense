@@ -5,14 +5,19 @@ import EvaluationBar from "./components/EvaluationBar.jsx";
 import MoveHistory from "./components/MoveHistory.jsx";
 import VariantsView from "./components/VariantsView.jsx";
 import {
+  createUserPositionComment,
   DEFAULT_SHORTCUT_CONFIG,
   DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   SHORTCUT_ACTION_ORDER,
+  getPositionCommentsForFen,
   getShortcutDisplayLabel,
   loadPersistedAppState,
   matchesShortcut,
   normalizeShortcutConfig,
+  removePositionCommentEntry,
+  savePositionCommentEntry,
   savePersistedAppState,
+  seedPositionCommentsFromImportedPgnData,
 } from "./utils/appState.js";
 import { parseAnnotatedPgn } from "./utils/annotatedPgn.js";
 import {
@@ -248,6 +253,29 @@ function getCurrentMoveLabel(moveHistory) {
     : `${moveNumber}. ${lastMove}`;
 }
 
+function buildPositionCommentContext(fen, moveHistory) {
+  const normalizedMoveHistory = Array.isArray(moveHistory) ? moveHistory : [];
+  const ply = normalizedMoveHistory.length;
+
+  if (ply === 0) {
+    return {
+      fen,
+      ply: 0,
+      moveNumber: 0,
+      side: null,
+      san: null,
+    };
+  }
+
+  return {
+    fen,
+    ply,
+    moveNumber: Math.floor((ply - 1) / 2) + 1,
+    side: ply % 2 === 0 ? "black" : "white",
+    san: normalizedMoveHistory[ply - 1] ?? null,
+  };
+}
+
 async function fetchJson(path, options = {}) {
   let response;
 
@@ -410,6 +438,13 @@ function App() {
   const [importedPgnData, setImportedPgnData] = useState(
     () => persistedAppState?.importedPgnData ?? null,
   );
+  const [positionComments, setPositionComments] = useState(
+    () =>
+      persistedAppState?.positionComments ??
+      seedPositionCommentsFromImportedPgnData(persistedAppState?.importedPgnData),
+  );
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [commentDraft, setCommentDraft] = useState("");
   const shortcutConfigSignatureRef = useRef(
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
@@ -463,11 +498,22 @@ function App() {
     [shortcutConfig],
   );
   const currentPositionComments = useMemo(
+    () => getPositionCommentsForFen(positionComments, fen),
+    [fen, positionComments],
+  );
+  const editedComment = useMemo(
     () =>
-      importedPgnData?.mainlineComments?.filter(
-        (commentEntry) => commentEntry.fen === fen,
-      ) ?? [],
-    [fen, importedPgnData],
+      currentPositionComments.find(
+        (commentEntry) => commentEntry.id === editingCommentId,
+      ) ?? null,
+    [currentPositionComments, editingCommentId],
+  );
+  const importedMainlineComments = useMemo(
+    () =>
+      positionComments.filter(
+        (commentEntry) => commentEntry.source === "imported-mainline",
+      ),
+    [positionComments],
   );
   const hasImportedPgnDetails = useMemo(
     () =>
@@ -475,12 +521,12 @@ function App() {
         importedPgnData &&
         (
           importedPgnData.headers.length ||
-          importedPgnData.mainlineComments.length ||
+          importedMainlineComments.length ||
           importedPgnData.additionalComments.length ||
           importedPgnData.variationSnippets.length
         )
       ),
-    [importedPgnData],
+    [importedMainlineComments, importedPgnData],
   );
   const currentMoveLabel = useMemo(
     () => getCurrentMoveLabel(currentMoveHistory),
@@ -533,6 +579,9 @@ function App() {
     setEngineResult(null);
     setEvaluationResult(null);
     setImportedPgnData(nextImportedPgnData);
+    setPositionComments(seedPositionCommentsFromImportedPgnData(nextImportedPgnData));
+    setEditingCommentId(null);
+    setCommentDraft("");
     return "";
   }
   const currentMoveIndex = useMemo(
@@ -542,11 +591,11 @@ function App() {
   const moveHistoryCommentFens = useMemo(
     () =>
       new Set(
-        (importedPgnData?.mainlineComments ?? [])
+        positionComments
           .map((commentEntry) => commentEntry.fen)
           .filter(Boolean),
       ),
-    [importedPgnData],
+    [positionComments],
   );
   const moveHistoryItems = useMemo(
     () =>
@@ -673,6 +722,68 @@ function App() {
     setEngineResult(null);
     setEvaluationResult(null);
   }, []);
+
+  const startAddingComment = useCallback(() => {
+    setEditingCommentId(null);
+    setCommentDraft("");
+    setShowComments(true);
+  }, []);
+
+  const startEditingComment = useCallback((commentEntry) => {
+    setEditingCommentId(commentEntry.id);
+    setCommentDraft(commentEntry.comment);
+    setShowComments(true);
+  }, []);
+
+  const cancelCommentEdit = useCallback(() => {
+    setEditingCommentId(null);
+    setCommentDraft("");
+  }, []);
+
+  const removeComment = useCallback((commentId) => {
+    const isRemovingEditedComment = editingCommentId === commentId;
+
+    setPositionComments((currentValue) =>
+      removePositionCommentEntry(currentValue, commentId),
+    );
+    if (isRemovingEditedComment) {
+      setEditingCommentId(null);
+      setCommentDraft("");
+    }
+  }, [editingCommentId]);
+
+  const saveComment = useCallback(() => {
+    const trimmedDraft = commentDraft.trim();
+
+    if (!trimmedDraft) {
+      return;
+    }
+
+    const existingComment =
+      currentPositionComments.find((commentEntry) => commentEntry.id === editingCommentId) ??
+      null;
+    const commentContext = buildPositionCommentContext(fen, currentMoveHistory);
+    const nextComment = createUserPositionComment({
+      ...commentContext,
+      id: existingComment?.id,
+      comment: trimmedDraft,
+      ply: existingComment?.ply ?? commentContext.ply,
+      moveNumber: existingComment?.moveNumber ?? commentContext.moveNumber,
+      side: existingComment?.side ?? commentContext.side,
+      san: existingComment?.san ?? commentContext.san,
+      source: existingComment?.source ?? "user",
+    });
+
+    if (!nextComment) {
+      return;
+    }
+
+    setPositionComments((currentValue) =>
+      savePositionCommentEntry(currentValue, nextComment),
+    );
+    setEditingCommentId(null);
+    setCommentDraft("");
+  }, [commentDraft, currentMoveHistory, currentPositionComments, editingCommentId, fen]);
 
   function toggleMenu(menuName) {
     setOpenMenu((currentMenu) => (currentMenu === menuName ? null : menuName));
@@ -885,6 +996,11 @@ function App() {
   }, [copyNotification]);
 
   useEffect(() => {
+    setEditingCommentId(null);
+    setCommentDraft("");
+  }, [fen]);
+
+  useEffect(() => {
     try {
       savePersistedAppState({
         variantTree,
@@ -897,6 +1013,7 @@ function App() {
         showVariants,
         showVariantArrows,
         importedPgnData,
+        positionComments,
       });
     } catch (error) {
       console.error("Failed to persist app state:", error);
@@ -904,6 +1021,7 @@ function App() {
   }, [
     boardOrientation,
     importedPgnData,
+    positionComments,
     showEngineWindow,
     showEvaluationBar,
     showComments,
@@ -1083,6 +1201,9 @@ function App() {
     setEngineResult(null);
     setEvaluationResult(null);
     setImportedPgnData(null);
+    setPositionComments([]);
+    setEditingCommentId(null);
+    setCommentDraft("");
   }
 
   const toggleMoveHistory = useCallback(() => {
@@ -1111,6 +1232,8 @@ function App() {
 
   const closeComments = useCallback(() => {
     setShowComments(false);
+    setEditingCommentId(null);
+    setCommentDraft("");
   }, []);
 
   const toggleImportedPgn = useCallback(() => {
@@ -1635,7 +1758,7 @@ function App() {
             </div>
           )}
 
-          {showComments && importedPgnData && (
+          {showComments && (
             <div className="card">
               <div className="card-header">
                 <h2>Comments</h2>
@@ -1654,18 +1777,79 @@ function App() {
                 <ul className="annotation-list">
                   {currentPositionComments.map((commentEntry, index) => (
                     <li
-                      key={`${commentEntry.fen ?? "current"}-${index}`}
+                      key={commentEntry.id ?? `${commentEntry.fen ?? "current"}-${index}`}
                       className="annotation-item"
                     >
+                      <div className="annotation-item-header">
+                        <span className="annotation-label">
+                          {formatPgnCommentLabel(commentEntry)}
+                        </span>
+                        <div className="annotation-item-actions">
+                          <button
+                            type="button"
+                            className="annotation-action-button"
+                            onClick={() => startEditingComment(commentEntry)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="annotation-danger-button"
+                            onClick={() => removeComment(commentEntry.id)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
                       <p>{commentEntry.comment}</p>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="annotation-empty">
-                  No annotation is available for the current move.
+                  No comments are attached to the current position yet.
                 </p>
               )}
+              <div className="annotation-editor">
+                <div className="annotation-editor-header">
+                  <h3>{editedComment ? "Edit comment" : "Add comment"}</h3>
+                  {!editedComment && (
+                    <button
+                      type="button"
+                      className="annotation-action-button"
+                      onClick={startAddingComment}
+                    >
+                      New comment
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  className="annotation-editor-input"
+                  value={commentDraft}
+                  onChange={(event) => {
+                    setCommentDraft(event.target.value);
+                  }}
+                  placeholder="Write a comment for this position..."
+                />
+                <div className="annotation-editor-actions">
+                  <button
+                    type="button"
+                    className="annotation-primary-button"
+                    onClick={saveComment}
+                    disabled={!commentDraft.trim()}
+                  >
+                    {editedComment ? "Save changes" : "Add comment"}
+                  </button>
+                  <button
+                    type="button"
+                    className="annotation-secondary-button"
+                    onClick={cancelCommentEdit}
+                    disabled={!commentDraft && !editedComment}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1726,13 +1910,13 @@ function App() {
                 </dl>
               )}
 
-              {!!importedPgnData.mainlineComments.length && (
+              {!!importedMainlineComments.length && (
                 <div className="annotation-section">
                   <h3>All Main Line Notes</h3>
                   <ul className="annotation-list">
-                    {importedPgnData.mainlineComments.map((commentEntry, index) => (
+                    {importedMainlineComments.map((commentEntry, index) => (
                       <li
-                        key={`${commentEntry.fen ?? "mainline"}-${index}`}
+                        key={commentEntry.id ?? `${commentEntry.fen ?? "mainline"}-${index}`}
                         className="annotation-item"
                       >
                         <span className="annotation-label">

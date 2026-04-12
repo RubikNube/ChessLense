@@ -119,6 +119,8 @@ export const DEFAULT_SHORTCUT_CONFIG_SIGNATURE = JSON.stringify(
 );
 
 export const FRONTEND_STATE_STORAGE_KEY = "chesslense.frontend-state";
+const POSITION_COMMENT_SOURCE_IMPORTED = "imported-mainline";
+const POSITION_COMMENT_SOURCE_USER = "user";
 
 function getBrowserStorage() {
   if (typeof window === "undefined") {
@@ -134,6 +136,129 @@ function normalizeShortcutKey(shortcutKey) {
     .map((token) => token.trim().toLowerCase())
     .filter(Boolean)
     .join("+");
+}
+
+function createPositionCommentId() {
+  return `comment-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizePositionComment(entry, index = 0) {
+  if (
+    !entry ||
+    typeof entry !== "object" ||
+    typeof entry.comment !== "string" ||
+    !entry.comment.trim()
+  ) {
+    return null;
+  }
+
+  const fen = typeof entry.fen === "string" && entry.fen.trim() ? entry.fen : null;
+  const ply =
+    Number.isInteger(entry.ply) && entry.ply >= 0 ? entry.ply : null;
+  const moveNumber =
+    Number.isInteger(entry.moveNumber) && entry.moveNumber >= 0
+      ? entry.moveNumber
+      : null;
+  const side =
+    entry.side === "white" || entry.side === "black" ? entry.side : null;
+  const san = typeof entry.san === "string" && entry.san.trim() ? entry.san : null;
+  const source =
+    entry.source === POSITION_COMMENT_SOURCE_IMPORTED
+      ? POSITION_COMMENT_SOURCE_IMPORTED
+      : POSITION_COMMENT_SOURCE_USER;
+  const id =
+    typeof entry.id === "string" && entry.id.trim()
+      ? entry.id.trim()
+      : `comment-${index}`;
+
+  return {
+    id,
+    comment: entry.comment.trim(),
+    fen,
+    ply,
+    moveNumber,
+    side,
+    san,
+    source,
+  };
+}
+
+export function normalizePositionComments(comments) {
+  if (!Array.isArray(comments)) {
+    return [];
+  }
+
+  return comments
+    .map((entry, index) => normalizePositionComment(entry, index))
+    .filter(Boolean);
+}
+
+export function seedPositionCommentsFromImportedPgnData(importedPgnData) {
+  if (!importedPgnData?.mainlineComments?.length) {
+    return [];
+  }
+
+  return importedPgnData.mainlineComments
+    .map((commentEntry, index) =>
+      normalizePositionComment(
+        {
+          ...commentEntry,
+          id: `imported-mainline-${index}`,
+          source: POSITION_COMMENT_SOURCE_IMPORTED,
+        },
+        index,
+      ),
+    )
+    .filter(Boolean);
+}
+
+export function getPositionCommentsForFen(positionComments, fen) {
+  if (typeof fen !== "string" || !fen.trim()) {
+    return [];
+  }
+
+  return normalizePositionComments(positionComments).filter(
+    (commentEntry) => commentEntry.fen === fen,
+  );
+}
+
+export function savePositionCommentEntry(positionComments, entry) {
+  const normalizedEntry = normalizePositionComment(entry);
+
+  if (!normalizedEntry) {
+    return normalizePositionComments(positionComments);
+  }
+
+  const normalizedComments = normalizePositionComments(positionComments);
+  const existingIndex = normalizedComments.findIndex(
+    (commentEntry) => commentEntry.id === normalizedEntry.id,
+  );
+
+  if (existingIndex === -1) {
+    return [...normalizedComments, normalizedEntry];
+  }
+
+  return normalizedComments.map((commentEntry, index) =>
+    index === existingIndex ? normalizedEntry : commentEntry,
+  );
+}
+
+export function removePositionCommentEntry(positionComments, commentId) {
+  if (typeof commentId !== "string" || !commentId.trim()) {
+    return normalizePositionComments(positionComments);
+  }
+
+  return normalizePositionComments(positionComments).filter(
+    (commentEntry) => commentEntry.id !== commentId,
+  );
+}
+
+export function createUserPositionComment(entry) {
+  return normalizePositionComment({
+    ...entry,
+    id: entry?.id ?? createPositionCommentId(),
+    source: entry?.source ?? POSITION_COMMENT_SOURCE_USER,
+  });
 }
 
 function isUnsafeViewToggleShortcut(shortcutKey) {
@@ -340,6 +465,10 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
       parsedState.variantTree && typeof parsedState.variantTree === "object"
         ? normalizeVariantTree(parsedState.variantTree)
         : createVariantTreeFromGameAndRedo(game, redoStack);
+    const importedPgnData = normalizeImportedPgnData(parsedState.importedPgnData);
+    const positionComments = Array.isArray(parsedState.positionComments)
+      ? normalizePositionComments(parsedState.positionComments)
+      : seedPositionCommentsFromImportedPgnData(importedPgnData);
 
     return {
       variantTree,
@@ -373,7 +502,8 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showVariantArrows === "boolean"
           ? parsedState.showVariantArrows
           : false,
-      importedPgnData: normalizeImportedPgnData(parsedState.importedPgnData),
+      importedPgnData,
+      positionComments,
     };
   } catch {
     return null;
@@ -409,6 +539,7 @@ export function serializePersistedAppState({
   showVariants,
   showVariantArrows,
   importedPgnData,
+  positionComments,
 }) {
   return JSON.stringify({
     variantTree: normalizeVariantTree(variantTree ?? createEmptyVariantTree()),
@@ -421,6 +552,7 @@ export function serializePersistedAppState({
     showVariants,
     showVariantArrows,
     importedPgnData: normalizeImportedPgnData(importedPgnData),
+    positionComments: normalizePositionComments(positionComments),
   });
 }
 

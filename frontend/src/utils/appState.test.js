@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { Chess } from "chess.js";
 import {
+  createUserPositionComment,
   FRONTEND_STATE_STORAGE_KEY,
   cloneGame,
   createGameFromPgn,
+  getPositionCommentsForFen,
   loadPersistedAppState,
   parseGameFromPgn,
+  removePositionCommentEntry,
+  savePositionCommentEntry,
   savePersistedAppState,
+  seedPositionCommentsFromImportedPgnData,
   serializeMove,
 } from "./appState.js";
 import {
@@ -87,6 +92,10 @@ describe("persisted app state", () => {
           additionalComments: [{ text: "Variation note", inVariation: true }],
           variationSnippets: ["1... c5", 9],
         },
+        positionComments: [
+          { id: "saved-1", fen: "fen-1", comment: " Keep me ", source: "user" },
+          { comment: "" },
+        ],
       }),
     );
 
@@ -125,6 +134,18 @@ describe("persisted app state", () => {
         additionalComments: [{ text: "Variation note", inVariation: true }],
         variationSnippets: ["1... c5"],
       },
+      positionComments: [
+        {
+          id: "saved-1",
+          comment: "Keep me",
+          fen: "fen-1",
+          ply: null,
+          moveNumber: null,
+          side: null,
+          san: null,
+          source: "user",
+        },
+      ],
     });
   });
 
@@ -159,6 +180,17 @@ describe("persisted app state", () => {
           additionalComments: [{ text: "Variation note", inVariation: true }],
           variationSnippets: ["1... c5"],
         },
+        positionComments: [
+          {
+            id: "comment-1",
+            comment: "Editable note",
+            fen: "fen-1",
+            moveNumber: 1,
+            side: "white",
+            san: "e4",
+            source: "user",
+          },
+        ],
       },
       storage,
     );
@@ -190,6 +222,18 @@ describe("persisted app state", () => {
         additionalComments: [{ text: "Variation note", inVariation: true }],
         variationSnippets: ["1... c5"],
       },
+      positionComments: [
+        {
+          id: "comment-1",
+          comment: "Editable note",
+          fen: "fen-1",
+          ply: null,
+          moveNumber: 1,
+          side: "white",
+          san: "e4",
+          source: "user",
+        },
+      ],
     });
   });
 
@@ -211,7 +255,46 @@ describe("persisted app state", () => {
       showVariants: true,
       showVariantArrows: false,
       importedPgnData: null,
+      positionComments: [],
     });
+  });
+
+  it("seeds editable comments from imported main-line comments when no position comments exist", () => {
+    const storage = createStorage(
+      JSON.stringify({
+        importedPgnData: {
+          rawPgn: "[Event \"Seed\"] 1. e4 {First note}",
+          headers: [{ name: "Event", value: "Seed" }],
+          mainlineComments: [
+            {
+              fen: "fen-1",
+              comment: "First note",
+              ply: 1,
+              moveNumber: 1,
+              side: "white",
+              san: "e4",
+            },
+          ],
+          additionalComments: [],
+          variationSnippets: [],
+        },
+      }),
+    );
+
+    const loadedState = loadPersistedAppState(storage);
+
+    expect(loadedState.positionComments).toEqual([
+      {
+        id: "imported-mainline-0",
+        comment: "First note",
+        fen: "fen-1",
+        ply: 1,
+        moveNumber: 1,
+        side: "white",
+        san: "e4",
+        source: "imported-mainline",
+      },
+    ]);
   });
 });
 
@@ -235,5 +318,183 @@ describe("move helpers", () => {
 
     expect(game.history()).toEqual(["e4"]);
     expect(clone.history()).toEqual(["e4", "e5"]);
+  });
+});
+
+describe("position comments", () => {
+  it("creates editable user comments with generated ids", () => {
+    expect(
+      createUserPositionComment({
+        fen: "fen-1",
+        comment: "Fresh note",
+        ply: 1,
+        moveNumber: 1,
+        side: "white",
+        san: "e4",
+      }),
+    ).toEqual({
+      id: expect.any(String),
+      comment: "Fresh note",
+      fen: "fen-1",
+      ply: 1,
+      moveNumber: 1,
+      side: "white",
+      san: "e4",
+      source: "user",
+    });
+  });
+
+  it("updates an existing comment without changing its identity or order", () => {
+    expect(
+      savePositionCommentEntry(
+        [
+          {
+            id: "comment-1",
+            comment: "Old note",
+            fen: "fen-1",
+            ply: 1,
+            moveNumber: 1,
+            side: "white",
+            san: "e4",
+            source: "user",
+          },
+          {
+            id: "comment-2",
+            comment: "Second note",
+            fen: "fen-2",
+            ply: 2,
+            moveNumber: 1,
+            side: "black",
+            san: "e5",
+            source: "user",
+          },
+        ],
+        {
+          id: "comment-1",
+          comment: "Updated note",
+          fen: "fen-1",
+          ply: 1,
+          moveNumber: 1,
+          side: "white",
+          san: "e4",
+          source: "user",
+        },
+      ),
+    ).toEqual([
+      {
+        id: "comment-1",
+        comment: "Updated note",
+        fen: "fen-1",
+        ply: 1,
+        moveNumber: 1,
+        side: "white",
+        san: "e4",
+        source: "user",
+      },
+      {
+        id: "comment-2",
+        comment: "Second note",
+        fen: "fen-2",
+        ply: 2,
+        moveNumber: 1,
+        side: "black",
+        san: "e5",
+        source: "user",
+      },
+    ]);
+  });
+
+  it("looks up only comments matching the current fen", () => {
+    expect(
+      getPositionCommentsForFen(
+        [
+          {
+            id: "comment-1",
+            comment: "Current",
+            fen: "fen-1",
+            source: "user",
+          },
+          {
+            id: "comment-2",
+            comment: "Other",
+            fen: "fen-2",
+            source: "user",
+          },
+        ],
+        "fen-1",
+      ),
+    ).toEqual([
+      {
+        id: "comment-1",
+        comment: "Current",
+        fen: "fen-1",
+        ply: null,
+        moveNumber: null,
+        side: null,
+        san: null,
+        source: "user",
+      },
+    ]);
+  });
+
+  it("removes a comment by id without disturbing other comments", () => {
+    expect(
+      removePositionCommentEntry(
+        [
+          {
+            id: "comment-1",
+            comment: "Current",
+            fen: "fen-1",
+            source: "user",
+          },
+          {
+            id: "comment-2",
+            comment: "Other",
+            fen: "fen-2",
+            source: "user",
+          },
+        ],
+        "comment-1",
+      ),
+    ).toEqual([
+      {
+        id: "comment-2",
+        comment: "Other",
+        fen: "fen-2",
+        ply: null,
+        moveNumber: null,
+        side: null,
+        san: null,
+        source: "user",
+      },
+    ]);
+  });
+
+  it("seeds imported main-line comments into editable comments", () => {
+    expect(
+      seedPositionCommentsFromImportedPgnData({
+        mainlineComments: [
+          {
+            fen: "fen-1",
+            comment: "Imported",
+            ply: 1,
+            moveNumber: 1,
+            side: "white",
+            san: "e4",
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        id: "imported-mainline-0",
+        comment: "Imported",
+        fen: "fen-1",
+        ply: 1,
+        moveNumber: 1,
+        side: "white",
+        san: "e4",
+        source: "imported-mainline",
+      },
+    ]);
   });
 });
