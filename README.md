@@ -19,7 +19,7 @@ recommended way to run both together is:
 - Analyze the current position with Stockfish
 - Import a PGN directly into the board
 - Search public Lichess games by player with optional filters such as opponent, year, color, and speed
-- Search historical OTB master games from a local PGN archive with player, event, year range, result, ECO, and opening filters
+- Search historical OTB master games from a local PGN archive with player, opponent, optional player color, event, year range, result, ECO, and opening filters
 - Import a selected Lichess game back into the existing PGN/annotation flow
 - Import a selected OTB game back into the existing PGN/annotation flow
 

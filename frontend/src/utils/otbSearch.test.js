@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOtbSearchQuery,
+  OTB_COLOR_OPTIONS,
   formatOtbGameDate,
   formatOtbMoveCount,
   formatOtbResult,
@@ -12,8 +13,8 @@ describe("normalizeOtbSearchFilters", () => {
     expect(
       normalizeOtbSearchFilters({
         player: " Morphy ",
-        white: " Anderssen ",
-        black: " ",
+        opponent: " Anderssen ",
+        color: " white ",
         event: " London ",
         yearFrom: " 1851 ",
         yearTo: "",
@@ -24,8 +25,8 @@ describe("normalizeOtbSearchFilters", () => {
       }),
     ).toEqual({
       player: "Morphy",
-      white: "Anderssen",
-      black: "",
+      opponent: "Anderssen",
+      color: "white",
       event: "London",
       yearFrom: "1851",
       yearTo: "",
@@ -45,6 +46,13 @@ describe("buildOtbSearchQuery", () => {
     });
   });
 
+  it("requires a player before filtering by color", () => {
+    expect(buildOtbSearchQuery({ opponent: "Anderssen", color: "white" })).toEqual({
+      query: "",
+      error: "Choose a player before filtering by color.",
+    });
+  });
+
   it("rejects invalid year ranges", () => {
     expect(buildOtbSearchQuery({ player: "Morphy", yearFrom: "1852", yearTo: "1851" })).toEqual({
       query: "",
@@ -56,6 +64,8 @@ describe("buildOtbSearchQuery", () => {
     expect(
       buildOtbSearchQuery({
         player: "Morphy",
+        opponent: "Anderssen",
+        color: "black",
         event: "Paris",
         yearFrom: "1858",
         yearTo: "1858",
@@ -63,9 +73,20 @@ describe("buildOtbSearchQuery", () => {
         max: "5",
       }),
     ).toEqual({
-      query: "player=Morphy&event=Paris&yearFrom=1858&yearTo=1858&result=1-0&max=5",
+      query:
+        "player=Morphy&opponent=Anderssen&color=black&event=Paris&yearFrom=1858&yearTo=1858&result=1-0&max=5",
       error: "",
     });
+  });
+});
+
+describe("OTB_COLOR_OPTIONS", () => {
+  it("defaults to ignoring player color", () => {
+    expect(OTB_COLOR_OPTIONS).toEqual([
+      { value: "", label: "Ignore player color" },
+      { value: "white", label: "White" },
+      { value: "black", label: "Black" },
+    ]);
   });
 });
 

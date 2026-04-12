@@ -232,9 +232,9 @@ Search historical OTB games from the configured local PGN archive.
 
 #### Query parameters
 
-- `player` (optional): match either player
-- `white` (optional): filter white player
-- `black` (optional): filter black player
+- `player` (optional): searched player name
+- `opponent` (optional): opponent name
+- `color` (optional): `white` or `black`; when omitted, player color is ignored and player/opponent can match either side
 - `event` (optional): event name contains filter
 - `yearFrom` / `yearTo` (optional): inclusive year range
 - `result` (optional): `1-0`, `0-1`, `1/2-1/2`, or `*`
@@ -250,8 +250,8 @@ At least one non-`max` filter is required.
 {
   "search": {
     "player": "Morphy",
-    "white": "",
-    "black": "",
+    "opponent": "Anderssen",
+    "color": "",
     "event": "",
     "eco": "",
     "opening": "",
@@ -280,6 +280,13 @@ At least one non-`max` filter is required.
   ]
 }
 ```
+
+When both `player` and `opponent` are provided:
+
+- the two names are matched together as a player/opponent pair, using case-insensitive name tokens instead of treating them as one loose combined search
+- omitting `color` matches both `Player A vs Player B` and `Player B vs Player A`
+- `color=white` requires the searched player to be White
+- `color=black` requires the searched player to be Black
 
 If no archive is configured, the API returns:
 

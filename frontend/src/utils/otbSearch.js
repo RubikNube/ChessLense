@@ -1,7 +1,7 @@
 export const DEFAULT_OTB_SEARCH_FILTERS = {
   player: "",
-  white: "",
-  black: "",
+  opponent: "",
+  color: "",
   event: "",
   yearFrom: "",
   yearTo: "",
@@ -19,6 +19,12 @@ export const OTB_RESULT_OPTIONS = [
   { value: "*", label: "*" },
 ];
 
+export const OTB_COLOR_OPTIONS = [
+  { value: "", label: "Ignore player color" },
+  { value: "white", label: "White" },
+  { value: "black", label: "Black" },
+];
+
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -26,8 +32,8 @@ function normalizeString(value) {
 export function normalizeOtbSearchFilters(filters) {
   return {
     player: normalizeString(filters?.player),
-    white: normalizeString(filters?.white),
-    black: normalizeString(filters?.black),
+    opponent: normalizeString(filters?.opponent),
+    color: normalizeString(filters?.color),
     event: normalizeString(filters?.event),
     yearFrom: normalizeString(filters?.yearFrom),
     yearTo: normalizeString(filters?.yearTo),
@@ -40,10 +46,17 @@ export function normalizeOtbSearchFilters(filters) {
 
 export function buildOtbSearchQuery(filters) {
   const normalized = normalizeOtbSearchFilters(filters);
+
+  if (normalized.color && !normalized.player) {
+    return {
+      query: "",
+      error: "Choose a player before filtering by color.",
+    };
+  }
+
   const hasQueryFilter =
     normalized.player ||
-    normalized.white ||
-    normalized.black ||
+    normalized.opponent ||
     normalized.event ||
     normalized.yearFrom ||
     normalized.yearTo ||

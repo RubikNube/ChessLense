@@ -28,6 +28,7 @@ import {
   formatOtbGameDate,
   formatOtbMoveCount,
   formatOtbResult,
+  OTB_COLOR_OPTIONS,
   OTB_RESULT_OPTIONS,
 } from "./utils/otbSearch.js";
 import {
@@ -1668,8 +1669,11 @@ function App() {
             <h2 id="otb-search-title">Search OTB Master Games</h2>
             <p>
               Search a local archive of historical master-game PGNs by player,
-              event, year range, result, ECO, or opening. Configure the archive
-              with <code>OTB_PGN_DIR</code> or by adding PGN files under
+              opponent, player color, event, year range, result, ECO, or
+              opening. Leave player color on{" "}
+              <strong>Ignore player color</strong> to match both player/opponent
+              orderings. Configure the archive with <code>OTB_PGN_DIR</code> or
+              by adding PGN files under{" "}
               <code>server/data/otb</code>.
             </p>
             <form
@@ -1697,34 +1701,40 @@ function App() {
                   />
                 </label>
                 <label className="modal-field">
-                  <span>White</span>
+                  <span>Opponent</span>
                   <input
                     className="modal-input"
                     type="text"
-                    value={otbSearchFilters.white}
+                    value={otbSearchFilters.opponent}
                     onChange={(event) => {
                       setOtbSearchFilters((currentValue) => ({
                         ...currentValue,
-                        white: event.target.value,
+                        opponent: event.target.value,
                       }));
+                      setOtbSearchError("");
                     }}
-                    placeholder="Optional"
+                    placeholder="Anderssen"
                   />
                 </label>
                 <label className="modal-field">
-                  <span>Black</span>
-                  <input
+                  <span>Player color</span>
+                  <select
                     className="modal-input"
-                    type="text"
-                    value={otbSearchFilters.black}
+                    value={otbSearchFilters.color}
                     onChange={(event) => {
                       setOtbSearchFilters((currentValue) => ({
                         ...currentValue,
-                        black: event.target.value,
+                        color: event.target.value,
                       }));
+                      setOtbSearchError("");
                     }}
-                    placeholder="Optional"
-                  />
+                  >
+                    {OTB_COLOR_OPTIONS.map(({ value, label }) => (
+                      <option key={value || "any"} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label className="modal-field">
                   <span>Event</span>

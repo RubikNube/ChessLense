@@ -11,6 +11,7 @@ const RESULT_WINNER_MAP = {
 	"0-1": "black",
 };
 const ALLOWED_RESULTS = new Set(["1-0", "0-1", "1/2-1/2", "*"]);
+const ALLOWED_COLORS = new Set(["white", "black"]);
 
 let cache = null;
 
@@ -74,11 +75,77 @@ function normalizeResult(value) {
 	return normalized;
 }
 
+function normalizeColor(value) {
+	const normalized = normalizeString(value).toLowerCase();
+
+	if (!normalized) {
+		return "";
+	}
+
+	if (!ALLOWED_COLORS.has(normalized)) {
+		throw new HttpError(400, "invalid_query", "color must be white or black");
+	}
+
+	return normalized;
+}
+
+function normalizePlayerFilters(query) {
+	const player = normalizeString(query.player);
+	const opponent = normalizeString(query.opponent);
+	const color = normalizeColor(query.color);
+
+	if (player || opponent || color) {
+		if (color && !player) {
+			throw new HttpError(400, "invalid_query", "color requires player");
+		}
+
+		return {
+			player,
+			opponent,
+			color,
+		};
+	}
+
+	const legacyWhite = normalizeString(query.white);
+	const legacyBlack = normalizeString(query.black);
+
+	if (legacyWhite && legacyBlack) {
+		return {
+			player: legacyWhite,
+			opponent: legacyBlack,
+			color: "white",
+		};
+	}
+
+	if (legacyWhite) {
+		return {
+			player: legacyWhite,
+			opponent: "",
+			color: "white",
+		};
+	}
+
+	if (legacyBlack) {
+		return {
+			player: legacyBlack,
+			opponent: "",
+			color: "black",
+		};
+	}
+
+	return {
+		player: "",
+		opponent: "",
+		color: "",
+	};
+}
+
 function normalizeSearchQuery(query) {
+	const playerFilters = normalizePlayerFilters(query);
 	const search = {
-		player: normalizeString(query.player),
-		white: normalizeString(query.white),
-		black: normalizeString(query.black),
+		player: playerFilters.player,
+		opponent: playerFilters.opponent,
+		color: playerFilters.color,
 		event: normalizeString(query.event),
 		eco: normalizeString(query.eco),
 		opening: normalizeString(query.opening),
@@ -95,8 +162,7 @@ function normalizeSearchQuery(query) {
 	if (
 		!(
 			search.player ||
-			search.white ||
-			search.black ||
+			search.opponent ||
 			search.event ||
 			search.eco ||
 			search.opening ||
@@ -336,6 +402,24 @@ function includesIgnoreCase(source, query) {
 	return normalizeString(source).toLowerCase().includes(normalizeString(query).toLowerCase());
 }
 
+function splitNameTokens(value) {
+	return normalizeString(value)
+		.toLowerCase()
+		.split(/[^\p{L}\p{N}]+/u)
+		.filter(Boolean);
+}
+
+function matchesNameTokens(source, query) {
+	const queryTokens = splitNameTokens(query);
+
+	if (queryTokens.length === 0) {
+		return false;
+	}
+
+	const sourceTokens = new Set(splitNameTokens(source));
+	return queryTokens.every((token) => sourceTokens.has(token));
+}
+
 function matchesSearch(game, search) {
 	const white = normalizeString(game.headers.White);
 	const black = normalizeString(game.headers.Black);
@@ -344,17 +428,64 @@ function matchesSearch(game, search) {
 	const eco = normalizeString(game.headers.ECO);
 	const result = normalizeString(game.headers.Result);
 	const year = game.date.year;
+	const isPairSearch = search.player && search.opponent;
+	const matchesWhitePlayer = search.player
+		? isPairSearch
+			? matchesNameTokens(white, search.player)
+			: includesIgnoreCase(white, search.player)
+		: true;
+	const matchesBlackPlayer = search.player
+		? isPairSearch
+			? matchesNameTokens(black, search.player)
+			: includesIgnoreCase(black, search.player)
+		: true;
+	const matchesWhiteOpponent = search.opponent
+		? isPairSearch
+			? matchesNameTokens(white, search.opponent)
+			: includesIgnoreCase(white, search.opponent)
+		: true;
+	const matchesBlackOpponent = search.opponent
+		? isPairSearch
+			? matchesNameTokens(black, search.opponent)
+			: includesIgnoreCase(black, search.opponent)
+		: true;
 
-	if (search.player && !(includesIgnoreCase(white, search.player) || includesIgnoreCase(black, search.player))) {
-		return false;
-	}
+	if (isPairSearch) {
+		if (search.color === "white" && !(matchesWhitePlayer && matchesBlackOpponent)) {
+			return false;
+		}
 
-	if (search.white && !includesIgnoreCase(white, search.white)) {
-		return false;
-	}
+		if (search.color === "black" && !(matchesBlackPlayer && matchesWhiteOpponent)) {
+			return false;
+		}
 
-	if (search.black && !includesIgnoreCase(black, search.black)) {
-		return false;
+		if (
+			!search.color &&
+			!(
+				(matchesWhitePlayer && matchesBlackOpponent) ||
+				(matchesBlackPlayer && matchesWhiteOpponent)
+			)
+		) {
+			return false;
+		}
+	} else {
+		if (search.player) {
+			if (search.color === "white" && !matchesWhitePlayer) {
+				return false;
+			}
+
+			if (search.color === "black" && !matchesBlackPlayer) {
+				return false;
+			}
+
+			if (!search.color && !(matchesWhitePlayer || matchesBlackPlayer)) {
+				return false;
+			}
+		}
+
+		if (search.opponent && !(matchesWhiteOpponent || matchesBlackOpponent)) {
+			return false;
+		}
 	}
 
 	if (search.event && !includesIgnoreCase(event, search.event)) {
