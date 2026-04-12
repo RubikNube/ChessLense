@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import EvaluationBar from "./components/EvaluationBar.jsx";
 import MoveHistory from "./components/MoveHistory.jsx";
@@ -45,6 +46,7 @@ import {
   getRelevantVariantLines,
   goToEndInVariantTree,
   goToStartInVariantTree,
+  importMoveSequenceToVariantTree,
   jumpBackToSidelineInTree,
   jumpToMainVariantInTree,
   promoteVariantLine,
@@ -163,6 +165,45 @@ const modalErrorStyle = {
   color: "#dc2626",
 };
 
+const engineVariantListStyle = {
+  listStyle: "none",
+  padding: 0,
+  margin: "1rem 0 0",
+  display: "grid",
+  gap: "0.75rem",
+};
+
+const engineVariantButtonStyle = {
+  width: "100%",
+  padding: "0.85rem 0.9rem",
+  border: "1px solid #d1d5db",
+  borderRadius: "0.6rem",
+  backgroundColor: "#f9fafb",
+  color: "#111827",
+  textAlign: "left",
+  cursor: "pointer",
+};
+
+const selectedEngineVariantButtonStyle = {
+  borderColor: "#2563eb",
+  backgroundColor: "#eff6ff",
+  boxShadow: "0 0 0 1px #2563eb inset",
+};
+
+const engineVariantHeaderStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "0.75rem",
+};
+
+const engineVariantMovesStyle = {
+  margin: "0.5rem 0 0",
+  color: "#374151",
+  lineHeight: 1.5,
+  fontSize: "0.95rem",
+};
+
 function formatPgnCommentLabel(comment) {
   if (!comment || typeof comment !== "object") {
     return "Annotation";
@@ -224,6 +265,60 @@ async function fetchJson(path, options = {}) {
   return data;
 }
 
+function parseUciMove(uciMove) {
+  if (typeof uciMove !== "string") {
+    return null;
+  }
+
+  const match = uciMove.trim().match(/^([a-h][1-8])([a-h][1-8])([nbrq])?$/i);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    from: match[1].toLowerCase(),
+    to: match[2].toLowerCase(),
+    ...(match[3] ? { promotion: match[3].toLowerCase() } : {}),
+  };
+}
+
+function buildEngineVariantPreview(fen, uciMoves) {
+  const previewGame = new Chess(fen);
+  const moveObjects = [];
+  const sanMoves = [];
+
+  for (const uciMove of Array.isArray(uciMoves) ? uciMoves : []) {
+    const parsedMove = parseUciMove(uciMove);
+
+    if (!parsedMove) {
+      break;
+    }
+
+    const appliedMove = previewGame.move(parsedMove);
+
+    if (!appliedMove) {
+      break;
+    }
+
+    moveObjects.push(parsedMove);
+    sanMoves.push(appliedMove.san);
+  }
+
+  return {
+    moveObjects,
+    sanMoves,
+  };
+}
+
+function formatEngineEvaluation(evaluation) {
+  if (!evaluation) {
+    return "n/a";
+  }
+
+  return `${evaluation.type} ${evaluation.value}`;
+}
+
 function formatPlayerLabel(player) {
   const prefix = player?.title ? `${player.title} ` : "";
   const rating = Number.isFinite(player?.rating) ? ` (${player.rating})` : "";
@@ -239,6 +334,7 @@ function App() {
   const [engineResult, setEngineResult] = useState(null);
   const [evaluationResult, setEvaluationResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [selectedEngineVariantIndex, setSelectedEngineVariantIndex] = useState(0);
   const [openMenu, setOpenMenu] = useState(null);
   const [showMoveHistory, setShowMoveHistory] = useState(
     () => persistedAppState?.showMoveHistory ?? true,
@@ -365,6 +461,25 @@ function App() {
   const currentMoveLabel = useMemo(
     () => getCurrentMoveLabel(moveHistory),
     [moveHistory],
+  );
+  const engineVariants = useMemo(
+    () =>
+      (engineResult?.principalVariations ?? []).map((variation, index) => {
+        const { moveObjects, sanMoves } = buildEngineVariantPreview(fen, variation.moves);
+
+        return {
+          ...variation,
+          index,
+          moveObjects,
+          sanMoves,
+          displayText: sanMoves.join(" "),
+        };
+      }),
+    [engineResult, fen],
+  );
+  const selectedEngineVariant = useMemo(
+    () => engineVariants[selectedEngineVariantIndex] ?? engineVariants[0] ?? null,
+    [engineVariants, selectedEngineVariantIndex],
   );
 
   function applyImportedPgn(rawPgn) {
@@ -820,6 +935,7 @@ function App() {
           body: JSON.stringify({
             fen,
             depth: 10,
+            multipv: 1,
           }),
         });
 
@@ -844,6 +960,7 @@ function App() {
     setShowEngineWindow(true);
     setLoading(true);
     setEngineResult(null);
+    setSelectedEngineVariantIndex(0);
 
     try {
       const data = await fetchJson("/api/analyze", {
@@ -854,6 +971,7 @@ function App() {
         body: JSON.stringify({
           fen,
           depth: 12,
+          multipv: 3,
         }),
       });
 
@@ -864,6 +982,35 @@ function App() {
       setLoading(false);
     }
   }
+
+  const addSelectedEngineVariantToTree = useCallback(() => {
+    if (!selectedEngineVariant?.moveObjects?.length) {
+      return;
+    }
+
+    const nextVariantTree = importMoveSequenceToVariantTree(
+      variantTree,
+      selectedEngineVariant.moveObjects,
+    );
+
+    if (!nextVariantTree) {
+      setEngineResult((currentValue) =>
+        currentValue
+          ? {
+              ...currentValue,
+              error: "Unable to add the selected engine line to the variant tree.",
+            }
+          : { error: "Unable to add the selected engine line to the variant tree." },
+      );
+      return;
+    }
+
+    setVariantTree(nextVariantTree);
+    setShowMoveHistory(true);
+    setShowVariants(true);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [selectedEngineVariant, variantTree]);
 
   function resetGame() {
     setVariantTree(createEmptyVariantTree());
@@ -1302,10 +1449,53 @@ function App() {
                   </p>
                   <p>
                     <strong>Evaluation:</strong>{" "}
-                    {engineResult.evaluation
-                      ? `${engineResult.evaluation.type} ${engineResult.evaluation.value}`
-                      : "n/a"}
+                    {formatEngineEvaluation(engineResult.evaluation)}
                   </p>
+                  {!engineVariants.length && (
+                    <p className="annotation-empty">
+                      This backend is still returning the legacy single-variant response.
+                      Restart the server once so the engine view can load the top three
+                      variants.
+                    </p>
+                  )}
+                  {!!engineVariants.length && (
+                    <>
+                      <ul style={engineVariantListStyle}>
+                        {engineVariants.map((variant, index) => (
+                          <li key={variant.multipv}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedEngineVariantIndex(index)}
+                              style={{
+                                ...engineVariantButtonStyle,
+                                ...(selectedEngineVariant?.index === index
+                                  ? selectedEngineVariantButtonStyle
+                                  : {}),
+                              }}
+                            >
+                              <div style={engineVariantHeaderStyle}>
+                                <strong>Variant {variant.multipv}</strong>
+                                <span>{formatEngineEvaluation(variant.evaluation)}</span>
+                              </div>
+                              <p style={engineVariantMovesStyle}>
+                                {variant.displayText || (variant.moves ?? []).join(" ")}
+                              </p>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      <div style={modalActionRowStyle}>
+                        <button
+                          type="button"
+                          style={modalPrimaryButtonStyle}
+                          onClick={addSelectedEngineVariantToTree}
+                          disabled={!selectedEngineVariant?.moveObjects?.length}
+                        >
+                          Add to variants
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>

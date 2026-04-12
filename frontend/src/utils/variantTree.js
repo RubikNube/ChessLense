@@ -718,6 +718,28 @@ export function applyMoveToVariantTree(tree, move) {
   return finalizeVariantTree(nextTree);
 }
 
+export function importMoveSequenceToVariantTree(tree, moves) {
+  const normalizedTree = normalizeVariantTree(tree);
+
+  if (!Array.isArray(moves) || moves.length === 0) {
+    return normalizedTree;
+  }
+
+  let nextTree = normalizedTree;
+
+  for (const move of moves) {
+    const updatedTree = applyMoveToVariantTree(nextTree, move);
+
+    if (!updatedTree) {
+      return null;
+    }
+
+    nextTree = updatedTree;
+  }
+
+  return nextTree;
+}
+
 export function promoteVariantLine(tree, leafId) {
   const normalizedTree = normalizeVariantTree(tree);
   const pathNodeIds = findNodePathIds(normalizedTree, leafId);

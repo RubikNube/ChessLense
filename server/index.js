@@ -59,8 +59,72 @@ function waitForLine(stream, matcher, timeoutMs = 5000) {
 	});
 }
 
+function normalizeMultiPv(value) {
+	const parsedValue = Number.parseInt(value, 10);
+
+	if (!Number.isInteger(parsedValue) || parsedValue < 1) {
+		return 1;
+	}
+
+	return Math.min(parsedValue, 3);
+}
+
+function parseEvaluationFromInfoLine(line) {
+	const mateMatch = line.match(/\bscore mate (-?\d+)/);
+	if (mateMatch) {
+		return { type: "mate", value: Number(mateMatch[1]) };
+	}
+
+	const cpMatch = line.match(/\bscore cp (-?\d+)/);
+	if (cpMatch) {
+		return { type: "cp", value: Number(cpMatch[1]) };
+	}
+
+	return null;
+}
+
+function parsePrincipalVariations(output, requestedMultiPv) {
+	const variationByIndex = new Map();
+	const infoLines = output
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line.startsWith("info"));
+
+	infoLines.forEach((line) => {
+		const evaluation = parseEvaluationFromInfoLine(line);
+		const pvMatch = line.match(/\bpv\s+(.+)$/);
+
+		if (!evaluation || !pvMatch) {
+			return;
+		}
+
+		const multiPvMatch = line.match(/\bmultipv\s+(\d+)/);
+		const multiPvIndex = multiPvMatch ? Number(multiPvMatch[1]) : 1;
+
+		if (multiPvIndex < 1 || multiPvIndex > requestedMultiPv) {
+			return;
+		}
+
+		const moves = pvMatch[1].trim().split(/\s+/).filter(Boolean);
+
+		if (!moves.length) {
+			return;
+		}
+
+		variationByIndex.set(multiPvIndex, {
+			multipv: multiPvIndex,
+			evaluation,
+			moves,
+			bestmove: moves[0] ?? null,
+		});
+	});
+
+	return Array.from(variationByIndex.values()).sort((left, right) => left.multipv - right.multipv);
+}
+
 app.post("/api/analyze", async (req, res) => {
-	const { fen, depth = 12 } = req.body || {};
+	const { fen, depth = 12, multipv = 1 } = req.body || {};
+	const requestedMultiPv = normalizeMultiPv(multipv);
 
 	if (!fen) {
 		return res.status(400).json({ error: "fen is required" });
@@ -86,6 +150,7 @@ app.post("/api/analyze", async (req, res) => {
 		send("uci");
 		await waitForLine(engine.stdout, "uciok");
 
+		send(`setoption name MultiPV value ${requestedMultiPv}`);
 		send("isready");
 		await waitForLine(engine.stdout, "readyok");
 
@@ -97,28 +162,8 @@ app.post("/api/analyze", async (req, res) => {
 
 		const bestMoveMatch = bestMoveLine.match(/^bestmove\s+(\S+)/);
 		const bestmove = bestMoveMatch ? bestMoveMatch[1] : null;
-
-		let evaluation = null;
-		const infoLines = combined
-			.split("\n")
-			.map((line) => line.trim())
-			.filter((line) => line.startsWith("info"));
-
-		for (let i = infoLines.length - 1; i >= 0; i -= 1) {
-			const line = infoLines[i];
-
-			const mateMatch = line.match(/\bscore mate (-?\d+)/);
-			if (mateMatch) {
-				evaluation = { type: "mate", value: Number(mateMatch[1]) };
-				break;
-			}
-
-			const cpMatch = line.match(/\bscore cp (-?\d+)/);
-			if (cpMatch) {
-				evaluation = { type: "cp", value: Number(cpMatch[1]) };
-				break;
-			}
-		}
+		const principalVariations = parsePrincipalVariations(combined, requestedMultiPv);
+		const evaluation = principalVariations[0]?.evaluation ?? null;
 
 		send("quit");
 		engine.kill();
@@ -127,6 +172,7 @@ app.post("/api/analyze", async (req, res) => {
 			fen,
 			bestmove,
 			evaluation,
+			principalVariations,
 		});
 	} catch (error) {
 		engine.kill();

@@ -17,6 +17,7 @@ import {
   getVariantLines,
   goToEndInVariantTree,
   goToStartInVariantTree,
+  importMoveSequenceToVariantTree,
   jumpBackToSidelineInTree,
   jumpToMainVariantInTree,
   promoteVariantLine,
@@ -273,6 +274,23 @@ describe("variantTree", () => {
     expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nf6"]);
     expect(canJumpToMainVariantInTree(tree)).toBe(true);
     expect(canJumpBackToSidelineInTree(tree)).toBe(false);
+  });
+
+  it("imports an analyzed move sequence from the current node", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = undoInVariantTree(tree);
+
+    tree = importMoveSequenceToVariantTree(tree, [
+      { from: "g1", to: "f3" },
+      { from: "b8", to: "c6" },
+    ]);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nc6"]);
+    expect(tree.activeLineLeafId).toBe(tree.currentNodeId);
   });
 
   it("keeps the remembered mainline cursor aligned when a sideline is promoted", () => {
