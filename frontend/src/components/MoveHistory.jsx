@@ -36,6 +36,7 @@ function MoveHistory({
   boardPanelHeight,
   canUndo,
   canRedo,
+  onClose,
   onUndo,
   onRedo,
   onGoToStart,
@@ -92,7 +93,18 @@ function MoveHistory({
       className="card move-history-card"
       style={boardPanelHeight ? { height: `${boardPanelHeight}px` } : undefined}
     >
-      <h2>Move History</h2>
+      <div className="card-header">
+        <h2>Move History</h2>
+        <button
+          type="button"
+          className="card-close-button"
+          onClick={onClose}
+          aria-label="Close Move History"
+          title="Close Move History"
+        >
+          ×
+        </button>
+      </div>
       <div className="move-history-body">
         {!groupedMoveHistory.length && <p className="annotation-empty">No moves yet.</p>}
         {!!groupedMoveHistory.length && (

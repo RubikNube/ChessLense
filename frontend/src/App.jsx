@@ -1050,9 +1050,17 @@ function App() {
     setShowMoveHistory((currentValue) => !currentValue);
   }
 
+  const closeMoveHistory = useCallback(() => {
+    setShowMoveHistory(false);
+  }, []);
+
   function toggleEngineWindow() {
     setShowEngineWindow((currentValue) => !currentValue);
   }
+
+  const closeEngineWindow = useCallback(() => {
+    setShowEngineWindow(false);
+  }, []);
 
   function toggleEvaluationBar() {
     setShowEvaluationBar((currentValue) => !currentValue);
@@ -1062,13 +1070,25 @@ function App() {
     setShowComments((currentValue) => !currentValue);
   }
 
+  const closeComments = useCallback(() => {
+    setShowComments(false);
+  }, []);
+
   function toggleImportedPgn() {
     setShowImportedPgn((currentValue) => !currentValue);
   }
 
+  const closeImportedPgn = useCallback(() => {
+    setShowImportedPgn(false);
+  }, []);
+
   function toggleVariants() {
     setShowVariants((currentValue) => !currentValue);
   }
+
+  const closeVariants = useCallback(() => {
+    setShowVariants(false);
+  }, []);
 
   function toggleVariantArrows() {
     setShowVariantArrows((currentValue) => !currentValue);
@@ -1455,6 +1475,7 @@ function App() {
               boardPanelHeight={boardPanelHeight}
               canUndo={canUndo}
               canRedo={canRedo}
+              onClose={closeMoveHistory}
               onUndo={undoMove}
               onRedo={redoMove}
               onGoToStart={goToStart}
@@ -1466,7 +1487,18 @@ function App() {
         <div className="info-column info-column-reference">
           {showEngineWindow && (
             <div className="card">
-              <h2>Engine</h2>
+              <div className="card-header">
+                <h2>Engine</h2>
+                <button
+                  type="button"
+                  className="card-close-button"
+                  onClick={closeEngineWindow}
+                  aria-label="Close Engine"
+                  title="Close Engine"
+                >
+                  ×
+                </button>
+              </div>
               {engineResult?.error && <p className="error">{engineResult.error}</p>}
               {!engineResult && !loading && <p>No analysis yet.</p>}
               {engineResult?.bestmove && (
@@ -1530,7 +1562,18 @@ function App() {
 
           {showComments && importedPgnData && (
             <div className="card">
-              <h2>Comments</h2>
+              <div className="card-header">
+                <h2>Comments</h2>
+                <button
+                  type="button"
+                  className="card-close-button"
+                  onClick={closeComments}
+                  aria-label="Close Comments"
+                  title="Close Comments"
+                >
+                  ×
+                </button>
+              </div>
               <p className="current-move-label">{currentMoveLabel}</p>
               {currentPositionComments.length > 0 ? (
                 <ul className="annotation-list">
@@ -1557,6 +1600,7 @@ function App() {
               canUndo={canUndo}
               canRedo={canRedo}
               canJumpToMainVariant={canJumpToMainVariant}
+              onClose={closeVariants}
               onSelectLine={selectVariant}
               onPromoteLine={promoteVariant}
               onDemoteLine={demoteVariant}
@@ -1570,7 +1614,18 @@ function App() {
 
           {showImportedPgn && hasImportedPgnDetails && (
             <div className="card">
-              <h2>Imported PGN</h2>
+              <div className="card-header">
+                <h2>Imported PGN</h2>
+                <button
+                  type="button"
+                  className="card-close-button"
+                  onClick={closeImportedPgn}
+                  aria-label="Close Imported PGN"
+                  title="Close Imported PGN"
+                >
+                  ×
+                </button>
+              </div>
               {!!importedPgnData.headers.length && (
                 <dl className="pgn-metadata-list">
                   {importedPgnData.headers.map(({ name, value }) => (

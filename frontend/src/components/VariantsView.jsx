@@ -33,6 +33,7 @@ function VariantsView({
   canUndo,
   canRedo,
   canJumpToMainVariant,
+  onClose,
   onSelectLine,
   onPromoteLine,
   onDemoteLine,
@@ -44,7 +45,18 @@ function VariantsView({
 }) {
   return (
     <div className="card">
-      <h2>Variants</h2>
+      <div className="card-header">
+        <h2>Variants</h2>
+        <button
+          type="button"
+          className="card-close-button"
+          onClick={onClose}
+          aria-label="Close Variants"
+          title="Close Variants"
+        >
+          ×
+        </button>
+      </div>
       {!variantLines.length && <p>No variants branch from this move.</p>}
       {!!variantLines.length && (
         <ul className="variant-lines">
