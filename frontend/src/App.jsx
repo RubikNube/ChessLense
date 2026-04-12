@@ -287,6 +287,8 @@ function buildEngineVariantPreview(fen, uciMoves) {
   const previewGame = new Chess(fen);
   const moveObjects = [];
   const sanMoves = [];
+  const formattedMoves = [];
+  let previousMoveSide = null;
 
   for (const uciMove of Array.isArray(uciMoves) ? uciMoves : []) {
     const parsedMove = parseUciMove(uciMove);
@@ -295,6 +297,8 @@ function buildEngineVariantPreview(fen, uciMoves) {
       break;
     }
 
+    const moveNumber = previewGame.moveNumber();
+    const movingSide = previewGame.turn();
     const appliedMove = previewGame.move(parsedMove);
 
     if (!appliedMove) {
@@ -303,12 +307,25 @@ function buildEngineVariantPreview(fen, uciMoves) {
 
     moveObjects.push(parsedMove);
     sanMoves.push(appliedMove.san);
+    formattedMoves.push(
+      movingSide === "w"
+        ? `${moveNumber}. ${appliedMove.san}`
+        : previousMoveSide === "w"
+          ? appliedMove.san
+          : `${moveNumber}... ${appliedMove.san}`,
+    );
+    previousMoveSide = movingSide;
   }
 
   return {
     moveObjects,
     sanMoves,
+    displayText: formattedMoves.join(" "),
   };
+}
+
+function formatUciMoveAsSan(fen, uciMove) {
+  return buildEngineVariantPreview(fen, [uciMove]).sanMoves[0] ?? uciMove ?? "n/a";
 }
 
 function formatEngineEvaluation(evaluation) {
@@ -465,14 +482,18 @@ function App() {
   const engineVariants = useMemo(
     () =>
       (engineResult?.principalVariations ?? []).map((variation, index) => {
-        const { moveObjects, sanMoves } = buildEngineVariantPreview(fen, variation.moves);
+        const { moveObjects, sanMoves, displayText } = buildEngineVariantPreview(
+          fen,
+          variation.moves,
+        );
 
         return {
           ...variation,
           index,
           moveObjects,
           sanMoves,
-          displayText: sanMoves.join(" "),
+          displayText,
+          bestMoveSan: sanMoves[0] ?? null,
         };
       }),
     [engineResult, fen],
@@ -480,6 +501,12 @@ function App() {
   const selectedEngineVariant = useMemo(
     () => engineVariants[selectedEngineVariantIndex] ?? engineVariants[0] ?? null,
     [engineVariants, selectedEngineVariantIndex],
+  );
+  const formattedBestMove = useMemo(
+    () =>
+      engineVariants[0]?.bestMoveSan ??
+      formatUciMoveAsSan(fen, engineResult?.bestmove),
+    [engineResult?.bestmove, engineVariants, fen],
   );
 
   function applyImportedPgn(rawPgn) {
@@ -1445,7 +1472,7 @@ function App() {
               {engineResult?.bestmove && (
                 <>
                   <p>
-                    <strong>Best move:</strong> {engineResult.bestmove}
+                    <strong>Best move:</strong> {formattedBestMove}
                   </p>
                   <p>
                     <strong>Evaluation:</strong>{" "}
