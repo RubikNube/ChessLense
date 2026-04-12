@@ -31,6 +31,26 @@
     "label": "Flip board",
     "keys": ["ü"]
   },
+  "toggleMoveHistory": {
+    "label": "Toggle move history",
+    "keys": ["Ctrl+Shift+F2"]
+  },
+  "toggleEngineWindow": {
+    "label": "Toggle engine",
+    "keys": ["Ctrl+Shift+F3"]
+  },
+  "toggleComments": {
+    "label": "Toggle comments",
+    "keys": ["Ctrl+Shift+F4"]
+  },
+  "toggleImportedPgn": {
+    "label": "Toggle imported PGN",
+    "keys": ["Ctrl+Shift+F7"]
+  },
+  "toggleVariants": {
+    "label": "Toggle variants",
+    "keys": ["Ctrl+Shift+F8"]
+  },
   "closeShortcutsPopup": {
     "label": "Close popup",
     "keys": ["Escape"]

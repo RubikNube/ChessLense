@@ -15,8 +15,32 @@ export const SHORTCUT_ACTION_ORDER = [
   "jumpBackToSideline",
   "goToEnd",
   "flipBoard",
+  "toggleMoveHistory",
+  "toggleEngineWindow",
+  "toggleComments",
+  "toggleImportedPgn",
+  "toggleVariants",
   "closeShortcutsPopup",
 ];
+
+const VIEW_TOGGLE_SHORTCUT_ACTIONS = new Set([
+  "toggleMoveHistory",
+  "toggleEngineWindow",
+  "toggleComments",
+  "toggleImportedPgn",
+  "toggleVariants",
+]);
+
+const RESERVED_BROWSER_SHORTCUTS = new Set([
+  "ctrl+l",
+  "ctrl+w",
+  "ctrl+t",
+  "ctrl+r",
+  "ctrl+f",
+  "ctrl+n",
+  "ctrl+tab",
+  "ctrl+shift+tab",
+]);
 
 const SHORTCUT_DISPLAY_LABELS = {
   arrowleft: "←",
@@ -64,6 +88,26 @@ export const DEFAULT_SHORTCUT_CONFIG = {
     label: "Flip board",
     keys: ["ü"],
   },
+  toggleMoveHistory: {
+    label: "Toggle move history",
+    keys: ["Ctrl+Shift+F2"],
+  },
+  toggleEngineWindow: {
+    label: "Toggle engine",
+    keys: ["Ctrl+Shift+F3"],
+  },
+  toggleComments: {
+    label: "Toggle comments",
+    keys: ["Ctrl+Shift+F4"],
+  },
+  toggleImportedPgn: {
+    label: "Toggle imported PGN",
+    keys: ["Ctrl+Shift+F7"],
+  },
+  toggleVariants: {
+    label: "Toggle variants",
+    keys: ["Ctrl+Shift+F8"],
+  },
   closeShortcutsPopup: {
     label: "Close popup",
     keys: ["Escape"],
@@ -84,6 +128,50 @@ function getBrowserStorage() {
   return window.localStorage;
 }
 
+function normalizeShortcutKey(shortcutKey) {
+  return shortcutKey
+    .split("+")
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean)
+    .join("+");
+}
+
+function isUnsafeViewToggleShortcut(shortcutKey) {
+  const tokens = shortcutKey
+    .split("+")
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!tokens.length) {
+    return true;
+  }
+
+  const key = tokens[tokens.length - 1];
+  const modifiers = tokens.slice(0, -1);
+
+  if (!modifiers.length && /^[a-z]$/.test(key)) {
+    return true;
+  }
+
+  if (modifiers.includes("alt") || modifiers.includes("meta")) {
+    return true;
+  }
+
+  if (modifiers.includes("ctrl") && /^[1-9]$/.test(key)) {
+    return true;
+  }
+
+  return RESERVED_BROWSER_SHORTCUTS.has(normalizeShortcutKey(shortcutKey));
+}
+
+function sanitizeShortcutKeys(actionName, shortcutKeys) {
+  if (!VIEW_TOGGLE_SHORTCUT_ACTIONS.has(actionName)) {
+    return shortcutKeys;
+  }
+
+  return shortcutKeys.filter((shortcutKey) => !isUnsafeViewToggleShortcut(shortcutKey));
+}
+
 export function normalizeShortcutConfig(config) {
   if (!config || typeof config !== "object") {
     return DEFAULT_SHORTCUT_CONFIG;
@@ -94,11 +182,14 @@ export function normalizeShortcutConfig(config) {
     const candidateShortcut = config[actionName];
     const shortcutKeys =
       Array.isArray(candidateShortcut?.keys) &&
-        candidateShortcut.keys.every(
-          (shortcutKey) =>
-            typeof shortcutKey === "string" && shortcutKey.trim().length > 0,
-        )
-        ? candidateShortcut.keys.map((shortcutKey) => shortcutKey.trim())
+      candidateShortcut.keys.every(
+        (shortcutKey) =>
+          typeof shortcutKey === "string" && shortcutKey.trim().length > 0,
+      )
+        ? sanitizeShortcutKeys(
+            actionName,
+            candidateShortcut.keys.map((shortcutKey) => shortcutKey.trim()),
+          )
         : defaultShortcut.keys;
 
     normalizedConfig[actionName] = {

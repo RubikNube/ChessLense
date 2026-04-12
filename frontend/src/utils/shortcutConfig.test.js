@@ -22,6 +22,10 @@ describe("normalizeShortcutConfig", () => {
           label: "Jump main line",
           keys: [" Ctrl+M "],
         },
+        toggleMoveHistory: {
+          label: "Toggle history",
+          keys: [],
+        },
         redoMove: {
           label: "",
           keys: [""],
@@ -37,8 +41,26 @@ describe("normalizeShortcutConfig", () => {
           label: "Jump main line",
           keys: ["Ctrl+M"],
         },
+        toggleMoveHistory: {
+          label: "Toggle history",
+          keys: [],
+        },
         redoMove: DEFAULT_SHORTCUT_CONFIG.redoMove,
       });
+  });
+
+  it("filters unsafe bindings from view-toggle actions", () => {
+    expect(
+      normalizeShortcutConfig({
+        toggleEngineWindow: {
+          label: "Toggle engine",
+          keys: ["j", "Ctrl+L", "Alt+E", "F8"],
+        },
+      }).toggleEngineWindow,
+    ).toEqual({
+      label: "Toggle engine",
+      keys: ["F8"],
+    });
   });
 });
 

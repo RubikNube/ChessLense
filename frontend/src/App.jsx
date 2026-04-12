@@ -1078,17 +1078,17 @@ function App() {
     setImportedPgnData(null);
   }
 
-  function toggleMoveHistory() {
+  const toggleMoveHistory = useCallback(() => {
     setShowMoveHistory((currentValue) => !currentValue);
-  }
+  }, []);
 
   const closeMoveHistory = useCallback(() => {
     setShowMoveHistory(false);
   }, []);
 
-  function toggleEngineWindow() {
+  const toggleEngineWindow = useCallback(() => {
     setShowEngineWindow((currentValue) => !currentValue);
-  }
+  }, []);
 
   const closeEngineWindow = useCallback(() => {
     setShowEngineWindow(false);
@@ -1098,25 +1098,25 @@ function App() {
     setShowEvaluationBar((currentValue) => !currentValue);
   }
 
-  function toggleComments() {
+  const toggleComments = useCallback(() => {
     setShowComments((currentValue) => !currentValue);
-  }
+  }, []);
 
   const closeComments = useCallback(() => {
     setShowComments(false);
   }, []);
 
-  function toggleImportedPgn() {
+  const toggleImportedPgn = useCallback(() => {
     setShowImportedPgn((currentValue) => !currentValue);
-  }
+  }, []);
 
   const closeImportedPgn = useCallback(() => {
     setShowImportedPgn(false);
   }, []);
 
-  function toggleVariants() {
+  const toggleVariants = useCallback(() => {
     setShowVariants((currentValue) => !currentValue);
-  }
+  }, []);
 
   const closeVariants = useCallback(() => {
     setShowVariants(false);
@@ -1235,6 +1235,36 @@ function App() {
       if (matchesShortcut(event, shortcutConfig.flipBoard.keys)) {
         event.preventDefault();
         toggleBoardOrientation();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.toggleMoveHistory.keys)) {
+        event.preventDefault();
+        toggleMoveHistory();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.toggleEngineWindow.keys)) {
+        event.preventDefault();
+        toggleEngineWindow();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.toggleComments.keys)) {
+        event.preventDefault();
+        toggleComments();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.toggleImportedPgn.keys)) {
+        event.preventDefault();
+        toggleImportedPgn();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.toggleVariants.keys)) {
+        event.preventDefault();
+        toggleVariants();
       }
     }
 
@@ -1260,6 +1290,11 @@ function App() {
     showImportPgnPopup,
     showShortcutsPopup,
     toggleBoardOrientation,
+    toggleComments,
+    toggleEngineWindow,
+    toggleImportedPgn,
+    toggleMoveHistory,
+    toggleVariants,
     undoMove,
   ]);
   return (
@@ -2311,7 +2346,9 @@ function App() {
                 <li key={actionName} style={shortcutItemStyle}>
                   <span>{label}</span>
                   <kbd style={shortcutKeyStyle}>
-                    {keys.map(getShortcutDisplayLabel).join(" / ")}
+                    {keys.length
+                      ? keys.map(getShortcutDisplayLabel).join(" / ")
+                      : "Unassigned"}
                   </kbd>
                 </li>
               ))}
