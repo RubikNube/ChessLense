@@ -871,7 +871,7 @@ function App() {
     setTrainingState(preparedTrainingState);
     setTrainingError("");
     setTrainingLoading(false);
-    setShowMoveHistory(true);
+    setShowMoveHistory(false);
     setShowImportedPgn(true);
   }, [advanceReplayToPlayerTurn, hasReplaySource, importedPgnData, normalizedTrainingState.playerSide]);
 
