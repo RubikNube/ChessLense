@@ -24,6 +24,7 @@ import {
   jumpToMainVariantInTree,
   promoteVariantLine,
   redoInVariantTree,
+  removeVariantLine,
   selectVariantLine,
   undoInVariantTree,
 } from "./variantTree.js";
@@ -91,6 +92,44 @@ describe("variantTree", () => {
     tree = demoteVariantLine(tree, bC4LineId);
 
     expect(getVariantLines(tree)[0].moves).toEqual(["e4", "e5", "Nf3"]);
+  });
+
+  it("removes a variant branch and keeps the remaining line", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "f1", to: "c4" });
+    tree = undoInVariantTree(tree);
+
+    const sideLineId = getVariantLines(tree).find((line) => !line.isMainLine)?.id;
+
+    tree = removeVariantLine(tree, sideLineId);
+
+    expect(getVariantLines(tree).map((line) => line.moves)).toEqual([["e4", "e5", "Nf3"]]);
+    expect(getRelevantVariantLines(tree)).toEqual([]);
+    expect(getMoveHistoryForNode(goToEndInVariantTree(tree))).toEqual(["e4", "e5", "Nf3"]);
+  });
+
+  it("removes the selected branch and falls back to the remaining branch", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "f1", to: "c4" });
+    tree = undoInVariantTree(tree);
+
+    const selectedLineId = tree.activeLineLeafId;
+
+    tree = removeVariantLine(tree, selectedLineId);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5"]);
+    expect(getMoveHistoryForNode(goToEndInVariantTree(tree))).toEqual(["e4", "e5", "Nf3"]);
+    expect(getVariantLines(tree)[0].isSelected).toBe(true);
   });
 
   it("creates variant state from a linear game plus redo moves", () => {

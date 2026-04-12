@@ -53,6 +53,7 @@ import {
   jumpToMainVariantInTree,
   promoteVariantLine,
   redoInVariantTree,
+  removeVariantLine,
   selectVariantLine,
   undoInVariantTree,
 } from "./utils/variantTree.js";
@@ -665,6 +666,12 @@ function App() {
 
   const demoteVariant = useCallback((lineId) => {
     setVariantTree((currentValue) => demoteVariantLine(currentValue, lineId));
+  }, []);
+
+  const removeVariant = useCallback((lineId) => {
+    setVariantTree((currentValue) => removeVariantLine(currentValue, lineId));
+    setEngineResult(null);
+    setEvaluationResult(null);
   }, []);
 
   function toggleMenu(menuName) {
@@ -1669,6 +1676,7 @@ function App() {
               canRedo={canRedo}
               canJumpToMainVariant={canJumpToMainVariant}
               onClose={closeVariants}
+              onRemoveLine={removeVariant}
               onSelectLine={selectVariant}
               onPromoteLine={promoteVariant}
               onDemoteLine={demoteVariant}

@@ -393,6 +393,40 @@ function getDemotableNodeId(tree, leafId) {
   return null;
 }
 
+function getRemovableNodeId(tree, leafId) {
+  const pathNodeIds = findNodePathIds(tree, leafId);
+
+  for (let index = 1; index < pathNodeIds.length; index += 1) {
+    const nodeId = pathNodeIds[index];
+    const parentId = pathNodeIds[index - 1];
+    const parentNode = tree.nodes[parentId];
+
+    if (parentNode?.children.length > 1) {
+      return nodeId;
+    }
+  }
+
+  return null;
+}
+
+function collectSubtreeNodeIds(tree, startNodeId) {
+  const subtreeNodeIds = new Set();
+  const stack = [startNodeId];
+
+  while (stack.length > 0) {
+    const nodeId = stack.pop();
+
+    if (!nodeId || subtreeNodeIds.has(nodeId) || !tree.nodes[nodeId]) {
+      continue;
+    }
+
+    subtreeNodeIds.add(nodeId);
+    tree.nodes[nodeId].children.forEach((childId) => stack.push(childId));
+  }
+
+  return subtreeNodeIds;
+}
+
 function normalizeVariantTreeFromRaw(rawTree) {
   if (!rawTree || typeof rawTree !== "object") {
     return createBaseVariantTree();
@@ -827,6 +861,44 @@ export function demoteVariantLine(tree, leafId) {
   return normalizedTree;
 }
 
+export function removeVariantLine(tree, leafId) {
+  const normalizedTree = normalizeVariantTree(tree);
+  const removableNodeId = getRemovableNodeId(normalizedTree, leafId);
+
+  if (!removableNodeId) {
+    return normalizedTree;
+  }
+
+  const parentId = normalizedTree.nodes[removableNodeId]?.parentId;
+
+  if (!parentId || !normalizedTree.nodes[parentId]) {
+    return normalizedTree;
+  }
+
+  const nextTree = {
+    ...normalizedTree,
+    nodes: cloneNodes(normalizedTree.nodes),
+  };
+  const parentNode = nextTree.nodes[parentId];
+  const removedNodeIds = collectSubtreeNodeIds(nextTree, removableNodeId);
+
+  parentNode.children = parentNode.children.filter((childId) => childId !== removableNodeId);
+
+  removedNodeIds.forEach((nodeId) => {
+    delete nextTree.nodes[nodeId];
+  });
+
+  if (removedNodeIds.has(nextTree.currentNodeId)) {
+    nextTree.currentNodeId = parentId;
+  }
+
+  if (removedNodeIds.has(nextTree.activeLineLeafId)) {
+    nextTree.activeLineLeafId = getDeepestMainlineNodeId(nextTree, parentId);
+  }
+
+  return finalizeVariantTree(nextTree);
+}
+
 export function getVariantLines(tree) {
   const normalizedTree = normalizeVariantTree(tree);
   const leafNodeIds = findLeafNodeIds(normalizedTree);
@@ -852,6 +924,7 @@ export function getVariantLines(tree) {
       includesCurrentNode: currentPathIds.has(leafId) || isAncestorNode(normalizedTree, leafId, normalizedTree.currentNodeId),
       canPromote: !!firstDivergenceNodeId,
       canDemote: !!getDemotableNodeId(normalizedTree, leafId),
+      canRemove: !!getRemovableNodeId(normalizedTree, leafId),
       firstMoveLabel: firstMoveNodeId ? normalizedTree.nodes[firstMoveNodeId].san : null,
       branchLabel: firstDivergenceNode
         ? `${firstDivergenceNode.moveNumber}${firstDivergenceNode.side === "black" ? "..." : "."} ${firstDivergenceNode.san}`

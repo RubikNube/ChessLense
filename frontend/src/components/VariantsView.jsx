@@ -34,6 +34,7 @@ function VariantsView({
   canRedo,
   canJumpToMainVariant,
   onClose,
+  onRemoveLine,
   onSelectLine,
   onPromoteLine,
   onDemoteLine,
@@ -72,7 +73,19 @@ function VariantsView({
                   </span>
                   <span className="variant-line-branch">{line.branchLabel}</span>
                 </div>
-                {line.isSelected && <span className="variant-line-badge">Selected</span>}
+                <div className="variant-line-header-actions">
+                  {line.isSelected && <span className="variant-line-badge">Selected</span>}
+                  <button
+                    type="button"
+                    className="variant-line-remove-button"
+                    onClick={() => onRemoveLine(line.id)}
+                    disabled={!line.canRemove}
+                    aria-label={`Remove ${line.isMainLine ? "main line" : "sideline"}`}
+                    title="Remove variant"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               <button
                 type="button"

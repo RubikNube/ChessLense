@@ -524,6 +524,12 @@ code {
   gap: 12px;
 }
 
+.variant-line-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .variant-line-title {
   display: block;
   font-size: 0.95rem;
@@ -544,6 +550,31 @@ code {
   color: #bfdbfe;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.variant-line-remove-button {
+  border: 1px solid #4b5563;
+  border-radius: 9999px;
+  background: transparent;
+  color: #d1d5db;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.variant-line-remove-button:hover {
+  background: #374151;
+  color: #ffffff;
+}
+
+.variant-line-remove-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .variant-line-select {
