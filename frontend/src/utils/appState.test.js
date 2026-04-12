@@ -221,6 +221,7 @@ describe("persisted app state", () => {
         lastCompletedAttempts: [],
         lastCompletedExpectedMove: null,
         lastCompletionMode: null,
+        playSession: null,
       },
     });
   });
@@ -314,6 +315,88 @@ describe("persisted app state", () => {
       ],
       trainingState: createEmptyTrainingState(),
     });
+  });
+
+  it("loads persisted training play snapshots alongside the exploratory board state", () => {
+    const resumeVariantTree = createVariantTreeFromMoves([{ from: "e2", to: "e4" }]);
+    const playVariantTree = createEmptyVariantTree(
+      "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+    );
+    const storage = createStorage(
+      JSON.stringify({
+        variantTree: playVariantTree,
+        trainingState: {
+          mode: TRAINING_MODE_REPLAY_GAME,
+          status: TRAINING_STATUS_ACTIVE,
+          playerSide: TRAINING_SIDE_WHITE,
+          progressPly: 0,
+          referenceMoves: [
+            {
+              ply: 1,
+              moveNumber: 1,
+              side: "white",
+              san: "e4",
+              move: { from: "e2", to: "e4" },
+              fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+              fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            },
+          ],
+          attempts: [],
+          pendingAttempts: [],
+          lastCompletedAttempts: [],
+          lastCompletedExpectedMove: null,
+          lastCompletionMode: null,
+          playSession: {
+            status: "active",
+            sourceAttempt: {
+              ply: 1,
+              moveNumber: 1,
+              side: "white",
+              expectedSan: "e4",
+              userSan: "d4",
+              expectedMove: { from: "e2", to: "e4" },
+              userMove: { from: "d2", to: "d4" },
+              outcome: "mismatch",
+              classification: "equal",
+              deltaCp: -5,
+              resultingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+            },
+            startingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+            resumeTrainingState: {
+              mode: TRAINING_MODE_REPLAY_GAME,
+              status: TRAINING_STATUS_ACTIVE,
+              playerSide: TRAINING_SIDE_WHITE,
+              progressPly: 0,
+              referenceMoves: [
+                {
+                  ply: 1,
+                  moveNumber: 1,
+                  side: "white",
+                  san: "e4",
+                  move: { from: "e2", to: "e4" },
+                  fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                  fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                },
+              ],
+              attempts: [],
+              pendingAttempts: [],
+              lastCompletedAttempts: [],
+              lastCompletedExpectedMove: null,
+              lastCompletionMode: null,
+            },
+            resumeVariantTree,
+          },
+        },
+      }),
+    );
+
+    expect(loadPersistedAppState(storage)?.trainingState.playSession).toEqual(
+      expect.objectContaining({
+        status: "active",
+        startingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+        resumeVariantTree,
+      }),
+    );
   });
 
   it("falls back to an empty tree when the persisted variant tree is invalid", () => {

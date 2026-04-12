@@ -1,5 +1,6 @@
 import { Chess, DEFAULT_POSITION } from "chess.js";
 import { parseAnnotatedPgn } from "./annotatedPgn.js";
+import { normalizeVariantTree } from "./variantTree.js";
 import { goToStartInVariantTree } from "./variantTree.js";
 
 export const TRAINING_MODE_OFF = "off";
@@ -12,6 +13,7 @@ export const TRAINING_SIDE_WHITE = "white";
 export const TRAINING_SIDE_BLACK = "black";
 export const TRAINING_COMPLETION_MATCH = "match";
 export const TRAINING_COMPLETION_REVEALED = "revealed";
+export const TRAINING_PLAY_STATUS_ACTIVE = "active";
 
 export const REPLAY_RESULT_MATCH = "match";
 export const REPLAY_RESULT_BETTER = "better";
@@ -204,54 +206,59 @@ export function createEmptyTrainingState(playerSide = TRAINING_SIDE_WHITE) {
     lastCompletedAttempts: [],
     lastCompletedExpectedMove: null,
     lastCompletionMode: null,
+    playSession: null,
   };
 }
 
-export function normalizeTrainingState(trainingState) {
-  if (!trainingState || typeof trainingState !== "object") {
-    return createEmptyTrainingState();
+function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
+  const fallbackState = createEmptyTrainingState(playerSide);
+
+  if (!entry || typeof entry !== "object") {
+    return {
+      mode: fallbackState.mode,
+      status: fallbackState.status,
+      playerSide: fallbackState.playerSide,
+      progressPly: fallbackState.progressPly,
+      referenceMoves: fallbackState.referenceMoves,
+      attempts: fallbackState.attempts,
+      pendingAttempts: fallbackState.pendingAttempts,
+      lastCompletedAttempts: fallbackState.lastCompletedAttempts,
+      lastCompletedExpectedMove: fallbackState.lastCompletedExpectedMove,
+      lastCompletionMode: fallbackState.lastCompletionMode,
+    };
   }
 
   const mode =
-    trainingState.mode === TRAINING_MODE_REPLAY_GAME
-      ? TRAINING_MODE_REPLAY_GAME
-      : TRAINING_MODE_OFF;
-  const playerSide =
-    trainingState.playerSide === TRAINING_SIDE_BLACK
-      ? TRAINING_SIDE_BLACK
-      : TRAINING_SIDE_WHITE;
+    entry.mode === TRAINING_MODE_REPLAY_GAME ? TRAINING_MODE_REPLAY_GAME : TRAINING_MODE_OFF;
+  const normalizedPlayerSide =
+    entry.playerSide === TRAINING_SIDE_BLACK ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
   const status =
-    trainingState.status === TRAINING_STATUS_ACTIVE ||
-    trainingState.status === TRAINING_STATUS_COMPLETED
-      ? trainingState.status
+    entry.status === TRAINING_STATUS_ACTIVE || entry.status === TRAINING_STATUS_COMPLETED
+      ? entry.status
       : TRAINING_STATUS_IDLE;
-  const referenceMoves = Array.isArray(trainingState.referenceMoves)
-    ? trainingState.referenceMoves.map(normalizeReferenceMove).filter(Boolean)
+  const referenceMoves = Array.isArray(entry.referenceMoves)
+    ? entry.referenceMoves.map(normalizeReferenceMove).filter(Boolean)
     : [];
-  const attempts = Array.isArray(trainingState.attempts)
-    ? trainingState.attempts.map(normalizeAttempt).filter(Boolean)
+  const attempts = Array.isArray(entry.attempts)
+    ? entry.attempts.map(normalizeAttempt).filter(Boolean)
     : [];
-  const pendingAttempts = Array.isArray(trainingState.pendingAttempts)
-    ? trainingState.pendingAttempts.map(normalizeAttempt).filter(Boolean)
+  const pendingAttempts = Array.isArray(entry.pendingAttempts)
+    ? entry.pendingAttempts.map(normalizeAttempt).filter(Boolean)
     : [];
-  const lastCompletedAttempts = Array.isArray(trainingState.lastCompletedAttempts)
-    ? trainingState.lastCompletedAttempts.map(normalizeAttempt).filter(Boolean)
+  const lastCompletedAttempts = Array.isArray(entry.lastCompletedAttempts)
+    ? entry.lastCompletedAttempts.map(normalizeAttempt).filter(Boolean)
     : [];
-  const boundedProgress = Number.isInteger(trainingState.progressPly)
-    ? trainingState.progressPly
-    : 0;
-  const lastCompletedExpectedMove = normalizeReferenceMove(
-    trainingState.lastCompletedExpectedMove,
-  );
+  const boundedProgress = Number.isInteger(entry.progressPly) ? entry.progressPly : 0;
+  const lastCompletedExpectedMove = normalizeReferenceMove(entry.lastCompletedExpectedMove);
   const lastCompletionMode =
-    trainingState.lastCompletionMode === TRAINING_COMPLETION_MATCH ||
-    trainingState.lastCompletionMode === TRAINING_COMPLETION_REVEALED
-      ? trainingState.lastCompletionMode
+    entry.lastCompletionMode === TRAINING_COMPLETION_MATCH ||
+    entry.lastCompletionMode === TRAINING_COMPLETION_REVEALED
+      ? entry.lastCompletionMode
       : null;
 
   return {
     mode,
-    playerSide,
+    playerSide: normalizedPlayerSide,
     status:
       mode === TRAINING_MODE_OFF
         ? TRAINING_STATUS_IDLE
@@ -265,6 +272,52 @@ export function normalizeTrainingState(trainingState) {
     lastCompletedAttempts,
     lastCompletedExpectedMove,
     lastCompletionMode,
+  };
+}
+
+function normalizeTrainingPlaySession(entry, playerSide = TRAINING_SIDE_WHITE) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const status =
+    entry.status === TRAINING_PLAY_STATUS_ACTIVE ? TRAINING_PLAY_STATUS_ACTIVE : null;
+  const sourceAttempt = normalizeAttempt(entry.sourceAttempt);
+  const startingFen = normalizeFen(entry.startingFen);
+  const resumeTrainingState = normalizeTrainingCheckpoint(entry.resumeTrainingState, playerSide);
+  const resumeVariantTree =
+    entry.resumeVariantTree && typeof entry.resumeVariantTree === "object"
+      ? normalizeVariantTree(entry.resumeVariantTree)
+      : null;
+
+  if (
+    !status ||
+    !sourceAttempt ||
+    !startingFen ||
+    !resumeVariantTree ||
+    resumeTrainingState.mode !== TRAINING_MODE_REPLAY_GAME
+  ) {
+    return null;
+  }
+
+  return {
+    status,
+    sourceAttempt,
+    startingFen,
+    resumeTrainingState,
+    resumeVariantTree,
+  };
+}
+
+export function normalizeTrainingState(trainingState) {
+  const normalizedCheckpoint = normalizeTrainingCheckpoint(trainingState);
+
+  return {
+    ...normalizedCheckpoint,
+    playSession: normalizeTrainingPlaySession(
+      trainingState?.playSession,
+      normalizedCheckpoint.playerSide,
+    ),
   };
 }
 
@@ -331,6 +384,7 @@ export function createReplayTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHI
       lastCompletedAttempts: [],
       lastCompletedExpectedMove: null,
       lastCompletionMode: null,
+      playSession: null,
     }),
     variantTree,
     initialFen,

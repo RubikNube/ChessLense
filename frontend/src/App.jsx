@@ -58,6 +58,7 @@ import {
   importMoveSequenceToVariantTree,
   jumpBackToSidelineInTree,
   jumpToMainVariantInTree,
+  normalizeVariantTree,
   promoteVariantLine,
   redoInVariantTree,
   removeVariantLine,
@@ -75,6 +76,7 @@ import {
   TRAINING_COMPLETION_MATCH,
   TRAINING_COMPLETION_REVEALED,
   TRAINING_MODE_REPLAY_GAME,
+  TRAINING_PLAY_STATUS_ACTIVE,
   TRAINING_SIDE_BLACK,
   TRAINING_SIDE_WHITE,
   TRAINING_STATUS_ACTIVE,
@@ -373,7 +375,13 @@ function buildEngineVariantPreview(fen, uciMoves) {
 
     const moveNumber = previewGame.moveNumber();
     const movingSide = previewGame.turn();
-    const appliedMove = previewGame.move(parsedMove);
+    let appliedMove = null;
+
+    try {
+      appliedMove = previewGame.move(parsedMove);
+    } catch {
+      break;
+    }
 
     if (!appliedMove) {
       break;
@@ -427,6 +435,10 @@ function formatReplayMoveLabel(move) {
   }
 
   return move.san ?? "Move";
+}
+
+function getTrainingSideForTurn(turn) {
+  return turn === "b" ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
 }
 
 function formatReplayGuessPrompt(move, previousMoveLabel) {
@@ -663,11 +675,12 @@ function App() {
     const playerName = getPgnHeaderValue(importedPgnData, "Black");
     return playerName ? `Black (${playerName})` : "Black";
   }, [importedPgnData]);
+  const engineAnalysisFen = engineResult?.fen ?? fen;
   const engineVariants = useMemo(
     () =>
       (engineResult?.principalVariations ?? []).map((variation, index) => {
         const { moveObjects, sanMoves, displayText } = buildEngineVariantPreview(
-          fen,
+          engineAnalysisFen,
           variation.moves,
         );
 
@@ -680,7 +693,7 @@ function App() {
           bestMoveSan: sanMoves[0] ?? null,
         };
       }),
-    [engineResult, fen],
+    [engineAnalysisFen, engineResult],
   );
   const selectedEngineVariant = useMemo(
     () => engineVariants[selectedEngineVariantIndex] ?? engineVariants[0] ?? null,
@@ -689,8 +702,8 @@ function App() {
   const formattedBestMove = useMemo(
     () =>
       engineVariants[0]?.bestMoveSan ??
-      formatUciMoveAsSan(fen, engineResult?.bestmove),
-    [engineResult?.bestmove, engineVariants, fen],
+      formatUciMoveAsSan(engineAnalysisFen, engineResult?.bestmove),
+    [engineAnalysisFen, engineResult?.bestmove, engineVariants],
   );
   const hasReplaySource = useMemo(
     () =>
@@ -720,6 +733,11 @@ function App() {
     [lastCompletedTrainingAttempts],
   );
   const lastCompletedExpectedMove = normalizedTrainingState.lastCompletedExpectedMove;
+  const activeTrainingPlaySession = normalizedTrainingState.playSession;
+  const isTrainingPlayActive = !!activeTrainingPlaySession;
+  const isTrainingPlayUserTurn =
+    isTrainingPlayActive &&
+    getTrainingSideForTurn(game.turn()) === normalizedTrainingState.playerSide;
   const replaySummary = useMemo(
     () =>
       summarizeReplayAttempts(
@@ -764,6 +782,116 @@ function App() {
     });
   }, []);
 
+  const exitTrainingPlayMode = useCallback(() => {
+    if (!activeTrainingPlaySession) {
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    setTrainingState(activeTrainingPlaySession.resumeTrainingState);
+    setVariantTree(activeTrainingPlaySession.resumeVariantTree);
+    setTrainingPreview(null);
+    setTrainingError("");
+    setTrainingLoading(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [activeTrainingPlaySession]);
+
+  const requestTrainingPlayEngineMove = useCallback(async () => {
+    if (
+      !isTrainingPlayActive ||
+      trainingError ||
+      trainingLoading ||
+      game.isGameOver() ||
+      getTrainingSideForTurn(game.turn()) === normalizedTrainingState.playerSide
+    ) {
+      return;
+    }
+
+    const requestId = ++trainingRequestIdRef.current;
+    setTrainingLoading(true);
+    setTrainingError("");
+
+    try {
+      const data = await fetchJson("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fen,
+          depth: 12,
+        }),
+      });
+
+      if (requestId !== trainingRequestIdRef.current) {
+        return;
+      }
+
+      const bestMove = parseUciMove(data.bestmove);
+
+      if (!bestMove) {
+        throw new Error("Engine did not return a playable move.");
+      }
+
+      const nextVariantTree = applyMoveToVariantTree(variantTree, bestMove);
+
+      if (!nextVariantTree) {
+        throw new Error("Unable to apply the engine move.");
+      }
+
+      setVariantTree(nextVariantTree);
+      setEngineResult(data);
+      setEvaluationResult(data.evaluation ?? null);
+    } catch (error) {
+      if (requestId !== trainingRequestIdRef.current) {
+        return;
+      }
+
+      setTrainingError(error.message);
+    } finally {
+      if (requestId === trainingRequestIdRef.current) {
+        setTrainingLoading(false);
+      }
+    }
+  }, [
+    fen,
+    game,
+    isTrainingPlayActive,
+    normalizedTrainingState.playerSide,
+    trainingError,
+    trainingLoading,
+    variantTree,
+  ]);
+
+  const startTrainingPlayMode = useCallback((attempt) => {
+    if (!attempt?.resultingFen || isTrainingPlayActive) {
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+
+    setTrainingState({
+      ...normalizedTrainingState,
+      playSession: {
+        status: TRAINING_PLAY_STATUS_ACTIVE,
+        sourceAttempt: attempt,
+        startingFen: attempt.resultingFen,
+        resumeTrainingState: {
+          ...normalizedTrainingState,
+          playSession: null,
+        },
+        resumeVariantTree: normalizeVariantTree(variantTree),
+      },
+    });
+    setVariantTree(createEmptyVariantTree(attempt.resultingFen));
+    setTrainingPreview(null);
+    setTrainingError("");
+    setTrainingLoading(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [isTrainingPlayActive, normalizedTrainingState, variantTree]);
+
   useEffect(() => {
     if (!trainingPreview) {
       return undefined;
@@ -781,6 +909,10 @@ function App() {
   useEffect(() => {
     setTrainingPreview(null);
   }, [showTrainingWindow, trainingState]);
+
+  useEffect(() => {
+    requestTrainingPlayEngineMove();
+  }, [requestTrainingPlayEngineMove]);
 
   useEffect(() => {
     if (isTrainingFocusMode) {
@@ -1088,6 +1220,24 @@ function App() {
       to: appliedUserMove.to,
       ...(appliedUserMove.promotion ? { promotion: appliedUserMove.promotion } : {}),
     };
+
+    if (isTrainingPlayActive) {
+      if (!isTrainingPlayUserTurn) {
+        return false;
+      }
+
+      const nextVariantTree = applyMoveToVariantTree(variantTree, normalizedAttemptedMove);
+
+      if (!nextVariantTree) {
+        return false;
+      }
+
+      setTrainingError("");
+      setVariantTree(nextVariantTree);
+      setEngineResult(null);
+      setEvaluationResult(null);
+      return true;
+    }
 
     if (isReplayTrainingActive && currentReplayMove) {
       setTrainingError("");
@@ -2325,7 +2475,7 @@ function App() {
                             : "annotation-secondary-button"
                         }
                         onClick={() => setTrainingPlayerSide(TRAINING_SIDE_WHITE)}
-                        disabled={isReplayTrainingActive || trainingLoading}
+                        disabled={isReplayTrainingActive || isTrainingPlayActive || trainingLoading}
                       >
                         {whiteTrainingLabel}
                       </button>
@@ -2337,14 +2487,16 @@ function App() {
                             : "annotation-secondary-button"
                         }
                         onClick={() => setTrainingPlayerSide(TRAINING_SIDE_BLACK)}
-                        disabled={isReplayTrainingActive || trainingLoading}
+                        disabled={isReplayTrainingActive || isTrainingPlayActive || trainingLoading}
                       >
                         {blackTrainingLabel}
                       </button>
                     </div>
                   </div>
                   <p className="current-move-label">
-                    {normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
+                    {isTrainingPlayActive
+                      ? "Exploring a wrong try against the computer"
+                      : normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
                       ? "Replay complete"
                       : isReplayTrainingActive
                         ? `Replay move ${Math.min(currentReplayMoveNumber, replaySummary.totalMoves)} of ${replaySummary.totalMoves}`
@@ -2355,7 +2507,33 @@ function App() {
                       Start replay mode to test your moves against the imported game.
                     </p>
                   )}
-                  {isReplayTrainingActive && currentReplayMove && (
+                  {isTrainingPlayActive && activeTrainingPlaySession && (
+                    <div className="annotation-item training-feedback">
+                      <div className="annotation-item-header">
+                        <span className="annotation-label">Play vs computer</span>
+                        <span className="training-feedback-result">
+                          {isTrainingPlayUserTurn ? "Your move" : "Computer move"}
+                        </span>
+                      </div>
+                      <p>
+                        Exploring <strong>{activeTrainingPlaySession.sourceAttempt.userSan}</strong>{" "}
+                        instead of{" "}
+                        <strong>{activeTrainingPlaySession.sourceAttempt.expectedSan}</strong>.
+                        Return to training to resume the replay exactly where you left it.
+                      </p>
+                      <div className="annotation-item-actions">
+                        <button
+                          type="button"
+                          className="annotation-secondary-button"
+                          onClick={exitTrainingPlayMode}
+                          disabled={trainingLoading}
+                        >
+                          Return to training
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {!isTrainingPlayActive && isReplayTrainingActive && currentReplayMove && (
                     <p className="annotation-empty">
                       Play the next move on the board. If you miss it, you can retry or
                       reveal the next game move when you are ready.
@@ -2363,11 +2541,15 @@ function App() {
                   )}
                   {trainingLoading && (
                     <p className="annotation-empty">
-                      Comparing your move with the game move...
+                      {isTrainingPlayActive
+                        ? "Computer is thinking..."
+                        : "Comparing your move with the game move..."}
                     </p>
                   )}
                   {trainingError && <p className="error">{trainingError}</p>}
-                  {pendingTrainingAttempts.length > 0 && currentReplayMove && (
+                  {!isTrainingPlayActive &&
+                    pendingTrainingAttempts.length > 0 &&
+                    currentReplayMove && (
                     <div className="annotation-item training-feedback">
                       <div className="annotation-item-header">
                         <span className="annotation-label">Move not matched</span>
@@ -2379,6 +2561,56 @@ function App() {
                         {formatReplayGuessPrompt(currentReplayMove, currentMoveLabel)} Or reveal
                         the next move from the game.
                       </p>
+                      <ul className="annotation-list training-attempt-list">
+                        {pendingTrainingAttempts.map((attempt, index) => (
+                          <li
+                            key={`${attempt.ply}-${attempt.userSan}-${index}`}
+                            className={`annotation-item${
+                              attempt.isCritical ? " training-feedback-critical" : ""
+                            }${attempt.resultingFen ? " training-preview-trigger" : ""}`}
+                            tabIndex={attempt.resultingFen ? 0 : undefined}
+                            onMouseEnter={(event) =>
+                              showTrainingPreview(attempt, event.currentTarget)
+                            }
+                            onMouseLeave={hideTrainingPreview}
+                            onFocus={(event) =>
+                              showTrainingPreview(attempt, event.currentTarget)
+                            }
+                            onBlur={hideTrainingPreview}
+                          >
+                            <div className="annotation-item-header">
+                              <span className="annotation-label">Try {index + 1}</span>
+                              <span className="training-feedback-result">
+                                {attempt.classification === "better"
+                                  ? "Better"
+                                  : attempt.classification === "equal"
+                                    ? "Equal"
+                                    : attempt.classification === "worse"
+                                      ? "Worse"
+                                      : "n/a"}
+                              </span>
+                            </div>
+                            <p>
+                              Played {attempt.userSan} instead of {currentReplayMove.san}.
+                            </p>
+                            <p className="training-feedback-detail">
+                              <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
+                              {" "}vs the game move
+                              {attempt.isCritical ? " - critical mistake" : ""}.
+                            </p>
+                            <div className="annotation-item-actions">
+                              <button
+                                type="button"
+                                className="annotation-secondary-button"
+                                onClick={() => startTrainingPlayMode(attempt)}
+                                disabled={isTrainingPlayActive || trainingLoading}
+                              >
+                                Play vs computer
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                       <div className="annotation-item-actions">
                         <button
                           type="button"
@@ -2397,7 +2629,8 @@ function App() {
                       </div>
                     </div>
                   )}
-                  {!pendingTrainingAttempts.length &&
+                  {!isTrainingPlayActive &&
+                    !pendingTrainingAttempts.length &&
                     lastCompletedTrainingAttempts.length > 0 &&
                     lastCompletedExpectedMove && (
                       <div className="annotation-item training-feedback">
@@ -2462,13 +2695,24 @@ function App() {
                                   {" "}vs the game move
                                   {attempt.isCritical ? " - critical mistake" : ""}.
                                 </p>
+                                <div className="annotation-item-actions">
+                                  <button
+                                    type="button"
+                                    className="annotation-secondary-button"
+                                    onClick={() => startTrainingPlayMode(attempt)}
+                                    disabled={isTrainingPlayActive || trainingLoading}
+                                  >
+                                    Play vs computer
+                                  </button>
+                                </div>
                               </li>
                             ))}
                           </ul>
                         )}
                       </div>
                     )}
-                  {normalizedTrainingState.status === TRAINING_STATUS_COMPLETED && (
+                  {!isTrainingPlayActive &&
+                    normalizedTrainingState.status === TRAINING_STATUS_COMPLETED && (
                     <>
                       <div className="training-summary-grid">
                         <div className="training-summary-card">
@@ -2533,6 +2777,16 @@ function App() {
                                   <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
                                   {" "}vs the game move.
                                 </p>
+                                <div className="annotation-item-actions">
+                                  <button
+                                    type="button"
+                                    className="annotation-secondary-button"
+                                    onClick={() => startTrainingPlayMode(attempt)}
+                                    disabled={isTrainingPlayActive || trainingLoading}
+                                  >
+                                    Play vs computer
+                                  </button>
+                                </div>
                               </li>
                             ))}
                           </ul>

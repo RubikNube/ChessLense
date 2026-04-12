@@ -13,6 +13,7 @@ import {
   TRAINING_SIDE_WHITE,
   TRAINING_MODE_REPLAY_GAME,
   TRAINING_MODE_OFF,
+  TRAINING_PLAY_STATUS_ACTIVE,
   TRAINING_STATUS_ACTIVE,
   TRAINING_STATUS_IDLE,
   REPLAY_RESULT_BETTER,
@@ -20,6 +21,7 @@ import {
   REPLAY_RESULT_MATCH,
   REPLAY_RESULT_WORSE,
 } from "./training.js";
+import { createEmptyVariantTree } from "./variantTree.js";
 
 describe("training helpers", () => {
   it("creates an empty training state by default", () => {
@@ -34,6 +36,7 @@ describe("training helpers", () => {
       lastCompletedAttempts: [],
       lastCompletedExpectedMove: null,
       lastCompletionMode: null,
+      playSession: null,
     });
   });
 
@@ -326,5 +329,79 @@ describe("training helpers", () => {
       expect.objectContaining({ san: "e4" }),
     );
     expect(normalizedState.lastCompletionMode).toBe(TRAINING_COMPLETION_REVEALED);
+    expect(normalizedState.playSession).toBeNull();
+  });
+
+  it("normalizes persisted play-session snapshots for temporary engine play", () => {
+    const referenceMove = {
+      ply: 1,
+      moveNumber: 1,
+      side: "white",
+      san: "e4",
+      move: { from: "e2", to: "e4" },
+      fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+    };
+    const wrongAttempt = {
+      ply: 1,
+      moveNumber: 1,
+      side: "white",
+      expectedSan: "e4",
+      userSan: "d4",
+      expectedMove: { from: "e2", to: "e4" },
+      userMove: { from: "d2", to: "d4" },
+      outcome: "mismatch",
+      classification: "equal",
+      deltaCp: -5,
+      resultingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+    };
+
+    const normalizedState = normalizeTrainingState({
+      mode: TRAINING_MODE_REPLAY_GAME,
+      status: TRAINING_STATUS_ACTIVE,
+      playerSide: TRAINING_SIDE_WHITE,
+      progressPly: 0,
+      referenceMoves: [referenceMove],
+      attempts: [],
+      pendingAttempts: [wrongAttempt],
+      playSession: {
+        status: TRAINING_PLAY_STATUS_ACTIVE,
+        sourceAttempt: wrongAttempt,
+        startingFen: wrongAttempt.resultingFen,
+        resumeTrainingState: {
+          mode: TRAINING_MODE_REPLAY_GAME,
+          status: TRAINING_STATUS_ACTIVE,
+          playerSide: TRAINING_SIDE_WHITE,
+          progressPly: 0,
+          referenceMoves: [referenceMove],
+          attempts: [],
+          pendingAttempts: [wrongAttempt],
+        },
+        resumeVariantTree: createEmptyVariantTree(referenceMove.fenBefore),
+      },
+    });
+
+    expect(normalizedState.playSession).toEqual(
+      expect.objectContaining({
+        status: TRAINING_PLAY_STATUS_ACTIVE,
+        startingFen: wrongAttempt.resultingFen,
+        sourceAttempt: expect.objectContaining({
+          userSan: "d4",
+          resultingFen: wrongAttempt.resultingFen,
+        }),
+        resumeVariantTree: createEmptyVariantTree(referenceMove.fenBefore),
+      }),
+    );
+    expect(normalizedState.playSession.resumeTrainingState).toEqual(
+      expect.objectContaining({
+        mode: TRAINING_MODE_REPLAY_GAME,
+        pendingAttempts: [
+          expect.objectContaining({
+            userSan: "d4",
+            resultingFen: wrongAttempt.resultingFen,
+          }),
+        ],
+      }),
+    );
   });
 });
