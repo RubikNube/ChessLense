@@ -2731,9 +2731,8 @@ function App() {
                         </span>
                       </div>
                       <p>
-                        Exploring <strong>{activeTrainingPlaySession.sourceAttempt.userSan}</strong>{" "}
-                        instead of{" "}
-                        <strong>{activeTrainingPlaySession.sourceAttempt.expectedSan}</strong>.
+                        Exploring the position after{" "}
+                        <strong>{activeTrainingPlaySession.sourceAttempt.userSan}</strong>.
                         Return to training to resume the replay exactly where you left it.
                       </p>
                       <div className="annotation-item-actions">
@@ -2806,7 +2805,7 @@ function App() {
                               </span>
                             </div>
                             <p>
-                              Played {attempt.userSan} instead of {currentReplayMove.san}.
+                              Played {attempt.userSan}.
                             </p>
                             <p className="training-feedback-detail">
                               <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
