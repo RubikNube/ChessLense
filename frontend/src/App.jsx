@@ -1697,6 +1697,7 @@ function App() {
                   ×
                 </button>
               </div>
+              {loading && <p>Evaluating position...</p>}
               {engineResult?.error && <p className="error">{engineResult.error}</p>}
               {!engineResult && !loading && <p>No analysis yet.</p>}
               {engineResult?.bestmove && (
@@ -1741,20 +1742,30 @@ function App() {
                           </li>
                         ))}
                       </ul>
-                      <div style={modalActionRowStyle}>
-                        <button
-                          type="button"
-                          style={modalPrimaryButtonStyle}
-                          onClick={addSelectedEngineVariantToTree}
-                          disabled={!selectedEngineVariant?.moveObjects?.length}
-                        >
-                          Add to variants
-                        </button>
-                      </div>
                     </>
                   )}
                 </>
               )}
+              <div style={modalActionRowStyle}>
+                <button
+                  type="button"
+                  style={modalButtonStyle}
+                  onClick={analyzePosition}
+                  disabled={loading}
+                >
+                  {loading ? "Evaluating..." : "Evaluate position"}
+                </button>
+                {!!engineVariants.length && (
+                  <button
+                    type="button"
+                    style={modalPrimaryButtonStyle}
+                    onClick={addSelectedEngineVariantToTree}
+                    disabled={!selectedEngineVariant?.moveObjects?.length}
+                  >
+                    Add to variants
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
