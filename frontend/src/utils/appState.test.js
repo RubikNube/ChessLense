@@ -214,6 +214,7 @@ describe("persisted app state", () => {
             isCritical: false,
             referenceEvaluation: null,
             userEvaluation: null,
+            resultingFen: null,
           },
         ],
         pendingAttempts: [],

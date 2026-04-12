@@ -40,6 +40,10 @@ function normalizeMove(move) {
   };
 }
 
+function normalizeString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function normalizeEvaluation(evaluation) {
   if (!evaluation || typeof evaluation !== "object") {
     return null;
@@ -56,6 +60,21 @@ function normalizeEvaluation(evaluation) {
   }
 
   return null;
+}
+
+function normalizeFen(value) {
+  const normalized = normalizeString(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    new Chess(normalized);
+    return normalized;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeReferenceMove(entry) {
@@ -132,6 +151,7 @@ function normalizeAttempt(entry) {
     isCritical: entry.isCritical === true,
     referenceEvaluation: normalizeEvaluation(entry.referenceEvaluation),
     userEvaluation: normalizeEvaluation(entry.userEvaluation),
+    resultingFen: normalizeFen(entry.resultingFen),
   };
 }
 
@@ -345,6 +365,15 @@ export function buildReplayAttempt({
     return null;
   }
 
+  const previewGame = new Chess(normalizedExpectedMove.fenBefore);
+  const appliedUserMove = previewGame.move(normalizedUserMove);
+
+  if (!appliedUserMove) {
+    return null;
+  }
+
+  const resultingFen = previewGame.fen();
+
   const moveMatches =
     normalizedExpectedMove.move.from === normalizedUserMove.from &&
     normalizedExpectedMove.move.to === normalizedUserMove.to &&
@@ -365,6 +394,7 @@ export function buildReplayAttempt({
       isCritical: false,
       referenceEvaluation: null,
       userEvaluation: null,
+      resultingFen,
     });
   }
 
@@ -390,6 +420,7 @@ export function buildReplayAttempt({
     isCritical: isCriticalReplayDelta(deltaCp),
     referenceEvaluation,
     userEvaluation,
+    resultingFen,
   });
 }
 

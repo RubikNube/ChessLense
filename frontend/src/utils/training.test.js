@@ -134,8 +134,8 @@ describe("training helpers", () => {
         side: "white",
         san: "e4",
         move: { from: "e2", to: "e4" },
-        fenBefore: "before-1",
-        fenAfter: "after-1",
+        fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
       },
       userMove: { from: "e2", to: "e4" },
       userSan: "e4",
@@ -147,6 +147,7 @@ describe("training helpers", () => {
         classification: null,
         deltaCp: null,
         isCritical: false,
+        resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
       }),
     );
   });
@@ -159,8 +160,8 @@ describe("training helpers", () => {
         side: "white",
         san: "Nf3",
         move: { from: "g1", to: "f3" },
-        fenBefore: "before-3",
-        fenAfter: "after-3",
+        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
       },
       userMove: { from: "f1", to: "c4" },
       userSan: "Bc4",
@@ -174,6 +175,7 @@ describe("training helpers", () => {
         classification: REPLAY_RESULT_WORSE,
         deltaCp: -175,
         isCritical: true,
+        resultingFen: "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
       }),
     );
   });
@@ -186,8 +188,8 @@ describe("training helpers", () => {
         side: "white",
         san: "e4",
         move: { from: "e2", to: "e4" },
-        fenBefore: "before-1",
-        fenAfter: "after-1",
+        fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
       },
       {
         ply: 2,
@@ -195,8 +197,8 @@ describe("training helpers", () => {
         side: "black",
         san: "e5",
         move: { from: "e7", to: "e5" },
-        fenBefore: "before-2",
-        fenAfter: "after-2",
+        fenBefore: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
       },
       {
         ply: 3,
@@ -204,8 +206,8 @@ describe("training helpers", () => {
         side: "white",
         san: "Nf3",
         move: { from: "g1", to: "f3" },
-        fenBefore: "before-3",
-        fenAfter: "after-3",
+        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
       },
     ];
     const attempts = [
@@ -267,8 +269,8 @@ describe("training helpers", () => {
           side: "white",
           san: "e4",
           move: { from: "e2", to: "e4" },
-          fenBefore: "before-1",
-          fenAfter: "after-1",
+          fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+          fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
         },
       ],
       attempts: [],
@@ -284,6 +286,7 @@ describe("training helpers", () => {
           outcome: "mismatch",
           classification: "equal",
           deltaCp: -5,
+          resultingFen: "invalid fen",
         },
       ],
       lastCompletedAttempts: [
@@ -298,6 +301,7 @@ describe("training helpers", () => {
           outcome: "mismatch",
           classification: "worse",
           deltaCp: -60,
+          resultingFen: "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1",
         },
       ],
       lastCompletedExpectedMove: {
@@ -306,14 +310,18 @@ describe("training helpers", () => {
         side: "white",
         san: "e4",
         move: { from: "e2", to: "e4" },
-        fenBefore: "before-1",
-        fenAfter: "after-1",
+        fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
       },
       lastCompletionMode: TRAINING_COMPLETION_REVEALED,
     });
 
     expect(normalizedState.pendingAttempts).toHaveLength(1);
     expect(normalizedState.lastCompletedAttempts).toHaveLength(1);
+    expect(normalizedState.pendingAttempts[0].resultingFen).toBeNull();
+    expect(normalizedState.lastCompletedAttempts[0].resultingFen).toBe(
+      "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1",
+    );
     expect(normalizedState.lastCompletedExpectedMove).toEqual(
       expect.objectContaining({ san: "e4" }),
     );

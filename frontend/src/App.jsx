@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
+import { createPortal } from "react-dom";
 import { Chessboard } from "react-chessboard";
 import EvaluationBar from "./components/EvaluationBar.jsx";
 import MoveHistory from "./components/MoveHistory.jsx";
+import PositionPreviewBoard from "./components/PositionPreviewBoard.jsx";
 import VariantsView from "./components/VariantsView.jsx";
 import {
   createUserPositionComment,
@@ -68,6 +70,7 @@ import {
   createReplayTrainingState,
   getCurrentReplayMove,
   normalizeTrainingState,
+  REPLAY_RESULT_MATCH,
   summarizeReplayAttempts,
   TRAINING_COMPLETION_MATCH,
   TRAINING_COMPLETION_REVEALED,
@@ -226,6 +229,11 @@ const engineVariantMovesStyle = {
   lineHeight: 1.5,
   fontSize: "0.95rem",
 };
+
+const TRAINING_PREVIEW_TOOLTIP_WIDTH_PX = 176;
+const TRAINING_PREVIEW_TOOLTIP_HEIGHT_PX = 220;
+const TRAINING_PREVIEW_TOOLTIP_GAP_PX = 12;
+const TRAINING_PREVIEW_TOOLTIP_MARGIN_PX = 16;
 
 function formatPgnCommentLabel(comment) {
   if (!comment || typeof comment !== "object") {
@@ -446,6 +454,31 @@ function formatReplayDelta(deltaCp) {
   return pawns > 0 ? `+${pawns.toFixed(2)}` : pawns.toFixed(2);
 }
 
+function getTrainingPreviewPosition(targetRect) {
+  const centeredTop = targetRect.top + targetRect.height / 2;
+  const fitsRight =
+    targetRect.right + TRAINING_PREVIEW_TOOLTIP_GAP_PX + TRAINING_PREVIEW_TOOLTIP_WIDTH_PX <=
+    window.innerWidth - TRAINING_PREVIEW_TOOLTIP_MARGIN_PX;
+
+  return {
+    left: fitsRight
+      ? targetRect.right + TRAINING_PREVIEW_TOOLTIP_GAP_PX
+      : Math.max(
+          TRAINING_PREVIEW_TOOLTIP_MARGIN_PX,
+          targetRect.left -
+            TRAINING_PREVIEW_TOOLTIP_GAP_PX -
+            TRAINING_PREVIEW_TOOLTIP_WIDTH_PX,
+        ),
+    top: Math.min(
+      window.innerHeight - TRAINING_PREVIEW_TOOLTIP_MARGIN_PX,
+      Math.max(
+        TRAINING_PREVIEW_TOOLTIP_MARGIN_PX + TRAINING_PREVIEW_TOOLTIP_HEIGHT_PX / 2,
+        centeredTop,
+      ),
+    ),
+  };
+}
+
 function formatPlayerLabel(player) {
   const prefix = player?.title ? `${player.title} ` : "";
   const rating = Number.isFinite(player?.rating) ? ` (${player.rating})` : "";
@@ -528,6 +561,7 @@ function App() {
   const [trainingState, setTrainingState] = useState(
     () => persistedAppState?.trainingState ?? createEmptyTrainingState(),
   );
+  const [trainingPreview, setTrainingPreview] = useState(null);
   const [trainingError, setTrainingError] = useState("");
   const [trainingLoading, setTrainingLoading] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
@@ -537,6 +571,7 @@ function App() {
   );
   const boardPanelRef = useRef(null);
   const trainingRequestIdRef = useRef(0);
+  const trainingFocusRestoreRef = useRef(null);
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
@@ -669,12 +704,21 @@ function App() {
   const isReplayTrainingActive =
     normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
     normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
+  const isTrainingFocusMode =
+    showTrainingWindow && normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME;
   const currentReplayMove = useMemo(
     () => getCurrentReplayMove(normalizedTrainingState),
     [normalizedTrainingState],
   );
   const pendingTrainingAttempts = normalizedTrainingState.pendingAttempts;
   const lastCompletedTrainingAttempts = normalizedTrainingState.lastCompletedAttempts;
+  const lastCompletedIncorrectTrainingAttempts = useMemo(
+    () =>
+      lastCompletedTrainingAttempts.filter(
+        (attempt) => attempt.outcome !== REPLAY_RESULT_MATCH,
+      ),
+    [lastCompletedTrainingAttempts],
+  );
   const lastCompletedExpectedMove = normalizedTrainingState.lastCompletedExpectedMove;
   const replaySummary = useMemo(
     () =>
@@ -698,9 +742,100 @@ function App() {
   const resetTrainingSession = useCallback(() => {
     trainingRequestIdRef.current += 1;
     setTrainingState(createEmptyTrainingState(normalizedTrainingState.playerSide));
+    setTrainingPreview(null);
     setTrainingError("");
     setTrainingLoading(false);
   }, [normalizedTrainingState.playerSide]);
+
+  const hideTrainingPreview = useCallback(() => {
+    setTrainingPreview(null);
+  }, []);
+
+  const showTrainingPreview = useCallback((attempt, target) => {
+    if (!attempt?.resultingFen || !(target instanceof HTMLElement)) {
+      return;
+    }
+
+    const position = getTrainingPreviewPosition(target.getBoundingClientRect());
+    setTrainingPreview({
+      fen: attempt.resultingFen,
+      top: position.top,
+      left: position.left,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!trainingPreview) {
+      return undefined;
+    }
+
+    window.addEventListener("resize", hideTrainingPreview);
+    window.addEventListener("scroll", hideTrainingPreview, true);
+
+    return () => {
+      window.removeEventListener("resize", hideTrainingPreview);
+      window.removeEventListener("scroll", hideTrainingPreview, true);
+    };
+  }, [hideTrainingPreview, trainingPreview]);
+
+  useEffect(() => {
+    setTrainingPreview(null);
+  }, [showTrainingWindow, trainingState]);
+
+  useEffect(() => {
+    if (isTrainingFocusMode) {
+      if (!trainingFocusRestoreRef.current) {
+        trainingFocusRestoreRef.current = {
+          showMoveHistory,
+          showEngineWindow,
+          showComments,
+          showImportedPgn,
+          showVariants,
+        };
+      }
+
+      if (showMoveHistory) {
+        setShowMoveHistory(false);
+      }
+
+      if (showEngineWindow) {
+        setShowEngineWindow(false);
+      }
+
+      if (showComments) {
+        setShowComments(false);
+      }
+
+      if (showImportedPgn) {
+        setShowImportedPgn(false);
+      }
+
+      if (showVariants) {
+        setShowVariants(false);
+      }
+
+      return;
+    }
+
+    if (!trainingFocusRestoreRef.current) {
+      return;
+    }
+
+    const restoreState = trainingFocusRestoreRef.current;
+    trainingFocusRestoreRef.current = null;
+    setShowMoveHistory(restoreState.showMoveHistory);
+    setShowEngineWindow(restoreState.showEngineWindow);
+    setShowComments(restoreState.showComments);
+    setShowImportedPgn(restoreState.showImportedPgn);
+    setShowVariants(restoreState.showVariants);
+  }, [
+    isTrainingFocusMode,
+    showComments,
+    showEngineWindow,
+    showImportedPgn,
+    showMoveHistory,
+    showVariants,
+  ]);
 
   const setTrainingPlayerSide = useCallback((playerSide) => {
     if (playerSide !== TRAINING_SIDE_WHITE && playerSide !== TRAINING_SIDE_BLACK) {
@@ -871,8 +1006,6 @@ function App() {
     setTrainingState(preparedTrainingState);
     setTrainingError("");
     setTrainingLoading(false);
-    setShowMoveHistory(false);
-    setShowImportedPgn(true);
   }, [advanceReplayToPlayerTurn, hasReplaySource, importedPgnData, normalizedTrainingState.playerSide]);
 
   function applyImportedPgn(rawPgn) {
@@ -1428,17 +1561,28 @@ function App() {
   }, [fen]);
 
   useEffect(() => {
+    const persistedRightSideViews =
+      isTrainingFocusMode && trainingFocusRestoreRef.current
+        ? trainingFocusRestoreRef.current
+        : {
+            showMoveHistory,
+            showEngineWindow,
+            showComments,
+            showImportedPgn,
+            showVariants,
+          };
+
     try {
       savePersistedAppState({
         variantTree,
         boardOrientation,
-        showMoveHistory,
+        showMoveHistory: persistedRightSideViews.showMoveHistory,
         showTrainingWindow,
-        showEngineWindow,
+        showEngineWindow: persistedRightSideViews.showEngineWindow,
         showEvaluationBar,
-        showComments,
-        showImportedPgn,
-        showVariants,
+        showComments: persistedRightSideViews.showComments,
+        showImportedPgn: persistedRightSideViews.showImportedPgn,
+        showVariants: persistedRightSideViews.showVariants,
         showVariantArrows,
         importedPgnData,
         positionComments,
@@ -1450,6 +1594,7 @@ function App() {
   }, [
     boardOrientation,
     importedPgnData,
+    isTrainingFocusMode,
     positionComments,
     showEngineWindow,
     showEvaluationBar,
@@ -2092,7 +2237,7 @@ function App() {
         </div>
       </nav>
 
-      <div className="workspace">
+      <div className={`workspace${isTrainingFocusMode ? " workspace-training-focus" : ""}`}>
         <div className="board-panel" ref={boardPanelRef}>
           <div className="board-and-evaluation">
             <div className="chessboard-wrapper">
@@ -2119,27 +2264,36 @@ function App() {
           </div>
         </div>
 
-        <div className="info-column info-column-navigation">
-          {showMoveHistory && (
-            <MoveHistory
-              moveHistoryItems={moveHistoryItems}
-              currentMoveIndex={currentMoveIndex}
-              boardPanelHeight={boardPanelHeight}
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onClose={closeMoveHistory}
-              onSelectMove={goToMoveHistoryNode}
-              onUndo={undoMove}
-              onRedo={redoMove}
-              onGoToStart={goToStart}
-              onGoToEnd={goToEnd}
-            />
-          )}
-        </div>
+        {!isTrainingFocusMode && (
+          <div className="info-column info-column-navigation">
+            {showMoveHistory && (
+              <MoveHistory
+                moveHistoryItems={moveHistoryItems}
+                currentMoveIndex={currentMoveIndex}
+                boardPanelHeight={boardPanelHeight}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onClose={closeMoveHistory}
+                onSelectMove={goToMoveHistoryNode}
+                onUndo={undoMove}
+                onRedo={redoMove}
+                onGoToStart={goToStart}
+                onGoToEnd={goToEnd}
+              />
+            )}
+          </div>
+        )}
 
-        <div className="info-column info-column-reference">
+        <div
+          className={`info-column info-column-reference${
+            isTrainingFocusMode ? " info-column-training-focus" : ""
+          }`}
+        >
           {showTrainingWindow && (
-            <div className="card">
+            <div
+              className="card training-card"
+              style={boardPanelHeight ? { height: `${boardPanelHeight}px` } : undefined}
+            >
               <div className="card-header">
                 <h2>Training</h2>
                 <button
@@ -2152,6 +2306,7 @@ function App() {
                   ×
                 </button>
               </div>
+              <div className="training-card-body">
               {!hasReplaySource && (
                 <p className="annotation-empty">
                   Import a game to enable replay training.
@@ -2260,21 +2415,31 @@ function App() {
                           {normalizedTrainingState.lastCompletionMode ===
                           TRAINING_COMPLETION_REVEALED
                             ? " was revealed from the game after your tries."
-                            : lastCompletedTrainingAttempts.length > 1
-                              ? ` matched after ${lastCompletedTrainingAttempts.length - 1} earlier ${
-                                  lastCompletedTrainingAttempts.length === 2 ? "try" : "tries"
-                                }.`
+                            : lastCompletedIncorrectTrainingAttempts.length > 0
+                              ? ` matched after ${lastCompletedIncorrectTrainingAttempts.length} earlier ${
+                                  lastCompletedIncorrectTrainingAttempts.length === 1
+                                    ? "try"
+                                    : "tries"
+                                 }.`
                               : " matched the game move."}
                         </p>
-                        {normalizedTrainingState.lastCompletionMode ===
-                          TRAINING_COMPLETION_REVEALED && (
+                        {lastCompletedIncorrectTrainingAttempts.length > 0 && (
                           <ul className="annotation-list training-attempt-list">
-                            {lastCompletedTrainingAttempts.map((attempt, index) => (
+                            {lastCompletedIncorrectTrainingAttempts.map((attempt, index) => (
                               <li
                                 key={`${attempt.ply}-${attempt.userSan}-${index}`}
                                 className={`annotation-item${
                                   attempt.isCritical ? " training-feedback-critical" : ""
-                                }`}
+                                }${attempt.resultingFen ? " training-preview-trigger" : ""}`}
+                                tabIndex={attempt.resultingFen ? 0 : undefined}
+                                onMouseEnter={(event) =>
+                                  showTrainingPreview(attempt, event.currentTarget)
+                                }
+                                onMouseLeave={hideTrainingPreview}
+                                onFocus={(event) =>
+                                  showTrainingPreview(attempt, event.currentTarget)
+                                }
+                                onBlur={hideTrainingPreview}
                               >
                                 <div className="annotation-item-header">
                                   <span className="annotation-label">Try {index + 1}</span>
@@ -2338,7 +2503,18 @@ function App() {
                             {replaySummary.criticalMistakes.map((attempt) => (
                               <li
                                 key={`${attempt.ply}-${attempt.userSan}-${attempt.expectedSan}`}
-                                className="annotation-item"
+                                className={`annotation-item${
+                                  attempt.resultingFen ? " training-preview-trigger" : ""
+                                }`}
+                                tabIndex={attempt.resultingFen ? 0 : undefined}
+                                onMouseEnter={(event) =>
+                                  showTrainingPreview(attempt, event.currentTarget)
+                                }
+                                onMouseLeave={hideTrainingPreview}
+                                onFocus={(event) =>
+                                  showTrainingPreview(attempt, event.currentTarget)
+                                }
+                                onBlur={hideTrainingPreview}
                               >
                                 <div className="annotation-item-header">
                                   <span className="annotation-label">
@@ -2394,10 +2570,11 @@ function App() {
                   </div>
                 </>
               )}
+              </div>
             </div>
           )}
 
-          {showEngineWindow && (
+          {!isTrainingFocusMode && showEngineWindow && (
             <div className="card">
               <div className="card-header">
                 <h2>Engine</h2>
@@ -2483,7 +2660,7 @@ function App() {
             </div>
           )}
 
-          {showComments && (
+          {!isTrainingFocusMode && showComments && (
             <div className="card">
               <div className="card-header">
                 <h2>Comments</h2>
@@ -2578,7 +2755,7 @@ function App() {
             </div>
           )}
 
-          {showVariants && (
+          {!isTrainingFocusMode && showVariants && (
             <VariantsView
               variantLines={variantLines}
               canUndo={canUndo}
@@ -2597,7 +2774,7 @@ function App() {
             />
           )}
 
-          {showImportedPgn && hasImportedPgnDetails && (
+          {!isTrainingFocusMode && showImportedPgn && hasImportedPgnDetails && (
             <div className="card">
               <div className="card-header">
                 <h2>Imported PGN</h2>
@@ -3296,6 +3473,25 @@ function App() {
 
         </div>
       )}
+      {trainingPreview &&
+        createPortal(
+          <div
+            className="training-preview-tooltip"
+            role="tooltip"
+            style={{
+              top: `${trainingPreview.top}px`,
+              left: `${trainingPreview.left}px`,
+              transform: "translateY(-50%)",
+            }}
+          >
+            <span className="annotation-label">Resulting position</span>
+            <PositionPreviewBoard
+              fen={trainingPreview.fen}
+              orientation={boardOrientation}
+            />
+          </div>,
+          document.body,
+        )}
       {copyNotification && (
         <div className="copy-notification" role="status" aria-live="polite">
           {copyNotification}
