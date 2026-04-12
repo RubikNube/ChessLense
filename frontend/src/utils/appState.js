@@ -11,18 +11,24 @@ export const SHORTCUT_ACTION_ORDER = [
   "goToStart",
   "undoMove",
   "redoMove",
+  "jumpToMainVariant",
+  "jumpBackToSideline",
   "goToEnd",
   "flipBoard",
   "closeShortcutsPopup",
 ];
 
 const SHORTCUT_DISPLAY_LABELS = {
-  ArrowLeft: "←",
-  ArrowRight: "→",
-  ArrowUp: "↑",
-  ArrowDown: "↓",
-  Escape: "Esc",
+  arrowleft: "←",
+  arrowright: "→",
+  arrowup: "↑",
+  arrowdown: "↓",
+  escape: "Esc",
   " ": "Space",
+  ctrl: "Ctrl",
+  alt: "Alt",
+  shift: "Shift",
+  meta: "Meta",
 };
 
 export const DEFAULT_SHORTCUT_CONFIG = {
@@ -41,6 +47,14 @@ export const DEFAULT_SHORTCUT_CONFIG = {
   redoMove: {
     label: "Redo move",
     keys: ["ArrowRight"],
+  },
+  jumpToMainVariant: {
+    label: "Jump to main variant",
+    keys: ["Ctrl+M"],
+  },
+  jumpBackToSideline: {
+    label: "Jump back to sideline",
+    keys: ["Ctrl+,"],
   },
   goToEnd: {
     label: "Go to end",
@@ -80,17 +94,17 @@ export function normalizeShortcutConfig(config) {
     const candidateShortcut = config[actionName];
     const shortcutKeys =
       Array.isArray(candidateShortcut?.keys) &&
-      candidateShortcut.keys.every(
-        (shortcutKey) =>
-          typeof shortcutKey === "string" && shortcutKey.trim().length > 0,
-      )
-        ? candidateShortcut.keys
+        candidateShortcut.keys.every(
+          (shortcutKey) =>
+            typeof shortcutKey === "string" && shortcutKey.trim().length > 0,
+        )
+        ? candidateShortcut.keys.map((shortcutKey) => shortcutKey.trim())
         : defaultShortcut.keys;
 
     normalizedConfig[actionName] = {
       label:
         typeof candidateShortcut?.label === "string" &&
-        candidateShortcut.label.trim().length > 0
+          candidateShortcut.label.trim().length > 0
           ? candidateShortcut.label
           : defaultShortcut.label,
       keys: shortcutKeys,
@@ -101,11 +115,56 @@ export function normalizeShortcutConfig(config) {
 }
 
 export function matchesShortcut(event, shortcutKeys) {
-  return shortcutKeys.some((shortcutKey) => event.key === shortcutKey);
+  return shortcutKeys.some((shortcutKey) => {
+    const tokens = shortcutKey
+      .split("+")
+      .map((token) => token.trim())
+      .filter(Boolean);
+
+    if (!tokens.length) {
+      return false;
+    }
+
+    const normalizedTokens = tokens.map((token) => token.toLowerCase());
+    const requiredKey = normalizedTokens[normalizedTokens.length - 1];
+    const requiredModifiers = new Set(normalizedTokens.slice(0, -1));
+
+    if (requiredModifiers.has("ctrl") && !event.ctrlKey) {
+      return false;
+    }
+
+    if (requiredModifiers.has("alt") && !event.altKey) {
+      return false;
+    }
+
+    if (requiredModifiers.has("shift") && !event.shiftKey) {
+      return false;
+    }
+
+    if (requiredModifiers.has("meta") && !event.metaKey) {
+      return false;
+    }
+
+    return String(event.key).toLowerCase() === requiredKey;
+  });
 }
 
 export function getShortcutDisplayLabel(shortcutKey) {
-  return SHORTCUT_DISPLAY_LABELS[shortcutKey] || shortcutKey;
+  return shortcutKey
+    .split("+")
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .map((token) => {
+      const normalizedToken = token.toLowerCase();
+      const label = SHORTCUT_DISPLAY_LABELS[normalizedToken];
+
+      if (label) {
+        return label;
+      }
+
+      return token.length === 1 ? token.toUpperCase() : token;
+    })
+    .join("+");
 }
 
 export function parseGameFromPgn(pgn, options = {}) {
@@ -163,25 +222,25 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
 
     const redoStack = Array.isArray(parsedState.redoStack)
       ? parsedState.redoStack.reduce((moves, move) => {
-          if (
-            !move ||
-            typeof move !== "object" ||
-            typeof move.from !== "string" ||
-            typeof move.to !== "string"
-          ) {
-            return moves;
-          }
-
-          moves.push({
-            from: move.from,
-            to: move.to,
-            ...(typeof move.promotion === "string"
-              ? { promotion: move.promotion }
-              : {}),
-          });
-
+        if (
+          !move ||
+          typeof move !== "object" ||
+          typeof move.from !== "string" ||
+          typeof move.to !== "string"
+        ) {
           return moves;
-        }, [])
+        }
+
+        moves.push({
+          from: move.from,
+          to: move.to,
+          ...(typeof move.promotion === "string"
+            ? { promotion: move.promotion }
+            : {}),
+        });
+
+        return moves;
+      }, [])
       : [];
 
     const gamePgn = typeof parsedState.gamePgn === "string" ? parsedState.gamePgn : "";

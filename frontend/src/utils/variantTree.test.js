@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   applyMoveToVariantTree,
   buildGameToNode,
+  canJumpBackToSidelineInTree,
+  canJumpToMainVariantInTree,
   canRedoInVariantTree,
   createEmptyVariantTree,
   createVariantTreeFromGameAndRedo,
@@ -15,6 +17,8 @@ import {
   getVariantLines,
   goToEndInVariantTree,
   goToStartInVariantTree,
+  jumpBackToSidelineInTree,
+  jumpToMainVariantInTree,
   promoteVariantLine,
   redoInVariantTree,
   selectVariantLine,
@@ -240,6 +244,35 @@ describe("variantTree", () => {
     tree = selectVariantLine(tree, sidelineId);
 
     expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nf6"]);
+  });
+
+  it("jumps to the mainline and back to the exact sideline position", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = applyMoveToVariantTree(tree, { from: "b8", to: "c6" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "g8", to: "f6" });
+    tree = applyMoveToVariantTree(tree, { from: "g2", to: "g3" });
+    tree = undoInVariantTree(tree);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nf6"]);
+    expect(canJumpToMainVariantInTree(tree)).toBe(true);
+    expect(canJumpBackToSidelineInTree(tree)).toBe(false);
+
+    tree = jumpToMainVariantInTree(tree);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nc6"]);
+    expect(canJumpToMainVariantInTree(tree)).toBe(false);
+    expect(canJumpBackToSidelineInTree(tree)).toBe(true);
+
+    tree = jumpBackToSidelineInTree(tree);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nf6"]);
+    expect(canJumpToMainVariantInTree(tree)).toBe(true);
+    expect(canJumpBackToSidelineInTree(tree)).toBe(false);
   });
 
   it("keeps the remembered mainline cursor aligned when a sideline is promoted", () => {

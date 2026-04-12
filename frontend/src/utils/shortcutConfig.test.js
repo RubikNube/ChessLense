@@ -18,6 +18,10 @@ describe("normalizeShortcutConfig", () => {
           label: "Step back",
           keys: ["Backspace"],
         },
+        jumpToMainVariant: {
+          label: "Jump main line",
+          keys: [" Ctrl+M "],
+        },
         redoMove: {
           label: "",
           keys: [""],
@@ -25,12 +29,16 @@ describe("normalizeShortcutConfig", () => {
       }),
     ).toEqual({
       ...DEFAULT_SHORTCUT_CONFIG,
-      undoMove: {
-        label: "Step back",
-        keys: ["Backspace"],
-      },
-      redoMove: DEFAULT_SHORTCUT_CONFIG.redoMove,
-    });
+        undoMove: {
+          label: "Step back",
+          keys: ["Backspace"],
+        },
+        jumpToMainVariant: {
+          label: "Jump main line",
+          keys: ["Ctrl+M"],
+        },
+        redoMove: DEFAULT_SHORTCUT_CONFIG.redoMove,
+      });
   });
 });
 
@@ -42,10 +50,16 @@ describe("shortcut helpers", () => {
     expect(matchesShortcut({ key: "x" }, ["ArrowRight", "ArrowLeft"])).toBe(
       false,
     );
+    expect(matchesShortcut({ key: "m", ctrlKey: true }, ["Ctrl+M"])).toBe(true);
+    expect(matchesShortcut({ key: "M", ctrlKey: true, shiftKey: true }, ["Ctrl+M"])).toBe(
+      true,
+    );
+    expect(matchesShortcut({ key: "m", ctrlKey: false }, ["Ctrl+M"])).toBe(false);
   });
 
   it("returns display labels for special keys", () => {
     expect(getShortcutDisplayLabel("ArrowUp")).toBe("↑");
+    expect(getShortcutDisplayLabel("Ctrl+M")).toBe("Ctrl+M");
     expect(getShortcutDisplayLabel("CustomKey")).toBe("CustomKey");
   });
 });

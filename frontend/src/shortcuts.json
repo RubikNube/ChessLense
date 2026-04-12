@@ -15,6 +15,14 @@
     "label": "Redo move",
     "keys": ["ArrowRight"]
   },
+  "jumpToMainVariant": {
+    "label": "Jump to main variant",
+    "keys": ["Ctrl+M"]
+  },
+  "jumpBackToSideline": {
+    "label": "Jump back to sideline",
+    "keys": ["Ctrl+,"]
+  },
   "goToEnd": {
     "label": "Go to end",
     "keys": ["ArrowDown"]

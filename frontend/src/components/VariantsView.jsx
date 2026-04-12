@@ -32,6 +32,7 @@ function VariantsView({
   variantLines,
   canUndo,
   canRedo,
+  canJumpToMainVariant,
   onSelectLine,
   onPromoteLine,
   onDemoteLine,
@@ -39,6 +40,7 @@ function VariantsView({
   onRedo,
   onGoToStart,
   onGoToEnd,
+  onJumpToMainVariant,
 }) {
   return (
     <div className="card">
@@ -90,6 +92,20 @@ function VariantsView({
         </ul>
       )}
       <div style={actionRowStyle}>
+        <button
+          type="button"
+          onClick={onJumpToMainVariant}
+          disabled={!canJumpToMainVariant}
+          aria-label="Jump to main variant"
+          title="Jump to main variant"
+          style={{
+            ...actionButtonStyle,
+            ...(!canJumpToMainVariant ? disabledActionButtonStyle : {}),
+            minWidth: "auto",
+          }}
+        >
+          Main line
+        </button>
         <button
           type="button"
           onClick={onGoToStart}

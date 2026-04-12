@@ -34,6 +34,8 @@ import {
 import {
   applyMoveToVariantTree,
   buildGameToNode,
+  canJumpBackToSidelineInTree,
+  canJumpToMainVariantInTree,
   canRedoInVariantTree,
   canUndoInVariantTree,
   createEmptyVariantTree,
@@ -43,6 +45,8 @@ import {
   getRelevantVariantLines,
   goToEndInVariantTree,
   goToStartInVariantTree,
+  jumpBackToSidelineInTree,
+  jumpToMainVariantInTree,
   promoteVariantLine,
   redoInVariantTree,
   selectVariantLine,
@@ -313,6 +317,14 @@ function App() {
     () => canRedoInVariantTree(variantTree),
     [variantTree],
   );
+  const canJumpToMainVariant = useMemo(
+    () => canJumpToMainVariantInTree(variantTree),
+    [variantTree],
+  );
+  const canJumpBackToSideline = useMemo(
+    () => canJumpBackToSidelineInTree(variantTree),
+    [variantTree],
+  );
   const variantArrows = useMemo(
     () =>
       getAlternativeVariantFirstMoves(variantTree).map(({ from, to }) => ({
@@ -446,6 +458,26 @@ function App() {
     setEngineResult(null);
     setEvaluationResult(null);
   }, [canRedo]);
+
+  const jumpToMainVariant = useCallback(() => {
+    if (!canJumpToMainVariant) {
+      return;
+    }
+
+    setVariantTree((currentValue) => jumpToMainVariantInTree(currentValue));
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [canJumpToMainVariant]);
+
+  const jumpBackToSideline = useCallback(() => {
+    if (!canJumpBackToSideline) {
+      return;
+    }
+
+    setVariantTree((currentValue) => jumpBackToSidelineInTree(currentValue));
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [canJumpBackToSideline]);
 
   const selectVariant = useCallback((lineId) => {
     setVariantTree((currentValue) => selectVariantLine(currentValue, lineId));
@@ -956,6 +988,18 @@ function App() {
         return;
       }
 
+      if (matchesShortcut(event, shortcutConfig.jumpToMainVariant.keys)) {
+        event.preventDefault();
+        jumpToMainVariant();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.jumpBackToSideline.keys)) {
+        event.preventDefault();
+        jumpBackToSideline();
+        return;
+      }
+
       if (matchesShortcut(event, shortcutConfig.goToEnd.keys)) {
         event.preventDefault();
         goToEnd();
@@ -978,6 +1022,8 @@ function App() {
     closeLichessSearchPopup,
     closeOtbSearchPopup,
     closeShortcutsPopup,
+    jumpBackToSideline,
+    jumpToMainVariant,
     goToEnd,
     goToStart,
     openShortcutsPopup,
@@ -1293,6 +1339,7 @@ function App() {
               variantLines={variantLines}
               canUndo={canUndo}
               canRedo={canRedo}
+              canJumpToMainVariant={canJumpToMainVariant}
               onSelectLine={selectVariant}
               onPromoteLine={promoteVariant}
               onDemoteLine={demoteVariant}
@@ -1300,6 +1347,7 @@ function App() {
               onRedo={redoMove}
               onGoToStart={goToStart}
               onGoToEnd={goToEnd}
+              onJumpToMainVariant={jumpToMainVariant}
             />
           )}
 

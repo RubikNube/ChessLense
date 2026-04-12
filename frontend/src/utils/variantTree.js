@@ -105,6 +105,8 @@ function createBaseVariantTree(initialFen = DEFAULT_POSITION) {
     currentNodeId: ROOT_VARIANT_NODE_ID,
     activeLineLeafId: ROOT_VARIANT_NODE_ID,
     rememberedMainlineNodeId: ROOT_VARIANT_NODE_ID,
+    rememberedSidelineNodeId: null,
+    rememberedSidelineLeafId: null,
     nextNodeIndex: 1,
     nodes: {
       [ROOT_VARIANT_NODE_ID]: createRootNode(normalizedInitialFen),
@@ -251,6 +253,28 @@ function getMainlineLeafId(tree) {
   return getDeepestMainlineNodeId(tree, tree.rootId);
 }
 
+function hasValidSidelineMemory(tree) {
+  if (
+    typeof tree.rememberedSidelineNodeId !== "string" ||
+    typeof tree.rememberedSidelineLeafId !== "string"
+  ) {
+    return false;
+  }
+
+  if (
+    !tree.nodes[tree.rememberedSidelineNodeId] ||
+    !tree.nodes[tree.rememberedSidelineLeafId]
+  ) {
+    return false;
+  }
+
+  return isAncestorNode(
+    tree,
+    tree.rememberedSidelineNodeId,
+    tree.rememberedSidelineLeafId,
+  );
+}
+
 function getLineNodeIdAtPly(tree, leafId, targetPly) {
   const pathNodeIds = findNodePathIds(tree, leafId);
   const normalizedPly = Math.max(0, targetPly);
@@ -280,6 +304,13 @@ function finalizeVariantTree(tree, { preserveRememberedMainline = false } = {}) 
     preserveRememberedMainline || tree.activeLineLeafId !== mainlineLeafId
       ? tree.rememberedMainlineNodeId
       : tree.currentNodeId;
+  const rememberedSidelineNodeId = hasValidSidelineMemory(tree)
+    ? tree.rememberedSidelineNodeId
+    : null;
+  const rememberedSidelineLeafId =
+    rememberedSidelineNodeId && tree.rememberedSidelineLeafId !== mainlineLeafId
+      ? tree.rememberedSidelineLeafId
+      : null;
 
   return {
     ...tree,
@@ -287,6 +318,11 @@ function finalizeVariantTree(tree, { preserveRememberedMainline = false } = {}) 
       tree,
       rememberedSourceId ?? tree.rootId,
     ),
+    rememberedSidelineNodeId:
+      rememberedSidelineLeafId && rememberedSidelineNodeId
+        ? rememberedSidelineNodeId
+        : null,
+    rememberedSidelineLeafId,
   };
 }
 
@@ -425,6 +461,22 @@ function normalizeVariantTreeFromRaw(rawTree) {
     rawTree.rememberedMainlineNodeId in nodes
       ? rawTree.rememberedMainlineNodeId
       : currentNodeId;
+  const rememberedSidelineLeafId =
+    typeof rawTree.rememberedSidelineLeafId === "string" &&
+    rawTree.rememberedSidelineLeafId in nodes
+      ? rawTree.rememberedSidelineLeafId
+      : null;
+  const rememberedSidelineNodeId =
+    typeof rawTree.rememberedSidelineNodeId === "string" &&
+    rawTree.rememberedSidelineNodeId in nodes &&
+    rememberedSidelineLeafId &&
+    isAncestorNode(
+      { nodes },
+      rawTree.rememberedSidelineNodeId,
+      rememberedSidelineLeafId,
+    )
+      ? rawTree.rememberedSidelineNodeId
+      : null;
 
   return finalizeVariantTree(
     {
@@ -440,6 +492,8 @@ function normalizeVariantTreeFromRaw(rawTree) {
           ? rawTree.nextNodeIndex
           : Object.keys(nodes).length,
       rememberedMainlineNodeId,
+      rememberedSidelineNodeId,
+      rememberedSidelineLeafId,
       nodes,
     },
     { preserveRememberedMainline: true },
@@ -500,6 +554,22 @@ export function canRedoInVariantTree(tree) {
   return !!getNextRedoNodeId(tree);
 }
 
+export function canJumpToMainVariantInTree(tree) {
+  const normalizedTree = normalizeVariantTree(tree);
+  return normalizedTree.activeLineLeafId !== getMainlineLeafId(normalizedTree);
+}
+
+export function canJumpBackToSidelineInTree(tree) {
+  const normalizedTree = normalizeVariantTree(tree);
+  const mainlineLeafId = getMainlineLeafId(normalizedTree);
+
+  return (
+    normalizedTree.activeLineLeafId === mainlineLeafId &&
+    hasValidSidelineMemory(normalizedTree) &&
+    normalizedTree.rememberedSidelineLeafId !== mainlineLeafId
+  );
+}
+
 export function undoInVariantTree(tree) {
   const normalizedTree = normalizeVariantTree(tree);
   const parentId = normalizedTree.nodes[normalizedTree.currentNodeId]?.parentId;
@@ -543,6 +613,40 @@ export function goToEndInVariantTree(tree) {
   return finalizeVariantTree({
     ...normalizedTree,
     currentNodeId: normalizedTree.activeLineLeafId,
+  });
+}
+
+export function jumpToMainVariantInTree(tree) {
+  const normalizedTree = normalizeVariantTree(tree);
+  const mainlineLeafId = getMainlineLeafId(normalizedTree);
+
+  if (normalizedTree.activeLineLeafId === mainlineLeafId) {
+    return normalizedTree;
+  }
+
+  return finalizeVariantTree({
+    ...normalizedTree,
+    currentNodeId: getClosestMainlineNodeId(
+      normalizedTree,
+      normalizedTree.currentNodeId,
+    ),
+    activeLineLeafId: mainlineLeafId,
+    rememberedSidelineNodeId: normalizedTree.currentNodeId,
+    rememberedSidelineLeafId: normalizedTree.activeLineLeafId,
+  });
+}
+
+export function jumpBackToSidelineInTree(tree) {
+  const normalizedTree = normalizeVariantTree(tree);
+
+  if (!canJumpBackToSidelineInTree(normalizedTree)) {
+    return normalizedTree;
+  }
+
+  return finalizeVariantTree({
+    ...normalizedTree,
+    currentNodeId: normalizedTree.rememberedSidelineNodeId,
+    activeLineLeafId: normalizedTree.rememberedSidelineLeafId,
   });
 }
 
