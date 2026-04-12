@@ -1,6 +1,10 @@
 const express = require("express");
 const cors = require("cors");
-const { spawn } = require("child_process");
+const {
+	analyzePosition,
+	getComparableEvaluationScore,
+	normalizeMultiPv,
+} = require("./engine");
 const { HttpError } = require("./httpError");
 const { getGame: getLichessGame, searchGames: searchLichessGames } = require("./lichess");
 const { getGame: getOtbGame, searchGames: searchOtbGames } = require("./otb");
@@ -26,102 +30,6 @@ function sendApiError(res, error) {
 	});
 }
 
-function waitForLine(stream, matcher, timeoutMs = 5000) {
-	return new Promise((resolve, reject) => {
-		let buffer = "";
-
-		const timeout = setTimeout(() => {
-			cleanup();
-			reject(new Error(`Timeout waiting for: ${matcher}`));
-		}, timeoutMs);
-
-		function onData(data) {
-			buffer += data.toString();
-			const lines = buffer.split("\n");
-			buffer = lines.pop() || "";
-
-			for (const rawLine of lines) {
-				const line = rawLine.trim();
-				if (typeof matcher === "string" ? line.includes(matcher) : matcher(line)) {
-					cleanup();
-					resolve(line);
-					return;
-				}
-			}
-		}
-
-		function cleanup() {
-			clearTimeout(timeout);
-			stream.off("data", onData);
-		}
-
-		stream.on("data", onData);
-	});
-}
-
-function normalizeMultiPv(value) {
-	const parsedValue = Number.parseInt(value, 10);
-
-	if (!Number.isInteger(parsedValue) || parsedValue < 1) {
-		return 1;
-	}
-
-	return Math.min(parsedValue, 3);
-}
-
-function parseEvaluationFromInfoLine(line) {
-	const mateMatch = line.match(/\bscore mate (-?\d+)/);
-	if (mateMatch) {
-		return { type: "mate", value: Number(mateMatch[1]) };
-	}
-
-	const cpMatch = line.match(/\bscore cp (-?\d+)/);
-	if (cpMatch) {
-		return { type: "cp", value: Number(cpMatch[1]) };
-	}
-
-	return null;
-}
-
-function parsePrincipalVariations(output, requestedMultiPv) {
-	const variationByIndex = new Map();
-	const infoLines = output
-		.split("\n")
-		.map((line) => line.trim())
-		.filter((line) => line.startsWith("info"));
-
-	infoLines.forEach((line) => {
-		const evaluation = parseEvaluationFromInfoLine(line);
-		const pvMatch = line.match(/\bpv\s+(.+)$/);
-
-		if (!evaluation || !pvMatch) {
-			return;
-		}
-
-		const multiPvMatch = line.match(/\bmultipv\s+(\d+)/);
-		const multiPvIndex = multiPvMatch ? Number(multiPvMatch[1]) : 1;
-
-		if (multiPvIndex < 1 || multiPvIndex > requestedMultiPv) {
-			return;
-		}
-
-		const moves = pvMatch[1].trim().split(/\s+/).filter(Boolean);
-
-		if (!moves.length) {
-			return;
-		}
-
-		variationByIndex.set(multiPvIndex, {
-			multipv: multiPvIndex,
-			evaluation,
-			moves,
-			bestmove: moves[0] ?? null,
-		});
-	});
-
-	return Array.from(variationByIndex.values()).sort((left, right) => left.multipv - right.multipv);
-}
-
 app.post("/api/analyze", async (req, res) => {
 	const { fen, depth = 12, multipv = 1 } = req.body || {};
 	const requestedMultiPv = normalizeMultiPv(multipv);
@@ -130,56 +38,83 @@ app.post("/api/analyze", async (req, res) => {
 		return res.status(400).json({ error: "fen is required" });
 	}
 
-	const engine = spawn(STOCKFISH_PATH, [], { stdio: "pipe" });
-
-	let stderr = "";
-	engine.stderr.on("data", (data) => {
-		stderr += data.toString();
-	});
-
-	const output = [];
-	engine.stdout.on("data", (data) => {
-		output.push(data.toString());
-	});
-
-	function send(cmd) {
-		engine.stdin.write(`${cmd}\n`);
-	}
-
 	try {
-		send("uci");
-		await waitForLine(engine.stdout, "uciok");
-
-		send(`setoption name MultiPV value ${requestedMultiPv}`);
-		send("isready");
-		await waitForLine(engine.stdout, "readyok");
-
-		send(`position fen ${fen}`);
-		send(`go depth ${depth}`);
-
-		const bestMoveLine = await waitForLine(engine.stdout, (line) => line.startsWith("bestmove"), 15000);
-		const combined = output.join("");
-
-		const bestMoveMatch = bestMoveLine.match(/^bestmove\s+(\S+)/);
-		const bestmove = bestMoveMatch ? bestMoveMatch[1] : null;
-		const principalVariations = parsePrincipalVariations(combined, requestedMultiPv);
-		const evaluation = principalVariations[0]?.evaluation ?? null;
-
-		send("quit");
-		engine.kill();
+		const analysis = await analyzePosition({
+			stockfishPath: STOCKFISH_PATH,
+			fen,
+			depth,
+			multipv: requestedMultiPv,
+		});
 
 		return res.json({
-			fen,
-			bestmove,
-			evaluation,
-			principalVariations,
+			fen: analysis.fen,
+			bestmove: analysis.bestmove,
+			evaluation: analysis.evaluation,
+			principalVariations: analysis.principalVariations,
 		});
 	} catch (error) {
-		engine.kill();
 		return res.status(500).json({
 			error: "engine_failed",
 			details: error.message,
-			stderr,
+			stderr: error.stderr ?? "",
+		});
+	}
+});
+
+app.post("/api/analyze/compare-moves", async (req, res) => {
+	const { fen, referenceMove, userMove, depth = 12 } = req.body || {};
+
+	if (!fen) {
+		return res.status(400).json({ error: "fen is required" });
+	}
+
+	if (typeof referenceMove !== "string" || !referenceMove.trim()) {
+		return res.status(400).json({ error: "referenceMove is required" });
+	}
+
+	if (typeof userMove !== "string" || !userMove.trim()) {
+		return res.status(400).json({ error: "userMove is required" });
+	}
+
+	try {
+		const [referenceAnalysis, userAnalysis] = await Promise.all([
+			analyzePosition({
+				stockfishPath: STOCKFISH_PATH,
+				fen,
+				depth,
+				multipv: 1,
+				searchMoves: [referenceMove.trim()],
+			}),
+			analyzePosition({
+				stockfishPath: STOCKFISH_PATH,
+				fen,
+				depth,
+				multipv: 1,
+				searchMoves: [userMove.trim()],
+			}),
+		]);
+		const referenceScore = getComparableEvaluationScore(referenceAnalysis.evaluation);
+		const userScore = getComparableEvaluationScore(userAnalysis.evaluation);
+		const deltaCp =
+			Number.isFinite(referenceScore) && Number.isFinite(userScore)
+				? userScore - referenceScore
+				: null;
+
+		return res.json({
+			fen,
+			referenceMove: referenceMove.trim(),
+			userMove: userMove.trim(),
+			referenceEvaluation: referenceAnalysis.evaluation,
+			userEvaluation: userAnalysis.evaluation,
+			referenceScore,
+			userScore,
+			deltaCp,
+		});
+	} catch (error) {
+		return res.status(500).json({
+			error: "engine_failed",
+			details: error.message,
+			stderr: error.stderr ?? "",
 		});
 	}
 });

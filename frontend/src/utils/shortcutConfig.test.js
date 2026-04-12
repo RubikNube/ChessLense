@@ -56,10 +56,25 @@ describe("normalizeShortcutConfig", () => {
           label: "Toggle engine",
           keys: ["j", "Ctrl+L", "Alt+E", "F8"],
         },
+        toggleTrainingWindow: {
+          label: "Toggle training",
+          keys: ["k", "Ctrl+W", "Alt+T", "F9"],
+        },
       }).toggleEngineWindow,
     ).toEqual({
       label: "Toggle engine",
       keys: ["F8"],
+    });
+    expect(
+      normalizeShortcutConfig({
+        toggleTrainingWindow: {
+          label: "Toggle training",
+          keys: ["k", "Ctrl+W", "Alt+T", "F9"],
+        },
+      }).toggleTrainingWindow,
+    ).toEqual({
+      label: "Toggle training",
+      keys: ["F9"],
     });
   });
 });

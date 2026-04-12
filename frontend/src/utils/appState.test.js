@@ -15,6 +15,12 @@ import {
   serializeMove,
 } from "./appState.js";
 import {
+  createEmptyTrainingState,
+  TRAINING_SIDE_WHITE,
+  TRAINING_MODE_REPLAY_GAME,
+  TRAINING_STATUS_ACTIVE,
+} from "./training.js";
+import {
   buildGameToNode,
   createEmptyVariantTree,
   createVariantTreeFromMoves,
@@ -79,6 +85,7 @@ describe("persisted app state", () => {
         ],
         boardOrientation: "black",
         showMoveHistory: false,
+        showTrainingWindow: false,
         showEngineWindow: "yes",
         showEvaluationBar: true,
         showComments: false,
@@ -96,6 +103,35 @@ describe("persisted app state", () => {
           { id: "saved-1", fen: "fen-1", comment: " Keep me ", source: "user" },
           { comment: "" },
         ],
+        trainingState: {
+          mode: TRAINING_MODE_REPLAY_GAME,
+          status: TRAINING_STATUS_ACTIVE,
+          playerSide: TRAINING_SIDE_WHITE,
+          progressPly: 1,
+          referenceMoves: [
+            {
+              ply: 1,
+              moveNumber: 1,
+              side: "white",
+              san: "e4",
+              move: { from: "e2", to: "e4" },
+              fenBefore: "before-1",
+              fenAfter: "after-1",
+            },
+          ],
+          attempts: [
+            {
+              ply: 1,
+              moveNumber: 1,
+              side: "white",
+              expectedSan: "e4",
+              userSan: "e4",
+              expectedMove: { from: "e2", to: "e4" },
+              userMove: { from: "e2", to: "e4" },
+              outcome: "match",
+            },
+          ],
+        },
       }),
     );
 
@@ -112,6 +148,7 @@ describe("persisted app state", () => {
       }),
       boardOrientation: "black",
       showMoveHistory: false,
+      showTrainingWindow: false,
       showEngineWindow: true,
       showEvaluationBar: true,
       showComments: false,
@@ -146,6 +183,44 @@ describe("persisted app state", () => {
           source: "user",
         },
       ],
+      trainingState: {
+        mode: TRAINING_MODE_REPLAY_GAME,
+        status: TRAINING_STATUS_ACTIVE,
+        playerSide: TRAINING_SIDE_WHITE,
+        progressPly: 1,
+        referenceMoves: [
+          {
+            ply: 1,
+            moveNumber: 1,
+            side: "white",
+            san: "e4",
+            move: { from: "e2", to: "e4" },
+            fenBefore: "before-1",
+            fenAfter: "after-1",
+          },
+        ],
+        attempts: [
+          {
+            ply: 1,
+            moveNumber: 1,
+            side: "white",
+            expectedSan: "e4",
+            userSan: "e4",
+            expectedMove: { from: "e2", to: "e4" },
+            userMove: { from: "e2", to: "e4" },
+            outcome: "match",
+            classification: null,
+            deltaCp: null,
+            isCritical: false,
+            referenceEvaluation: null,
+            userEvaluation: null,
+          },
+        ],
+        pendingAttempts: [],
+        lastCompletedAttempts: [],
+        lastCompletedExpectedMove: null,
+        lastCompletionMode: null,
+      },
     });
   });
 
@@ -167,6 +242,7 @@ describe("persisted app state", () => {
         variantTree,
         boardOrientation: "black",
         showMoveHistory: false,
+        showTrainingWindow: false,
         showEngineWindow: true,
         showEvaluationBar: false,
         showComments: true,
@@ -200,6 +276,7 @@ describe("persisted app state", () => {
       variantTree,
       boardOrientation: "black",
       showMoveHistory: false,
+      showTrainingWindow: false,
       showEngineWindow: true,
       showEvaluationBar: false,
       showComments: true,
@@ -234,6 +311,7 @@ describe("persisted app state", () => {
           source: "user",
         },
       ],
+      trainingState: createEmptyTrainingState(),
     });
   });
 
@@ -248,6 +326,7 @@ describe("persisted app state", () => {
       variantTree: createEmptyVariantTree(),
       boardOrientation: "white",
       showMoveHistory: true,
+      showTrainingWindow: true,
       showEngineWindow: true,
       showEvaluationBar: true,
       showComments: true,
@@ -256,6 +335,7 @@ describe("persisted app state", () => {
       showVariantArrows: false,
       importedPgnData: null,
       positionComments: [],
+      trainingState: createEmptyTrainingState(),
     });
   });
 

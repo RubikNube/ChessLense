@@ -307,6 +307,65 @@ code {
   white-space: pre-wrap;
 }
 
+.training-feedback {
+  margin-top: 12px;
+}
+
+.training-side-selector {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.training-side-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.training-feedback-critical {
+  border: 1px solid #7f1d1d;
+  background: #2b1320;
+}
+
+.training-feedback-result {
+  color: #93c5fd;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.training-feedback-detail {
+  color: #9ca3af;
+}
+
+.training-summary-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.training-summary-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #111827;
+}
+
+.training-summary-card strong {
+  font-size: 1.1rem;
+}
+
+.training-critical-list {
+  max-height: none;
+}
+
+.training-attempt-list {
+  max-height: none;
+  margin-top: 12px;
+}
+
 .current-move-label {
   margin: 0 0 12px;
   color: #9ca3af;

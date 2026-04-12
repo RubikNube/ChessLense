@@ -62,6 +62,21 @@ import {
   selectVariantLine,
   undoInVariantTree,
 } from "./utils/variantTree.js";
+import {
+  buildReplayAttempt,
+  createEmptyTrainingState,
+  createReplayTrainingState,
+  getCurrentReplayMove,
+  normalizeTrainingState,
+  summarizeReplayAttempts,
+  TRAINING_COMPLETION_MATCH,
+  TRAINING_COMPLETION_REVEALED,
+  TRAINING_MODE_REPLAY_GAME,
+  TRAINING_SIDE_BLACK,
+  TRAINING_SIDE_WHITE,
+  TRAINING_STATUS_ACTIVE,
+  TRAINING_STATUS_COMPLETED,
+} from "./utils/training.js";
 import "./App.css";
 
 const shortcutOverlayStyle = {
@@ -314,6 +329,14 @@ function parseUciMove(uciMove) {
   };
 }
 
+function formatMoveAsUci(move) {
+  if (!move || typeof move !== "object") {
+    return "";
+  }
+
+  return `${move.from ?? ""}${move.to ?? ""}${move.promotion ?? ""}`;
+}
+
 function buildEngineVariantPreview(fen, uciMoves) {
   const previewGame = new Chess(fen);
   const moveObjects = [];
@@ -367,6 +390,50 @@ function formatEngineEvaluation(evaluation) {
   return `${evaluation.type} ${evaluation.value}`;
 }
 
+function formatReplayMoveLabel(move) {
+  if (!move || typeof move !== "object") {
+    return "Move";
+  }
+
+  if (
+    typeof move.moveNumber === "number" &&
+    move.moveNumber > 0 &&
+    typeof move.san === "string" &&
+    move.san
+  ) {
+    return move.side === "black"
+      ? `${move.moveNumber}... ${move.san}`
+      : `${move.moveNumber}. ${move.san}`;
+  }
+
+  return move.san ?? "Move";
+}
+
+function formatReplayGuessPrompt(move, previousMoveLabel) {
+  if (!move || typeof move !== "object") {
+    return "Keep guessing.";
+  }
+
+  if (move.side === "white") {
+    return previousMoveLabel && previousMoveLabel !== "Game introduction"
+      ? `Keep guessing for White's move after ${previousMoveLabel}.`
+      : "Keep guessing for White's first move.";
+  }
+
+  return previousMoveLabel && previousMoveLabel !== "Game introduction"
+    ? `Keep guessing for Black's reply to ${previousMoveLabel}.`
+    : "Keep guessing for Black's move.";
+}
+
+function formatReplayDelta(deltaCp) {
+  if (!Number.isFinite(deltaCp)) {
+    return "n/a";
+  }
+
+  const pawns = deltaCp / 100;
+  return pawns > 0 ? `+${pawns.toFixed(2)}` : pawns.toFixed(2);
+}
+
 function formatPlayerLabel(player) {
   const prefix = player?.title ? `${player.title} ` : "";
   const rating = Number.isFinite(player?.rating) ? ` (${player.rating})` : "";
@@ -386,6 +453,9 @@ function App() {
   const [openMenu, setOpenMenu] = useState(null);
   const [showMoveHistory, setShowMoveHistory] = useState(
     () => persistedAppState?.showMoveHistory ?? true,
+  );
+  const [showTrainingWindow, setShowTrainingWindow] = useState(
+    () => persistedAppState?.showTrainingWindow ?? true,
   );
   const [showEngineWindow, setShowEngineWindow] = useState(
     () => persistedAppState?.showEngineWindow ?? true,
@@ -443,12 +513,18 @@ function App() {
       persistedAppState?.positionComments ??
       seedPositionCommentsFromImportedPgnData(persistedAppState?.importedPgnData),
   );
+  const [trainingState, setTrainingState] = useState(
+    () => persistedAppState?.trainingState ?? createEmptyTrainingState(),
+  );
+  const [trainingError, setTrainingError] = useState("");
+  const [trainingLoading, setTrainingLoading] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [commentDraft, setCommentDraft] = useState("");
   const shortcutConfigSignatureRef = useRef(
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
   const boardPanelRef = useRef(null);
+  const trainingRequestIdRef = useRef(0);
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
@@ -561,6 +637,223 @@ function App() {
       formatUciMoveAsSan(fen, engineResult?.bestmove),
     [engineResult?.bestmove, engineVariants, fen],
   );
+  const hasReplaySource = useMemo(
+    () =>
+      typeof importedPgnData?.rawPgn === "string" && importedPgnData.rawPgn.trim().length > 0,
+    [importedPgnData],
+  );
+  const normalizedTrainingState = useMemo(
+    () => normalizeTrainingState(trainingState),
+    [trainingState],
+  );
+  const isReplayTrainingActive =
+    normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
+    normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
+  const currentReplayMove = useMemo(
+    () => getCurrentReplayMove(normalizedTrainingState),
+    [normalizedTrainingState],
+  );
+  const pendingTrainingAttempts = normalizedTrainingState.pendingAttempts;
+  const lastCompletedTrainingAttempts = normalizedTrainingState.lastCompletedAttempts;
+  const lastCompletedExpectedMove = normalizedTrainingState.lastCompletedExpectedMove;
+  const replaySummary = useMemo(
+    () =>
+      summarizeReplayAttempts(
+        normalizedTrainingState.referenceMoves,
+        normalizedTrainingState.attempts,
+        normalizedTrainingState.playerSide,
+      ),
+    [normalizedTrainingState],
+  );
+  const currentReplayMoveNumber = useMemo(
+    () =>
+      currentReplayMove
+        ? normalizedTrainingState.referenceMoves
+            .slice(0, normalizedTrainingState.progressPly + 1)
+            .filter((move) => move.side === normalizedTrainingState.playerSide).length
+        : replaySummary.totalMoves,
+    [currentReplayMove, normalizedTrainingState, replaySummary.totalMoves],
+  );
+
+  const resetTrainingSession = useCallback(() => {
+    trainingRequestIdRef.current += 1;
+    setTrainingState(createEmptyTrainingState(normalizedTrainingState.playerSide));
+    setTrainingError("");
+    setTrainingLoading(false);
+  }, [normalizedTrainingState.playerSide]);
+
+  const setTrainingPlayerSide = useCallback((playerSide) => {
+    if (playerSide !== TRAINING_SIDE_WHITE && playerSide !== TRAINING_SIDE_BLACK) {
+      return;
+    }
+
+    setTrainingState((currentValue) => {
+      const currentTrainingState = normalizeTrainingState(currentValue);
+
+      if (
+        currentTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
+        currentTrainingState.status === TRAINING_STATUS_ACTIVE
+      ) {
+        return currentTrainingState;
+      }
+
+      return normalizeTrainingState({
+        ...currentTrainingState,
+        playerSide,
+        pendingAttempts: [],
+        lastCompletedAttempts: [],
+        lastCompletedExpectedMove: null,
+        lastCompletionMode: null,
+      });
+    });
+  }, []);
+
+  const advanceReplayToPlayerTurn = useCallback((trainingStateValue, variantTreeValue) => {
+    const currentTrainingState = normalizeTrainingState(trainingStateValue);
+    let nextVariantTree = variantTreeValue;
+    let nextProgressPly = currentTrainingState.progressPly;
+
+    while (nextProgressPly < currentTrainingState.referenceMoves.length) {
+      const nextReferenceMove = currentTrainingState.referenceMoves[nextProgressPly];
+
+      if (!nextReferenceMove || nextReferenceMove.side === currentTrainingState.playerSide) {
+        break;
+      }
+
+      const updatedTree = applyMoveToVariantTree(nextVariantTree, nextReferenceMove.move);
+
+      if (!updatedTree) {
+        return {
+          trainingState: currentTrainingState,
+          variantTree: variantTreeValue,
+          error: "Unable to auto-play the reference move.",
+        };
+      }
+
+      nextVariantTree = updatedTree;
+      nextProgressPly += 1;
+    }
+
+    return {
+      trainingState: normalizeTrainingState({
+        ...currentTrainingState,
+        progressPly: nextProgressPly,
+        status:
+          nextProgressPly >= currentTrainingState.referenceMoves.length
+            ? TRAINING_STATUS_COMPLETED
+            : TRAINING_STATUS_ACTIVE,
+      }),
+      variantTree: nextVariantTree,
+      error: null,
+    };
+  }, []);
+
+  const buildResolvedReplayAttempt = useCallback((expectedMove, userMove, userSan, comparison = null) => {
+    return buildReplayAttempt({
+      expectedMove,
+      userMove,
+      userSan,
+      referenceEvaluation: comparison?.referenceEvaluation ?? null,
+      userEvaluation: comparison?.userEvaluation ?? null,
+    });
+  }, []);
+
+  const completeReplayMove = useCallback((expectedMove, completionMode, finalAttempt = null) => {
+    const currentTrainingState = normalizeTrainingState(normalizedTrainingState);
+    const advancedReplayTree = applyMoveToVariantTree(variantTree, expectedMove.move);
+
+    if (!advancedReplayTree) {
+      setTrainingError("Unable to advance the replay game.");
+      return;
+    }
+
+    const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
+      advanceReplayToPlayerTurn(
+        normalizeTrainingState({
+          ...currentTrainingState,
+          attempts: [
+            ...currentTrainingState.attempts,
+            ...currentTrainingState.pendingAttempts,
+            ...(finalAttempt ? [finalAttempt] : []),
+          ],
+          pendingAttempts: [],
+          lastCompletedAttempts: [
+            ...currentTrainingState.pendingAttempts,
+            ...(finalAttempt ? [finalAttempt] : []),
+          ],
+          lastCompletedExpectedMove: expectedMove,
+          lastCompletionMode: completionMode,
+          progressPly: currentTrainingState.progressPly + 1,
+          status: TRAINING_STATUS_ACTIVE,
+        }),
+        advancedReplayTree,
+      );
+
+    if (error) {
+      setTrainingError(error);
+      return;
+    }
+
+    setVariantTree(nextVariantTree);
+    setTrainingState(nextTrainingState);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [advanceReplayToPlayerTurn, normalizedTrainingState, variantTree]);
+
+  const addPendingReplayAttempt = useCallback((nextAttempt) => {
+    if (!nextAttempt) {
+      setTrainingError("Unable to record the replay attempt.");
+      return;
+    }
+
+    setTrainingState((currentValue) => {
+      const currentTrainingState = normalizeTrainingState(currentValue);
+
+      return normalizeTrainingState({
+        ...currentTrainingState,
+        pendingAttempts: [...currentTrainingState.pendingAttempts, nextAttempt],
+        lastCompletedAttempts: [],
+        lastCompletedExpectedMove: null,
+        lastCompletionMode: null,
+      });
+    });
+  }, []);
+
+  const startReplayTraining = useCallback(() => {
+    if (!hasReplaySource) {
+      setTrainingError("Import a game before starting replay training.");
+      return;
+    }
+
+    const { trainingState: nextTrainingState, variantTree: replayTree, error } =
+      createReplayTrainingState(importedPgnData.rawPgn, normalizedTrainingState.playerSide);
+
+    if (error || !replayTree) {
+      setTrainingError(error ?? "Unable to start replay training.");
+      return;
+    }
+
+    const {
+      trainingState: preparedTrainingState,
+      variantTree: preparedReplayTree,
+      error: autoAdvanceError,
+    } = advanceReplayToPlayerTurn(nextTrainingState, replayTree);
+
+    if (autoAdvanceError) {
+      setTrainingError(autoAdvanceError);
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    setVariantTree(preparedReplayTree);
+    setEngineResult(null);
+    setEvaluationResult(null);
+    setTrainingState(preparedTrainingState);
+    setTrainingError("");
+    setTrainingLoading(false);
+    setShowMoveHistory(true);
+    setShowImportedPgn(true);
+  }, [advanceReplayToPlayerTurn, hasReplaySource, importedPgnData, normalizedTrainingState.playerSide]);
 
   function applyImportedPgn(rawPgn) {
     const {
@@ -578,6 +871,7 @@ function App() {
     setVariantTree(importedVariantTree);
     setEngineResult(null);
     setEvaluationResult(null);
+    resetTrainingSession();
     setImportedPgnData(nextImportedPgnData);
     setPositionComments(seedPositionCommentsFromImportedPgnData(nextImportedPgnData));
     setEditingCommentId(null);
@@ -620,16 +914,106 @@ function App() {
       return false;
     }
 
-    const nextVariantTree = applyMoveToVariantTree(variantTree, {
-        from: sourceSquare,
-        to: targetSquare,
-        promotion: "q",
-      });
+    if (trainingLoading) {
+      return false;
+    }
+
+    const attemptedMove = {
+      from: sourceSquare,
+      to: targetSquare,
+      promotion: "q",
+    };
+    const previewGame = new Chess(fen);
+    const appliedUserMove = previewGame.move(attemptedMove);
+
+    if (!appliedUserMove) {
+      return false;
+    }
+
+    const normalizedAttemptedMove = {
+      from: appliedUserMove.from,
+      to: appliedUserMove.to,
+      ...(appliedUserMove.promotion ? { promotion: appliedUserMove.promotion } : {}),
+    };
+
+    if (isReplayTrainingActive && currentReplayMove) {
+      setTrainingError("");
+
+      const didMatchExpectedMove =
+        currentReplayMove.move.from === normalizedAttemptedMove.from &&
+        currentReplayMove.move.to === normalizedAttemptedMove.to &&
+        currentReplayMove.move.promotion === normalizedAttemptedMove.promotion;
+      if (didMatchExpectedMove) {
+        const matchingAttempt = buildResolvedReplayAttempt(
+          currentReplayMove,
+          normalizedAttemptedMove,
+          appliedUserMove.san,
+        );
+
+        if (!matchingAttempt) {
+          setTrainingError("Unable to record the replay attempt.");
+          return false;
+        }
+
+        completeReplayMove(
+          currentReplayMove,
+          TRAINING_COMPLETION_MATCH,
+          matchingAttempt,
+        );
+        return true;
+      }
+
+      const requestId = ++trainingRequestIdRef.current;
+      setTrainingLoading(true);
+      fetchJson("/api/analyze/compare-moves", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fen,
+          referenceMove: formatMoveAsUci(currentReplayMove.move),
+          userMove: formatMoveAsUci(normalizedAttemptedMove),
+          depth: 12,
+        }),
+      })
+        .then((comparison) => {
+          if (requestId !== trainingRequestIdRef.current) {
+            return;
+          }
+
+          const pendingAttempt = buildResolvedReplayAttempt(
+            currentReplayMove,
+            normalizedAttemptedMove,
+            appliedUserMove.san,
+            comparison,
+          );
+
+          addPendingReplayAttempt(pendingAttempt);
+        })
+        .catch((error) => {
+          if (requestId !== trainingRequestIdRef.current) {
+            return;
+          }
+
+          setTrainingError(error.message);
+        })
+        .finally(() => {
+          if (requestId === trainingRequestIdRef.current) {
+            setTrainingLoading(false);
+          }
+        });
+
+      return true;
+    }
+
+    const nextVariantTree = applyMoveToVariantTree(variantTree, normalizedAttemptedMove);
 
     if (!nextVariantTree) {
       return false;
     }
 
+    resetTrainingSession();
     setVariantTree(nextVariantTree);
     setEngineResult(null);
     setEvaluationResult(null);
@@ -642,86 +1026,109 @@ function App() {
       return;
     }
 
+    resetTrainingSession();
     setVariantTree((currentValue) => undoInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canUndo]);
+  }, [canUndo, resetTrainingSession]);
 
   const redoMove = useCallback(() => {
     if (!canRedo) {
       return;
     }
 
+    resetTrainingSession();
     setVariantTree((currentValue) => redoInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canRedo]);
+  }, [canRedo, resetTrainingSession]);
 
   const goToStart = useCallback(() => {
     if (!canUndo) {
       return;
     }
 
+    resetTrainingSession();
     setVariantTree((currentValue) => goToStartInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canUndo]);
+  }, [canUndo, resetTrainingSession]);
 
   const goToEnd = useCallback(() => {
     if (!canRedo) {
       return;
     }
 
+    resetTrainingSession();
     setVariantTree((currentValue) => goToEndInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canRedo]);
+  }, [canRedo, resetTrainingSession]);
 
   const jumpToMainVariant = useCallback(() => {
     if (!canJumpToMainVariant) {
       return;
     }
 
+    resetTrainingSession();
     setVariantTree((currentValue) => jumpToMainVariantInTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canJumpToMainVariant]);
+  }, [canJumpToMainVariant, resetTrainingSession]);
 
   const jumpBackToSideline = useCallback(() => {
     if (!canJumpBackToSideline) {
       return;
     }
 
+    resetTrainingSession();
     setVariantTree((currentValue) => jumpBackToSidelineInTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canJumpBackToSideline]);
+  }, [canJumpBackToSideline, resetTrainingSession]);
 
   const goToMoveHistoryNode = useCallback((nodeId) => {
+    resetTrainingSession();
     setVariantTree((currentValue) => goToNodeInVariantTree(currentValue, nodeId));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, []);
+  }, [resetTrainingSession]);
 
   const selectVariant = useCallback((lineId) => {
+    resetTrainingSession();
     setVariantTree((currentValue) => selectVariantLine(currentValue, lineId));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, []);
+  }, [resetTrainingSession]);
 
   const promoteVariant = useCallback((lineId) => {
+    resetTrainingSession();
     setVariantTree((currentValue) => promoteVariantLine(currentValue, lineId));
-  }, []);
+  }, [resetTrainingSession]);
 
   const demoteVariant = useCallback((lineId) => {
+    resetTrainingSession();
     setVariantTree((currentValue) => demoteVariantLine(currentValue, lineId));
-  }, []);
+  }, [resetTrainingSession]);
 
   const removeVariant = useCallback((lineId) => {
+    resetTrainingSession();
     setVariantTree((currentValue) => removeVariantLine(currentValue, lineId));
     setEngineResult(null);
     setEvaluationResult(null);
+  }, [resetTrainingSession]);
+
+  const retryReplayMove = useCallback(() => {
+    setTrainingError("");
   }, []);
+
+  const revealReplayMove = useCallback(() => {
+    if (!currentReplayMove || pendingTrainingAttempts.length === 0) {
+      return;
+    }
+
+    completeReplayMove(currentReplayMove, TRAINING_COMPLETION_REVEALED);
+  }, [completeReplayMove, currentReplayMove, pendingTrainingAttempts.length]);
 
   const startAddingComment = useCallback(() => {
     setEditingCommentId(null);
@@ -1006,6 +1413,7 @@ function App() {
         variantTree,
         boardOrientation,
         showMoveHistory,
+        showTrainingWindow,
         showEngineWindow,
         showEvaluationBar,
         showComments,
@@ -1014,6 +1422,7 @@ function App() {
         showVariantArrows,
         importedPgnData,
         positionComments,
+        trainingState,
       });
     } catch (error) {
       console.error("Failed to persist app state:", error);
@@ -1027,8 +1436,10 @@ function App() {
     showComments,
     showImportedPgn,
     showMoveHistory,
+    showTrainingWindow,
     showVariants,
     showVariantArrows,
+    trainingState,
     variantTree,
   ]);
 
@@ -1189,14 +1600,16 @@ function App() {
       return;
     }
 
+    resetTrainingSession();
     setVariantTree(nextVariantTree);
     setShowMoveHistory(true);
     setShowVariants(true);
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [selectedEngineVariant, variantTree]);
+  }, [resetTrainingSession, selectedEngineVariant, variantTree]);
 
   function resetGame() {
+    resetTrainingSession();
     setVariantTree(createEmptyVariantTree());
     setEngineResult(null);
     setEvaluationResult(null);
@@ -1212,6 +1625,14 @@ function App() {
 
   const closeMoveHistory = useCallback(() => {
     setShowMoveHistory(false);
+  }, []);
+
+  const toggleTrainingWindow = useCallback(() => {
+    setShowTrainingWindow((currentValue) => !currentValue);
+  }, []);
+
+  const closeTrainingWindow = useCallback(() => {
+    setShowTrainingWindow(false);
   }, []);
 
   const toggleEngineWindow = useCallback(() => {
@@ -1374,6 +1795,12 @@ function App() {
         return;
       }
 
+      if (matchesShortcut(event, shortcutConfig.toggleTrainingWindow.keys)) {
+        event.preventDefault();
+        toggleTrainingWindow();
+        return;
+      }
+
       if (matchesShortcut(event, shortcutConfig.toggleEngineWindow.keys)) {
         event.preventDefault();
         toggleEngineWindow();
@@ -1424,6 +1851,7 @@ function App() {
     toggleEngineWindow,
     toggleImportedPgn,
     toggleMoveHistory,
+    toggleTrainingWindow,
     toggleVariants,
     undoMove,
   ]);
@@ -1564,6 +1992,13 @@ function App() {
               <button
                 type="button"
                 className="menu-entry"
+                onClick={() => handleMenuAction(toggleTrainingWindow)}
+              >
+                {showTrainingWindow ? "Hide Training" : "Show Training"}
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
                 onClick={() => handleMenuAction(toggleEngineWindow)}
               >
                 {showEngineWindow ? "Hide Engine Window" : "Show Engine Window"}
@@ -1683,6 +2118,265 @@ function App() {
         </div>
 
         <div className="info-column info-column-reference">
+          {showTrainingWindow && (
+            <div className="card">
+              <div className="card-header">
+                <h2>Training</h2>
+                <button
+                  type="button"
+                  className="card-close-button"
+                  onClick={closeTrainingWindow}
+                  aria-label="Close Training"
+                  title="Close Training"
+                >
+                  ×
+                </button>
+              </div>
+              {!hasReplaySource && (
+                <p className="annotation-empty">
+                  Import a game to enable replay training.
+                </p>
+              )}
+              {hasReplaySource && (
+                <>
+                  <div className="training-side-selector">
+                    <span className="annotation-label">Play as</span>
+                    <div className="training-side-options">
+                      <button
+                        type="button"
+                        className={
+                          normalizedTrainingState.playerSide === TRAINING_SIDE_WHITE
+                            ? "annotation-primary-button"
+                            : "annotation-secondary-button"
+                        }
+                        onClick={() => setTrainingPlayerSide(TRAINING_SIDE_WHITE)}
+                        disabled={isReplayTrainingActive || trainingLoading}
+                      >
+                        White
+                      </button>
+                      <button
+                        type="button"
+                        className={
+                          normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK
+                            ? "annotation-primary-button"
+                            : "annotation-secondary-button"
+                        }
+                        onClick={() => setTrainingPlayerSide(TRAINING_SIDE_BLACK)}
+                        disabled={isReplayTrainingActive || trainingLoading}
+                      >
+                        Black
+                      </button>
+                    </div>
+                  </div>
+                  <p className="current-move-label">
+                    {normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
+                      ? "Replay complete"
+                      : isReplayTrainingActive
+                        ? `Replay move ${Math.min(currentReplayMoveNumber, replaySummary.totalMoves)} of ${replaySummary.totalMoves}`
+                        : "Replay game mode is ready."}
+                  </p>
+                  {normalizedTrainingState.mode !== TRAINING_MODE_REPLAY_GAME && (
+                    <p className="annotation-empty">
+                      Start replay mode to test your moves against the imported game.
+                    </p>
+                  )}
+                  {isReplayTrainingActive && currentReplayMove && (
+                    <p className="annotation-empty">
+                      Play the next move on the board. If you miss it, you can retry or
+                      reveal the next game move when you are ready.
+                    </p>
+                  )}
+                  {trainingLoading && (
+                    <p className="annotation-empty">
+                      Comparing your move with the game move...
+                    </p>
+                  )}
+                  {trainingError && <p className="error">{trainingError}</p>}
+                  {pendingTrainingAttempts.length > 0 && currentReplayMove && (
+                    <div className="annotation-item training-feedback">
+                      <div className="annotation-item-header">
+                        <span className="annotation-label">Move not matched</span>
+                        <span className="training-feedback-result">
+                          {pendingTrainingAttempts.length} tries saved
+                        </span>
+                      </div>
+                      <p>
+                        {formatReplayGuessPrompt(currentReplayMove, currentMoveLabel)} Or reveal
+                        the next move from the game.
+                      </p>
+                      <div className="annotation-item-actions">
+                        <button
+                          type="button"
+                          className="annotation-secondary-button"
+                          onClick={retryReplayMove}
+                        >
+                          Retry
+                        </button>
+                        <button
+                          type="button"
+                          className="annotation-primary-button"
+                          onClick={revealReplayMove}
+                        >
+                          Next move
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {!pendingTrainingAttempts.length &&
+                    lastCompletedTrainingAttempts.length > 0 &&
+                    lastCompletedExpectedMove && (
+                      <div className="annotation-item training-feedback">
+                        <div className="annotation-item-header">
+                          <span className="annotation-label">Last resolved move</span>
+                          <span className="training-feedback-result">
+                            {normalizedTrainingState.lastCompletionMode ===
+                            TRAINING_COMPLETION_REVEALED
+                              ? "Revealed"
+                              : "Matched"}
+                          </span>
+                        </div>
+                        <p>
+                          <strong>{formatReplayMoveLabel(lastCompletedExpectedMove)}</strong>
+                          {normalizedTrainingState.lastCompletionMode ===
+                          TRAINING_COMPLETION_REVEALED
+                            ? " was revealed from the game after your tries."
+                            : lastCompletedTrainingAttempts.length > 1
+                              ? ` matched after ${lastCompletedTrainingAttempts.length - 1} earlier ${
+                                  lastCompletedTrainingAttempts.length === 2 ? "try" : "tries"
+                                }.`
+                              : " matched the game move."}
+                        </p>
+                        {normalizedTrainingState.lastCompletionMode ===
+                          TRAINING_COMPLETION_REVEALED && (
+                          <ul className="annotation-list training-attempt-list">
+                            {lastCompletedTrainingAttempts.map((attempt, index) => (
+                              <li
+                                key={`${attempt.ply}-${attempt.userSan}-${index}`}
+                                className={`annotation-item${
+                                  attempt.isCritical ? " training-feedback-critical" : ""
+                                }`}
+                              >
+                                <div className="annotation-item-header">
+                                  <span className="annotation-label">Try {index + 1}</span>
+                                  <span className="training-feedback-result">
+                                    {attempt.classification === "better"
+                                      ? "Better"
+                                      : attempt.classification === "equal"
+                                        ? "Equal"
+                                        : attempt.classification === "worse"
+                                          ? "Worse"
+                                          : "n/a"}
+                                  </span>
+                                </div>
+                                <p>
+                                  Played {attempt.userSan} instead of{" "}
+                                  {lastCompletedExpectedMove.san}.
+                                </p>
+                                <p className="training-feedback-detail">
+                                  <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
+                                  {" "}vs the game move
+                                  {attempt.isCritical ? " - critical mistake" : ""}.
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  {normalizedTrainingState.status === TRAINING_STATUS_COMPLETED && (
+                    <>
+                      <div className="training-summary-grid">
+                        <div className="training-summary-card">
+                          <span className="annotation-label">Moves</span>
+                          <strong>{replaySummary.totalMoves}</strong>
+                        </div>
+                        <div className="training-summary-card">
+                          <span className="annotation-label">Matches</span>
+                          <strong>{replaySummary.matchedMoves}</strong>
+                        </div>
+                        <div className="training-summary-card">
+                          <span className="annotation-label">Better</span>
+                          <strong>{replaySummary.betterMoves}</strong>
+                        </div>
+                        <div className="training-summary-card">
+                          <span className="annotation-label">Equal</span>
+                          <strong>{replaySummary.equalMoves}</strong>
+                        </div>
+                        <div className="training-summary-card">
+                          <span className="annotation-label">Worse</span>
+                          <strong>{replaySummary.worseMoves}</strong>
+                        </div>
+                        <div className="training-summary-card">
+                          <span className="annotation-label">Critical</span>
+                          <strong>{replaySummary.criticalMistakes.length}</strong>
+                        </div>
+                      </div>
+                      <div className="annotation-section">
+                        <h3>Critical mistakes</h3>
+                        {replaySummary.criticalMistakes.length > 0 ? (
+                          <ul className="annotation-list training-critical-list">
+                            {replaySummary.criticalMistakes.map((attempt) => (
+                              <li
+                                key={`${attempt.ply}-${attempt.userSan}-${attempt.expectedSan}`}
+                                className="annotation-item"
+                              >
+                                <div className="annotation-item-header">
+                                  <span className="annotation-label">
+                                    {formatReplayMoveLabel({
+                                      moveNumber: attempt.moveNumber,
+                                      side: attempt.side,
+                                      san: attempt.expectedSan,
+                                    })}
+                                  </span>
+                                  <span className="training-feedback-result">Critical</span>
+                                </div>
+                                <p>
+                                  Played {attempt.userSan} instead of {attempt.expectedSan}.
+                                </p>
+                                <p className="training-feedback-detail">
+                                  <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
+                                  {" "}vs the game move.
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="annotation-empty">
+                            No critical mistakes in this replay.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  <div className="annotation-editor-actions">
+                    <button
+                      type="button"
+                      className="annotation-primary-button"
+                      onClick={startReplayTraining}
+                      disabled={trainingLoading}
+                    >
+                      {normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME
+                        ? normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
+                          ? "Replay again"
+                          : "Restart replay"
+                        : "Start replay game"}
+                    </button>
+                    {normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME && (
+                      <button
+                        type="button"
+                        className="annotation-secondary-button"
+                        onClick={resetTrainingSession}
+                        disabled={trainingLoading}
+                      >
+                        Exit training
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {showEngineWindow && (
             <div className="card">
               <div className="card-header">

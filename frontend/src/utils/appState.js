@@ -1,5 +1,6 @@
 import { Chess } from "chess.js";
 import { normalizeImportedPgnData } from "./annotatedPgn.js";
+import { normalizeTrainingState } from "./training.js";
 import {
   createEmptyVariantTree,
   createVariantTreeFromGameAndRedo,
@@ -16,6 +17,7 @@ export const SHORTCUT_ACTION_ORDER = [
   "goToEnd",
   "flipBoard",
   "toggleMoveHistory",
+  "toggleTrainingWindow",
   "toggleEngineWindow",
   "toggleComments",
   "toggleImportedPgn",
@@ -25,6 +27,7 @@ export const SHORTCUT_ACTION_ORDER = [
 
 const VIEW_TOGGLE_SHORTCUT_ACTIONS = new Set([
   "toggleMoveHistory",
+  "toggleTrainingWindow",
   "toggleEngineWindow",
   "toggleComments",
   "toggleImportedPgn",
@@ -91,6 +94,10 @@ export const DEFAULT_SHORTCUT_CONFIG = {
   toggleMoveHistory: {
     label: "Toggle move history",
     keys: ["Ctrl+Shift+F2"],
+  },
+  toggleTrainingWindow: {
+    label: "Toggle training",
+    keys: ["Ctrl+Shift+F5"],
   },
   toggleEngineWindow: {
     label: "Toggle engine",
@@ -478,6 +485,10 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showMoveHistory === "boolean"
           ? parsedState.showMoveHistory
           : true,
+      showTrainingWindow:
+        typeof parsedState.showTrainingWindow === "boolean"
+          ? parsedState.showTrainingWindow
+          : true,
       showEngineWindow:
         typeof parsedState.showEngineWindow === "boolean"
           ? parsedState.showEngineWindow
@@ -504,6 +515,7 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
           : false,
       importedPgnData,
       positionComments,
+      trainingState: normalizeTrainingState(parsedState.trainingState),
     };
   } catch {
     return null;
@@ -532,6 +544,7 @@ export function serializePersistedAppState({
   variantTree,
   boardOrientation,
   showMoveHistory,
+  showTrainingWindow,
   showEngineWindow,
   showEvaluationBar,
   showComments,
@@ -540,11 +553,13 @@ export function serializePersistedAppState({
   showVariantArrows,
   importedPgnData,
   positionComments,
+  trainingState,
 }) {
   return JSON.stringify({
     variantTree: normalizeVariantTree(variantTree ?? createEmptyVariantTree()),
     boardOrientation,
     showMoveHistory,
+    showTrainingWindow,
     showEngineWindow,
     showEvaluationBar,
     showComments,
@@ -553,6 +568,7 @@ export function serializePersistedAppState({
     showVariantArrows,
     importedPgnData: normalizeImportedPgnData(importedPgnData),
     positionComments: normalizePositionComments(positionComments),
+    trainingState: normalizeTrainingState(trainingState),
   });
 }
 
