@@ -238,7 +238,7 @@ Search historical OTB games from the configured local PGN archive.
 - `event` (optional): event name contains filter
 - `yearFrom` / `yearTo` (optional): inclusive year range
 - `result` (optional): `1-0`, `0-1`, `1/2-1/2`, or `*`
-- `eco` (optional): ECO contains filter
+- `ecoFrom` / `ecoTo` (optional): inclusive ECO code range bounds such as `C20` to `C99`
 - `opening` (optional): opening contains filter
 - `max` (optional): number of results to return, from `1` to `100`, defaults to `25`
 
@@ -253,7 +253,8 @@ At least one non-`max` filter is required.
     "opponent": "Anderssen",
     "color": "",
     "event": "",
-    "eco": "",
+    "ecoFrom": "C20",
+    "ecoTo": "C99",
     "opening": "",
     "result": "",
     "yearFrom": 1858,
@@ -287,6 +288,13 @@ When both `player` and `opponent` are provided:
 - omitting `color` matches both `Player A vs Player B` and `Player B vs Player A`
 - `color=white` requires the searched player to be White
 - `color=black` requires the searched player to be Black
+
+When either ECO bound is provided:
+
+- ECO codes are validated in `A00` through `E99` format
+- `ecoFrom` and `ecoTo` are both inclusive
+- either bound may be provided on its own
+- `ecoFrom` cannot be greater than `ecoTo`
 
 If no archive is configured, the API returns:
 

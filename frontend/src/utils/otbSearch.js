@@ -6,7 +6,8 @@ export const DEFAULT_OTB_SEARCH_FILTERS = {
   yearFrom: "",
   yearTo: "",
   result: "",
-  eco: "",
+  ecoFrom: "",
+  ecoTo: "",
   opening: "",
   max: "25",
 };
@@ -25,6 +26,8 @@ export const OTB_COLOR_OPTIONS = [
   { value: "black", label: "Black" },
 ];
 
+const ECO_CODE_PATTERN = /^[A-E]\d{2}$/i;
+
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -38,7 +41,8 @@ export function normalizeOtbSearchFilters(filters) {
     yearFrom: normalizeString(filters?.yearFrom),
     yearTo: normalizeString(filters?.yearTo),
     result: normalizeString(filters?.result),
-    eco: normalizeString(filters?.eco),
+    ecoFrom: normalizeString(filters?.ecoFrom).toUpperCase(),
+    ecoTo: normalizeString(filters?.ecoTo).toUpperCase(),
     opening: normalizeString(filters?.opening),
     max: normalizeString(filters?.max) || DEFAULT_OTB_SEARCH_FILTERS.max,
   };
@@ -61,7 +65,8 @@ export function buildOtbSearchQuery(filters) {
     normalized.yearFrom ||
     normalized.yearTo ||
     normalized.result ||
-    normalized.eco ||
+    normalized.ecoFrom ||
+    normalized.ecoTo ||
     normalized.opening;
 
   if (!hasQueryFilter) {
@@ -85,6 +90,20 @@ export function buildOtbSearchQuery(filters) {
     };
   }
 
+  if (normalized.ecoFrom && !ECO_CODE_PATTERN.test(normalized.ecoFrom)) {
+    return {
+      query: "",
+      error: "ECO from must use a code like C50.",
+    };
+  }
+
+  if (normalized.ecoTo && !ECO_CODE_PATTERN.test(normalized.ecoTo)) {
+    return {
+      query: "",
+      error: "ECO to must use a code like C50.",
+    };
+  }
+
   if (
     normalized.yearFrom &&
     normalized.yearTo &&
@@ -93,6 +112,13 @@ export function buildOtbSearchQuery(filters) {
     return {
       query: "",
       error: "From year cannot be greater than to year.",
+    };
+  }
+
+  if (normalized.ecoFrom && normalized.ecoTo && normalized.ecoFrom > normalized.ecoTo) {
+    return {
+      query: "",
+      error: "ECO from cannot be greater than ECO to.",
     };
   }
 

@@ -12,6 +12,7 @@ const RESULT_WINNER_MAP = {
 };
 const ALLOWED_RESULTS = new Set(["1-0", "0-1", "1/2-1/2", "*"]);
 const ALLOWED_COLORS = new Set(["white", "black"]);
+const ECO_CODE_PATTERN = /^[A-E]\d{2}$/i;
 
 let cache = null;
 
@@ -89,6 +90,39 @@ function normalizeColor(value) {
 	return normalized;
 }
 
+function normalizeEcoCode(value, fieldName) {
+	const normalized = normalizeString(value).toUpperCase();
+
+	if (!normalized) {
+		return "";
+	}
+
+	if (!ECO_CODE_PATTERN.test(normalized)) {
+		throw new HttpError(400, "invalid_query", `${fieldName} must be an ECO code like C50`);
+	}
+
+	return normalized;
+}
+
+function normalizeEcoHeader(value) {
+	const normalized = normalizeString(value).toUpperCase();
+	return ECO_CODE_PATTERN.test(normalized) ? normalized : "";
+}
+
+function normalizeEcoRange(query) {
+	const ecoFrom = normalizeEcoCode(query.ecoFrom, "ecoFrom");
+	const ecoTo = normalizeEcoCode(query.ecoTo, "ecoTo");
+
+	if (ecoFrom && ecoTo && ecoFrom > ecoTo) {
+		throw new HttpError(400, "invalid_query", "ecoFrom cannot be greater than ecoTo");
+	}
+
+	return {
+		ecoFrom,
+		ecoTo,
+	};
+}
+
 function normalizePlayerFilters(query) {
 	const player = normalizeString(query.player);
 	const opponent = normalizeString(query.opponent);
@@ -142,12 +176,14 @@ function normalizePlayerFilters(query) {
 
 function normalizeSearchQuery(query) {
 	const playerFilters = normalizePlayerFilters(query);
+	const ecoRange = normalizeEcoRange(query);
 	const search = {
 		player: playerFilters.player,
 		opponent: playerFilters.opponent,
 		color: playerFilters.color,
 		event: normalizeString(query.event),
-		eco: normalizeString(query.eco),
+		ecoFrom: ecoRange.ecoFrom,
+		ecoTo: ecoRange.ecoTo,
 		opening: normalizeString(query.opening),
 		result: normalizeResult(query.result),
 		yearFrom: normalizeOptionalYear(query.yearFrom, "yearFrom"),
@@ -164,7 +200,8 @@ function normalizeSearchQuery(query) {
 			search.player ||
 			search.opponent ||
 			search.event ||
-			search.eco ||
+			search.ecoFrom ||
+			search.ecoTo ||
 			search.opening ||
 			search.result ||
 			search.yearFrom ||
@@ -420,12 +457,33 @@ function matchesNameTokens(source, query) {
 	return queryTokens.every((token) => sourceTokens.has(token));
 }
 
+function matchesEcoRange(eco, search) {
+	if (!search.ecoFrom && !search.ecoTo) {
+		return true;
+	}
+
+	const normalizedEco = normalizeEcoHeader(eco);
+
+	if (!normalizedEco) {
+		return false;
+	}
+
+	if (search.ecoFrom && normalizedEco < search.ecoFrom) {
+		return false;
+	}
+
+	if (search.ecoTo && normalizedEco > search.ecoTo) {
+		return false;
+	}
+
+	return true;
+}
+
 function matchesSearch(game, search) {
 	const white = normalizeString(game.headers.White);
 	const black = normalizeString(game.headers.Black);
 	const event = normalizeString(game.headers.Event);
 	const opening = normalizeString(game.headers.Opening);
-	const eco = normalizeString(game.headers.ECO);
 	const result = normalizeString(game.headers.Result);
 	const year = game.date.year;
 	const isPairSearch = search.player && search.opponent;
@@ -492,7 +550,7 @@ function matchesSearch(game, search) {
 		return false;
 	}
 
-	if (search.eco && !includesIgnoreCase(eco, search.eco)) {
+	if (!matchesEcoRange(game.headers.ECO, search)) {
 		return false;
 	}
 
@@ -608,4 +666,10 @@ async function getGame(gameId) {
 module.exports = {
 	getGame,
 	searchGames,
+	__testing: {
+		matchesEcoRange,
+		matchesSearch,
+		normalizeEcoCode,
+		normalizeSearchQuery,
+	},
 };

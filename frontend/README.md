@@ -18,7 +18,7 @@ React frontend for a local chess analysis app. It renders the board, tracks game
 - PGN import into the current board state
 - Public Lichess game search by player with optional opponent, year, color, and speed filters
 - One-click import of a selected Lichess result into the existing PGN/annotation flow
-- Historical OTB master-game search from a local PGN archive with player, opponent, optional player color, event, year range, result, ECO, and opening filters
+- Historical OTB master-game search from a local PGN archive with player, opponent, optional player color, event, year range, result, inclusive ECO range, and opening filters
 - One-click import of a selected OTB result into the existing PGN/annotation flow
 - Reset to starting position
 

@@ -10,31 +10,33 @@ import {
 
 describe("normalizeOtbSearchFilters", () => {
   it("trims filters and applies the default max", () => {
-    expect(
-      normalizeOtbSearchFilters({
-        player: " Morphy ",
-        opponent: " Anderssen ",
-        color: " white ",
-        event: " London ",
-        yearFrom: " 1851 ",
+      expect(
+        normalizeOtbSearchFilters({
+          player: " Morphy ",
+          opponent: " Anderssen ",
+          color: " white ",
+          event: " London ",
+          yearFrom: " 1851 ",
+          yearTo: "",
+          result: " 1-0 ",
+          ecoFrom: " c20 ",
+          ecoTo: " c99 ",
+          opening: " Italian ",
+          max: "",
+        }),
+      ).toEqual({
+        player: "Morphy",
+        opponent: "Anderssen",
+        color: "white",
+        event: "London",
+        yearFrom: "1851",
         yearTo: "",
-        result: " 1-0 ",
-        eco: " C50 ",
-        opening: " Italian ",
-        max: "",
-      }),
-    ).toEqual({
-      player: "Morphy",
-      opponent: "Anderssen",
-      color: "white",
-      event: "London",
-      yearFrom: "1851",
-      yearTo: "",
-      result: "1-0",
-      eco: "C50",
-      opening: "Italian",
-      max: "25",
-    });
+        result: "1-0",
+        ecoFrom: "C20",
+        ecoTo: "C99",
+        opening: "Italian",
+        max: "25",
+      });
   });
 });
 
@@ -60,6 +62,18 @@ describe("buildOtbSearchQuery", () => {
     });
   });
 
+  it("rejects invalid ECO ranges", () => {
+    expect(buildOtbSearchQuery({ ecoFrom: "C5" })).toEqual({
+      query: "",
+      error: "ECO from must use a code like C50.",
+    });
+
+    expect(buildOtbSearchQuery({ ecoFrom: "C50", ecoTo: "B99" })).toEqual({
+      query: "",
+      error: "ECO from cannot be greater than ECO to.",
+    });
+  });
+
   it("builds a query string from populated filters", () => {
     expect(
       buildOtbSearchQuery({
@@ -70,11 +84,13 @@ describe("buildOtbSearchQuery", () => {
         yearFrom: "1858",
         yearTo: "1858",
         result: "1-0",
+        ecoFrom: "c20",
+        ecoTo: "c99",
         max: "5",
       }),
     ).toEqual({
       query:
-        "player=Morphy&opponent=Anderssen&color=black&event=Paris&yearFrom=1858&yearTo=1858&result=1-0&max=5",
+        "player=Morphy&opponent=Anderssen&color=black&event=Paris&yearFrom=1858&yearTo=1858&result=1-0&ecoFrom=C20&ecoTo=C99&max=5",
       error: "",
     });
   });

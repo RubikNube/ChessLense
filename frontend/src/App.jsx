@@ -2974,7 +2974,7 @@ function App() {
             <h2 id="otb-search-title">Search OTB Master Games</h2>
             <p>
               Search a local archive of historical master-game PGNs by player,
-              opponent, player color, event, year range, result, ECO, or
+              opponent, player color, event, year range, result, ECO range, or
               opening. Leave player color on{" "}
               <strong>Ignore player color</strong> to match both player/opponent
               orderings. Configure the archive with <code>OTB_PGN_DIR</code> or
@@ -3112,18 +3112,33 @@ function App() {
                   </select>
                 </label>
                 <label className="modal-field">
-                  <span>ECO</span>
+                  <span>ECO from</span>
                   <input
                     className="modal-input"
                     type="text"
-                    value={otbSearchFilters.eco}
+                    value={otbSearchFilters.ecoFrom}
                     onChange={(event) => {
                       setOtbSearchFilters((currentValue) => ({
                         ...currentValue,
-                        eco: event.target.value,
+                        ecoFrom: event.target.value,
                       }));
                     }}
-                    placeholder="C50"
+                    placeholder="C20"
+                  />
+                </label>
+                <label className="modal-field">
+                  <span>ECO to</span>
+                  <input
+                    className="modal-input"
+                    type="text"
+                    value={otbSearchFilters.ecoTo}
+                    onChange={(event) => {
+                      setOtbSearchFilters((currentValue) => ({
+                        ...currentValue,
+                        ecoTo: event.target.value,
+                      }));
+                    }}
+                    placeholder="C99"
                   />
                 </label>
                 <label className="modal-field">
