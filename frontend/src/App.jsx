@@ -576,6 +576,7 @@ function App() {
   const [trainingPreview, setTrainingPreview] = useState(null);
   const [trainingError, setTrainingError] = useState("");
   const [trainingLoading, setTrainingLoading] = useState(false);
+  const [trainingPlayAutoReplyPaused, setTrainingPlayAutoReplyPaused] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [commentDraft, setCommentDraft] = useState("");
   const shortcutConfigSignatureRef = useRef(
@@ -723,6 +724,23 @@ function App() {
     () => getCurrentReplayMove(normalizedTrainingState),
     [normalizedTrainingState],
   );
+  const replayNavigationCheckpoints = useMemo(() => {
+    if (normalizedTrainingState.mode !== TRAINING_MODE_REPLAY_GAME) {
+      return [];
+    }
+
+    const checkpoints = normalizedTrainingState.referenceMoves.reduce((result, move, index) => {
+      if (move.side === normalizedTrainingState.playerSide) {
+        result.push(index);
+      }
+
+      return result;
+    }, []);
+
+    checkpoints.push(normalizedTrainingState.referenceMoves.length);
+
+    return [...new Set(checkpoints)];
+  }, [normalizedTrainingState.mode, normalizedTrainingState.playerSide, normalizedTrainingState.referenceMoves]);
   const pendingTrainingAttempts = normalizedTrainingState.pendingAttempts;
   const lastCompletedTrainingAttempts = normalizedTrainingState.lastCompletedAttempts;
   const lastCompletedIncorrectTrainingAttempts = useMemo(
@@ -763,7 +781,30 @@ function App() {
     setTrainingPreview(null);
     setTrainingError("");
     setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
   }, [normalizedTrainingState.playerSide]);
+
+  const buildReplayVariantTreeForProgress = useCallback((referenceMoves, progressPly) => {
+    let nextVariantTree = createEmptyVariantTree(referenceMoves[0]?.fenBefore);
+
+    for (const referenceMove of referenceMoves) {
+      const updatedTree = applyMoveToVariantTree(nextVariantTree, referenceMove.move);
+
+      if (!updatedTree) {
+        return null;
+      }
+
+      nextVariantTree = updatedTree;
+    }
+
+    nextVariantTree = goToStartInVariantTree(nextVariantTree);
+
+    for (let index = 0; index < progressPly; index += 1) {
+      nextVariantTree = redoInVariantTree(nextVariantTree);
+    }
+
+    return nextVariantTree;
+  }, []);
 
   const hideTrainingPreview = useCallback(() => {
     setTrainingPreview(null);
@@ -793,6 +834,7 @@ function App() {
     setTrainingPreview(null);
     setTrainingError("");
     setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
     setEngineResult(null);
     setEvaluationResult(null);
   }, [activeTrainingPlaySession]);
@@ -800,6 +842,7 @@ function App() {
   const requestTrainingPlayEngineMove = useCallback(async () => {
     if (
       !isTrainingPlayActive ||
+      trainingPlayAutoReplyPaused ||
       trainingError ||
       trainingLoading ||
       game.isGameOver() ||
@@ -859,6 +902,7 @@ function App() {
     game,
     isTrainingPlayActive,
     normalizedTrainingState.playerSide,
+    trainingPlayAutoReplyPaused,
     trainingError,
     trainingLoading,
     variantTree,
@@ -888,9 +932,54 @@ function App() {
     setTrainingPreview(null);
     setTrainingError("");
     setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
     setEngineResult(null);
     setEvaluationResult(null);
   }, [isTrainingPlayActive, normalizedTrainingState, variantTree]);
+
+  const navigateReplayTrainingToProgress = useCallback((targetProgressPly) => {
+    const currentTrainingValue = normalizeTrainingState(normalizedTrainingState);
+    const boundedProgressPly = Math.max(
+      0,
+      Math.min(targetProgressPly, currentTrainingValue.referenceMoves.length),
+    );
+    const nextVariantTree = buildReplayVariantTreeForProgress(
+      currentTrainingValue.referenceMoves,
+      boundedProgressPly,
+    );
+
+    if (!nextVariantTree) {
+      setTrainingError("Unable to navigate within replay training.");
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    setVariantTree(nextVariantTree);
+    setTrainingState(
+      normalizeTrainingState({
+        ...currentTrainingValue,
+        progressPly: boundedProgressPly,
+        status:
+          boundedProgressPly >= currentTrainingValue.referenceMoves.length
+            ? TRAINING_STATUS_COMPLETED
+            : TRAINING_STATUS_ACTIVE,
+        attempts: currentTrainingValue.attempts.filter(
+          (attempt) => Number.isInteger(attempt.ply) && attempt.ply <= boundedProgressPly,
+        ),
+        pendingAttempts: [],
+        lastCompletedAttempts: [],
+        lastCompletedExpectedMove: null,
+        lastCompletionMode: null,
+        playSession: null,
+      }),
+    );
+    setTrainingPreview(null);
+    setTrainingError("");
+    setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [buildReplayVariantTreeForProgress, normalizedTrainingState]);
 
   useEffect(() => {
     if (!trainingPreview) {
@@ -1233,6 +1322,7 @@ function App() {
       }
 
       setTrainingError("");
+      setTrainingPlayAutoReplyPaused(false);
       setVariantTree(nextVariantTree);
       setEngineResult(null);
       setEvaluationResult(null);
@@ -1329,14 +1419,81 @@ function App() {
       return;
     }
 
+    if (isTrainingPlayActive) {
+      trainingRequestIdRef.current += 1;
+      setTrainingPreview(null);
+      setTrainingError("");
+      setTrainingLoading(false);
+      setTrainingPlayAutoReplyPaused(true);
+      setVariantTree((currentValue) => undoInVariantTree(currentValue));
+      setEngineResult(null);
+      setEvaluationResult(null);
+      return;
+    }
+
+    if (normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) {
+      const currentCheckpointIndex = replayNavigationCheckpoints.indexOf(
+        normalizedTrainingState.progressPly,
+      );
+      const previousCheckpoint =
+        currentCheckpointIndex > 0
+          ? replayNavigationCheckpoints[currentCheckpointIndex - 1]
+          : null;
+
+      if (previousCheckpoint === null || previousCheckpoint === undefined) {
+        return;
+      }
+
+      navigateReplayTrainingToProgress(previousCheckpoint);
+      return;
+    }
+
     resetTrainingSession();
     setVariantTree((currentValue) => undoInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canUndo, resetTrainingSession]);
+  }, [
+    canUndo,
+    isTrainingPlayActive,
+    navigateReplayTrainingToProgress,
+    normalizedTrainingState.mode,
+    normalizedTrainingState.progressPly,
+    replayNavigationCheckpoints,
+    resetTrainingSession,
+  ]);
 
   const redoMove = useCallback(() => {
     if (!canRedo) {
+      return;
+    }
+
+    if (isTrainingPlayActive) {
+      trainingRequestIdRef.current += 1;
+      setTrainingPreview(null);
+      setTrainingError("");
+      setTrainingLoading(false);
+      setTrainingPlayAutoReplyPaused(true);
+      setVariantTree((currentValue) => redoInVariantTree(currentValue));
+      setEngineResult(null);
+      setEvaluationResult(null);
+      return;
+    }
+
+    if (normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) {
+      const currentCheckpointIndex = replayNavigationCheckpoints.indexOf(
+        normalizedTrainingState.progressPly,
+      );
+      const nextCheckpoint =
+        currentCheckpointIndex >= 0 &&
+        currentCheckpointIndex < replayNavigationCheckpoints.length - 1
+          ? replayNavigationCheckpoints[currentCheckpointIndex + 1]
+          : null;
+
+      if (nextCheckpoint === null || nextCheckpoint === undefined) {
+        return;
+      }
+
+      navigateReplayTrainingToProgress(nextCheckpoint);
       return;
     }
 
@@ -1344,10 +1501,35 @@ function App() {
     setVariantTree((currentValue) => redoInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canRedo, resetTrainingSession]);
+  }, [
+    canRedo,
+    isTrainingPlayActive,
+    navigateReplayTrainingToProgress,
+    normalizedTrainingState.mode,
+    normalizedTrainingState.progressPly,
+    replayNavigationCheckpoints,
+    resetTrainingSession,
+  ]);
 
   const goToStart = useCallback(() => {
     if (!canUndo) {
+      return;
+    }
+
+    if (isTrainingPlayActive) {
+      trainingRequestIdRef.current += 1;
+      setTrainingPreview(null);
+      setTrainingError("");
+      setTrainingLoading(false);
+      setTrainingPlayAutoReplyPaused(true);
+      setVariantTree((currentValue) => goToStartInVariantTree(currentValue));
+      setEngineResult(null);
+      setEvaluationResult(null);
+      return;
+    }
+
+    if (normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) {
+      navigateReplayTrainingToProgress(replayNavigationCheckpoints[0] ?? 0);
       return;
     }
 
@@ -1355,10 +1537,36 @@ function App() {
     setVariantTree((currentValue) => goToStartInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canUndo, resetTrainingSession]);
+  }, [
+    canUndo,
+    isTrainingPlayActive,
+    navigateReplayTrainingToProgress,
+    normalizedTrainingState.mode,
+    replayNavigationCheckpoints,
+    resetTrainingSession,
+  ]);
 
   const goToEnd = useCallback(() => {
     if (!canRedo) {
+      return;
+    }
+
+    if (isTrainingPlayActive) {
+      trainingRequestIdRef.current += 1;
+      setTrainingPreview(null);
+      setTrainingError("");
+      setTrainingLoading(false);
+      setTrainingPlayAutoReplyPaused(true);
+      setVariantTree((currentValue) => goToEndInVariantTree(currentValue));
+      setEngineResult(null);
+      setEvaluationResult(null);
+      return;
+    }
+
+    if (normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) {
+      navigateReplayTrainingToProgress(
+        replayNavigationCheckpoints[replayNavigationCheckpoints.length - 1] ?? 0,
+      );
       return;
     }
 
@@ -1366,7 +1574,14 @@ function App() {
     setVariantTree((currentValue) => goToEndInVariantTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canRedo, resetTrainingSession]);
+  }, [
+    canRedo,
+    isTrainingPlayActive,
+    navigateReplayTrainingToProgress,
+    normalizedTrainingState.mode,
+    replayNavigationCheckpoints,
+    resetTrainingSession,
+  ]);
 
   const jumpToMainVariant = useCallback(() => {
     if (!canJumpToMainVariant) {
