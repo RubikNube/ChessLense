@@ -8,6 +8,16 @@ const {
 const { HttpError } = require("./httpError");
 const { getGame: getLichessGame, searchGames: searchLichessGames } = require("./lichess");
 const { getGame: getOtbGame, searchGames: searchOtbGames } = require("./otb");
+const {
+	addStudyToCollection,
+	createCollection,
+	deleteCollection,
+	getCollection,
+	listCollections,
+	removeStudyFromAllCollections,
+	removeStudyFromCollection,
+} = require("./collections");
+const { deleteStudy, getStudy, listStudies, saveStudy } = require("./studies");
 
 const app = express();
 const PORT = 3001;
@@ -160,6 +170,117 @@ app.get("/api/otb/games/:gameId", async (req, res) => {
 		const game = await getOtbGame(req.params.gameId);
 
 		return res.json(game);
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.get("/api/studies", async (_req, res) => {
+	try {
+		const studies = await listStudies();
+
+		return res.json({
+			studies,
+		});
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.get("/api/studies/:studyId", async (req, res) => {
+	try {
+		const study = await getStudy(req.params.studyId);
+
+		return res.json(study);
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.post("/api/studies", async (req, res) => {
+	try {
+		const study = await saveStudy(req.body || {});
+
+		return res.status(201).json(study);
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.delete("/api/studies/:studyId", async (req, res) => {
+	try {
+		const deletedStudy = await deleteStudy(req.params.studyId);
+		await removeStudyFromAllCollections(req.params.studyId);
+
+		return res.json(deletedStudy);
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.get("/api/collections", async (_req, res) => {
+	try {
+		const collections = await listCollections();
+
+		return res.json({
+			collections,
+		});
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.get("/api/collections/:collectionId", async (req, res) => {
+	try {
+		const collection = await getCollection(req.params.collectionId);
+
+		return res.json(collection);
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.post("/api/collections", async (req, res) => {
+	try {
+		const collection = await createCollection(req.body || {});
+
+		return res.status(201).json(collection);
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.delete("/api/collections/:collectionId", async (req, res) => {
+	try {
+		const deletedCollection = await deleteCollection(req.params.collectionId);
+
+		return res.json(deletedCollection);
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.post("/api/collections/:collectionId/studies", async (req, res) => {
+	try {
+		const collection = await addStudyToCollection(
+			req.params.collectionId,
+			req.body?.studyId,
+		);
+
+		return res.json(collection);
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.delete("/api/collections/:collectionId/studies/:studyId", async (req, res) => {
+	try {
+		const collection = await removeStudyFromCollection(
+			req.params.collectionId,
+			req.params.studyId,
+		);
+
+		return res.json(collection);
 	} catch (error) {
 		return sendApiError(res, error);
 	}

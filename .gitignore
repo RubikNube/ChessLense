@@ -3,3 +3,6 @@ dist/
 .env
 # local data for OTB games
 server/data/otb
+server/data/studies
+
+.agents/skills/caveman/

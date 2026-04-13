@@ -1,7 +1,8 @@
 # ChessLense Server
 
 Local Express backend for running Stockfish analysis on a chess
-position, proxying Lichess game search/import requests, and searching a local OTB PGN archive.
+position, proxying Lichess game search/import requests, searching a local OTB PGN archive,
+and storing studies as server-backed JSON files.
 
 ## Stack
 
@@ -10,6 +11,7 @@ position, proxying Lichess game search/import requests, and searching a local OT
 - Stockfish
 - Lichess public API
 - Local PGN archive for OTB master games
+- Local JSON storage for saved studies
 
 ## Requirements
 
@@ -74,6 +76,38 @@ Example:
 
 ```bash
 OTB_PGN_DIR=/path/to/master-pgn-archive npm run dev
+```
+
+### `STUDIES_DIR`
+
+Optional path to directory containing saved study JSON files.
+
+If not set, the server stores studies in:
+
+```text
+/home/roland/own_projects/ChessLense/server/data/studies
+```
+
+Example:
+
+```bash
+STUDIES_DIR=/path/to/chesslense-studies npm run dev
+```
+
+### `COLLECTIONS_DIR`
+
+Optional path to directory containing saved collection JSON files.
+
+If not set, the server stores collections in:
+
+```text
+/home/roland/own_projects/ChessLense/server/data/collections
+```
+
+Example:
+
+```bash
+COLLECTIONS_DIR=/path/to/chesslense-collections npm run dev
 ```
 
 ## API
@@ -321,10 +355,231 @@ Fetch one OTB game plus its full PGN for import into the frontend.
 }
 ```
 
+### `GET /api/studies`
+
+List saved studies for studies browser.
+
+#### Success response
+
+```json
+{
+  "studies": [
+    {
+      "id": "study-m9x3k2-ab12cd",
+      "title": "Alice vs Bob - Club Match",
+      "createdAt": "2026-04-13T20:00:00.000Z",
+      "updatedAt": "2026-04-13T20:00:00.000Z",
+      "summary": {
+        "event": "Club Match",
+        "white": "Alice",
+        "black": "Bob",
+        "commentCount": 3,
+        "nodeCount": 14,
+        "maxPly": 18,
+        "hasImportedPgn": true
+      }
+    }
+  ]
+}
+```
+
+### `GET /api/studies/:studyId`
+
+Load full saved study snapshot for frontend.
+
+#### Success response
+
+```json
+{
+  "id": "study-m9x3k2-ab12cd",
+  "title": "Alice vs Bob - Club Match",
+  "createdAt": "2026-04-13T20:00:00.000Z",
+  "updatedAt": "2026-04-13T20:00:00.000Z",
+  "summary": {
+    "event": "Club Match",
+    "white": "Alice",
+    "black": "Bob",
+    "commentCount": 3,
+    "nodeCount": 14,
+    "maxPly": 18,
+    "hasImportedPgn": true
+  },
+  "variantTree": {},
+  "importedPgnData": {},
+  "positionComments": []
+}
+```
+
+#### Not found response
+
+```json
+{
+  "error": "study_not_found",
+  "details": "Study not found."
+}
+```
+
+### `POST /api/studies`
+
+Save current frontend workspace as new study.
+
+#### Request body
+
+```json
+{
+  "title": "Najdorf ideas",
+  "variantTree": {},
+  "importedPgnData": {},
+  "positionComments": []
+}
+```
+
+- `variantTree` is required
+- `title` is optional; if omitted, server derives it from PGN metadata when possible
+
+#### Success response
+
+Returns `201 Created` with full saved study payload.
+
+#### Validation response
+
+```json
+{
+  "error": "invalid_study",
+  "details": "variantTree is required."
+}
+```
+
+### `DELETE /api/studies/:studyId`
+
+Remove one saved study.
+
+#### Success response
+
+```json
+{
+  "id": "study-m9x3k2-ab12cd"
+}
+```
+
+#### Not found response
+
+```json
+{
+  "error": "study_not_found",
+  "details": "Study not found."
+}
+```
+
+Deleting study also removes its membership from all collections.
+
+### `GET /api/collections`
+
+List saved collections for studies browser.
+
+#### Success response
+
+```json
+{
+  "collections": [
+    {
+      "id": "collection-m9x3k2-ab12cd",
+      "title": "Najdorf",
+      "createdAt": "2026-04-13T20:00:00.000Z",
+      "updatedAt": "2026-04-13T20:00:00.000Z",
+      "studyIds": ["study-a", "study-b"],
+      "studyCount": 2
+    }
+  ]
+}
+```
+
+### `GET /api/collections/:collectionId`
+
+Load full saved collection.
+
+#### Success response
+
+```json
+{
+  "id": "collection-m9x3k2-ab12cd",
+  "title": "Najdorf",
+  "createdAt": "2026-04-13T20:00:00.000Z",
+  "updatedAt": "2026-04-13T20:00:00.000Z",
+  "studyIds": ["study-a", "study-b"]
+}
+```
+
+### `POST /api/collections`
+
+Create collection.
+
+#### Request body
+
+```json
+{
+  "title": "Najdorf"
+}
+```
+
+#### Success response
+
+Returns `201 Created` with full collection payload.
+
+### `POST /api/collections/:collectionId/studies`
+
+Add study membership to collection.
+
+#### Request body
+
+```json
+{
+  "studyId": "study-a"
+}
+```
+
+#### Error responses
+
+```json
+{
+  "error": "study_not_found",
+  "details": "Study not found."
+}
+```
+
+```json
+{
+  "error": "collection_not_found",
+  "details": "Collection not found."
+}
+```
+
+### `DELETE /api/collections/:collectionId/studies/:studyId`
+
+Remove study membership from collection.
+
+#### Success response
+
+Returns updated full collection payload.
+
+### `DELETE /api/collections/:collectionId`
+
+Remove one saved collection.
+
+#### Success response
+
+```json
+{
+  "id": "collection-m9x3k2-ab12cd"
+}
+```
+
 ## Notes
 
 - The engine process is started per request
 - Lichess search is public and player-centered: the frontend requires a player name before searching
 - OTB search uses a local PGN archive so the source can be swapped later without changing the frontend workflow
+- Studies are stored as one JSON file per study under `STUDIES_DIR`
+- Collections are stored as one JSON file per collection under `COLLECTIONS_DIR`
 - The API is intended for local development use
 - CORS is enabled for the frontend

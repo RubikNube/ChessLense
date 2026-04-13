@@ -40,6 +40,18 @@ import {
   OTB_RESULT_OPTIONS,
 } from "./utils/otbSearch.js";
 import {
+  createCollectionPayload,
+  filterStudiesByCollection,
+  getCollectionsForStudy,
+  normalizeCollection,
+} from "./utils/collections.js";
+import {
+  buildStudyTitle,
+  createStudySavePayload,
+  normalizeStudy,
+  normalizeStudySummary,
+} from "./utils/studies.js";
+import {
   applyMoveToVariantTree,
   buildGameToNode,
   canJumpBackToSidelineInTree,
@@ -188,9 +200,106 @@ const modalPrimaryButtonStyle = {
   color: "#ffffff",
 };
 
+const modalDangerButtonStyle = {
+  ...modalButtonStyle,
+  borderColor: "#dc2626",
+  backgroundColor: "#fef2f2",
+  color: "#b91c1c",
+};
+
 const modalErrorStyle = {
   marginTop: "0.75rem",
   color: "#dc2626",
+};
+
+const modalFieldLabelStyle = {
+  display: "block",
+  marginTop: "1rem",
+  fontWeight: 600,
+  color: "#111827",
+};
+
+const modalInputStyle = {
+  width: "100%",
+  marginTop: "0.5rem",
+  padding: "0.75rem",
+  borderRadius: "0.5rem",
+  border: "1px solid #d1d5db",
+  boxSizing: "border-box",
+  fontSize: "0.95rem",
+  lineHeight: 1.4,
+};
+
+const studyListStyle = {
+  listStyle: "none",
+  padding: 0,
+  margin: "1rem 0 0",
+  display: "grid",
+  gap: "0.75rem",
+};
+
+const studyListItemStyle = {
+  border: "1px solid #d1d5db",
+  borderRadius: "0.65rem",
+  padding: "0.9rem",
+  backgroundColor: "#f9fafb",
+};
+
+const studyHeaderStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "0.75rem",
+};
+
+const studyMetaStyle = {
+  marginTop: "0.45rem",
+  color: "#4b5563",
+  fontSize: "0.92rem",
+  lineHeight: 1.5,
+};
+
+const collectionListStyle = {
+  listStyle: "none",
+  padding: 0,
+  margin: "1rem 0 0",
+  display: "grid",
+  gap: "0.65rem",
+};
+
+const collectionRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "0.75rem",
+  padding: "0.75rem 0.9rem",
+  borderRadius: "0.65rem",
+  border: "1px solid #d1d5db",
+  backgroundColor: "#f9fafb",
+};
+
+const collectionSelectButtonStyle = {
+  ...modalButtonStyle,
+  flex: 1,
+  textAlign: "left",
+};
+
+const collectionTagListStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "0.5rem",
+  marginTop: "0.6rem",
+};
+
+const collectionTagStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "0.25rem 0.55rem",
+  borderRadius: "999px",
+  backgroundColor: "#e5e7eb",
+  color: "#374151",
+  fontSize: "0.82rem",
+  fontWeight: 600,
 };
 
 const engineVariantListStyle = {
@@ -288,6 +397,42 @@ function getCurrentMoveLabel(moveHistory) {
   return isBlackMove
     ? `${moveNumber}... ${lastMove}`
     : `${moveNumber}. ${lastMove}`;
+}
+
+function formatStudyTimestamp(timestamp) {
+  const parsedTimestamp = new Date(timestamp);
+
+  if (Number.isNaN(parsedTimestamp.getTime())) {
+    return "Unknown";
+  }
+
+  return parsedTimestamp.toLocaleString();
+}
+
+function getStudySummaryText(study) {
+  if (!study || typeof study !== "object") {
+    return "";
+  }
+
+  const summary = study.summary ?? {};
+  const parts = [];
+
+  if (summary.white || summary.black) {
+    parts.push(
+      summary.white && summary.black
+        ? `${summary.white} vs ${summary.black}`
+        : summary.white || summary.black,
+    );
+  }
+
+  if (summary.event) {
+    parts.push(summary.event);
+  }
+
+  parts.push(`${summary.commentCount ?? 0} comments`);
+  parts.push(`${summary.maxPly ?? 0} plies`);
+
+  return parts.join(" · ");
 }
 
 function buildPositionCommentContext(fen, moveHistory) {
@@ -534,6 +679,10 @@ function App() {
   );
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
+  const [showSaveStudyPopup, setShowSaveStudyPopup] = useState(false);
+  const [showStudiesPopup, setShowStudiesPopup] = useState(false);
+  const [showCreateCollectionPopup, setShowCreateCollectionPopup] = useState(false);
+  const [showManageCollectionsPopup, setShowManageCollectionsPopup] = useState(false);
   const [showLichessSearchPopup, setShowLichessSearchPopup] = useState(false);
   const [showOtbSearchPopup, setShowOtbSearchPopup] = useState(false);
   const [boardOrientation, setBoardOrientation] = useState(
@@ -543,6 +692,23 @@ function App() {
   const [copyNotification, setCopyNotification] = useState("");
   const [importPgnValue, setImportPgnValue] = useState("");
   const [importPgnError, setImportPgnError] = useState("");
+  const [saveStudyTitle, setSaveStudyTitle] = useState("");
+  const [saveStudyError, setSaveStudyError] = useState("");
+  const [savingStudy, setSavingStudy] = useState(false);
+  const [studies, setStudies] = useState([]);
+  const [studiesError, setStudiesError] = useState("");
+  const [studiesLoading, setStudiesLoading] = useState(false);
+  const [loadingStudyId, setLoadingStudyId] = useState("");
+  const [deletingStudyId, setDeletingStudyId] = useState("");
+  const [collections, setCollections] = useState([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = useState("");
+  const [createCollectionTitle, setCreateCollectionTitle] = useState("");
+  const [createCollectionError, setCreateCollectionError] = useState("");
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [managingStudy, setManagingStudy] = useState(null);
+  const [updatingCollectionId, setUpdatingCollectionId] = useState("");
+  const [deletingCollectionId, setDeletingCollectionId] = useState("");
   const [lichessSearchFilters, setLichessSearchFilters] = useState(
     DEFAULT_LICHESS_SEARCH_FILTERS,
   );
@@ -714,6 +880,15 @@ function App() {
   const normalizedTrainingState = useMemo(
     () => normalizeTrainingState(trainingState),
     [trainingState],
+  );
+  const selectedCollection = useMemo(
+    () =>
+      collections.find((collection) => collection.id === selectedCollectionId) ?? null,
+    [collections, selectedCollectionId],
+  );
+  const visibleStudies = useMemo(
+    () => filterStudiesByCollection(studies, selectedCollectionId, collections),
+    [collections, selectedCollectionId, studies],
   );
   const isReplayTrainingActive =
     normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
@@ -1742,6 +1917,345 @@ function App() {
     setImportPgnError("");
   }, []);
 
+  const openSaveStudyPopup = useCallback(() => {
+    setSaveStudyTitle(buildStudyTitle(importedPgnData));
+    setSaveStudyError("");
+    setShowSaveStudyPopup(true);
+  }, [importedPgnData]);
+
+  const closeSaveStudyPopup = useCallback(() => {
+    setShowSaveStudyPopup(false);
+    setSaveStudyTitle("");
+    setSaveStudyError("");
+  }, []);
+
+  const openCreateCollectionPopup = useCallback(() => {
+    setCreateCollectionTitle("");
+    setCreateCollectionError("");
+    setShowCreateCollectionPopup(true);
+  }, []);
+
+  const closeCreateCollectionPopup = useCallback(() => {
+    setShowCreateCollectionPopup(false);
+    setCreateCollectionTitle("");
+    setCreateCollectionError("");
+  }, []);
+
+  const openManageCollectionsPopup = useCallback((study) => {
+    setManagingStudy(study);
+    setStudiesError("");
+    setShowManageCollectionsPopup(true);
+  }, []);
+
+  const closeManageCollectionsPopup = useCallback(() => {
+    setManagingStudy(null);
+    setUpdatingCollectionId("");
+    setShowManageCollectionsPopup(false);
+  }, []);
+
+  const closeStudiesPopup = useCallback(() => {
+    setShowStudiesPopup(false);
+    setStudiesError("");
+    setLoadingStudyId("");
+    setDeletingStudyId("");
+    setSelectedCollectionId("");
+    closeManageCollectionsPopup();
+  }, [closeManageCollectionsPopup]);
+
+  const loadCollections = useCallback(async () => {
+    setCollectionsLoading(true);
+    setStudiesError("");
+
+    try {
+      const data = await fetchJson("/api/collections");
+      setCollections(
+        (Array.isArray(data.collections) ? data.collections : [])
+          .map((collection) => normalizeCollection(collection))
+          .filter(Boolean),
+      );
+    } catch (error) {
+      setCollections([]);
+      setStudiesError(error.message);
+    } finally {
+      setCollectionsLoading(false);
+    }
+  }, []);
+
+  const loadStudies = useCallback(async () => {
+    setStudiesLoading(true);
+    setStudiesError("");
+
+    try {
+      const data = await fetchJson("/api/studies");
+      setStudies(
+        (Array.isArray(data.studies) ? data.studies : [])
+          .map((study) => normalizeStudySummary(study))
+          .filter(Boolean),
+      );
+    } catch (error) {
+      setStudies([]);
+      setStudiesError(error.message);
+    } finally {
+      setStudiesLoading(false);
+    }
+  }, []);
+
+  const openStudiesPopup = useCallback(() => {
+    setShowStudiesPopup(true);
+    void loadStudies();
+    void loadCollections();
+  }, [loadCollections, loadStudies]);
+
+  const applyStudyToWorkspace = useCallback((studyValue) => {
+    const study = normalizeStudy(studyValue);
+
+    if (!study) {
+      return "Saved study is invalid.";
+    }
+
+    resetTrainingSession();
+    setVariantTree(study.variantTree);
+    setEngineResult(null);
+    setEvaluationResult(null);
+    setImportedPgnData(study.importedPgnData);
+    setPositionComments(study.positionComments);
+    setEditingCommentId(null);
+    setCommentDraft("");
+    setShowMoveHistory(true);
+    setShowComments(true);
+    setShowVariants(true);
+    setShowImportedPgn(!!study.importedPgnData);
+    return "";
+  }, [resetTrainingSession]);
+
+  const saveCurrentStudy = useCallback(async () => {
+    setSavingStudy(true);
+    setSaveStudyError("");
+
+    try {
+      const savedStudy = await fetchJson("/api/studies", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          createStudySavePayload({
+            title: saveStudyTitle,
+            variantTree,
+            importedPgnData,
+            positionComments,
+          }),
+        ),
+      });
+      setCopyNotification(`Saved study "${savedStudy.title}".`);
+      closeSaveStudyPopup();
+
+      if (showStudiesPopup) {
+        await loadStudies();
+      }
+    } catch (error) {
+      setSaveStudyError(error.message);
+    } finally {
+      setSavingStudy(false);
+    }
+  }, [
+    closeSaveStudyPopup,
+    importedPgnData,
+    loadStudies,
+    positionComments,
+    saveStudyTitle,
+    showStudiesPopup,
+    variantTree,
+  ]);
+
+  const loadStudy = useCallback(async (studyId) => {
+    setLoadingStudyId(studyId);
+    setStudiesError("");
+
+    try {
+      const study = await fetchJson(`/api/studies/${studyId}`);
+      const error = applyStudyToWorkspace(study);
+
+      if (error) {
+        setStudiesError(error);
+        return;
+      }
+
+      setCopyNotification(`Loaded study "${study.title}".`);
+      closeStudiesPopup();
+    } catch (error) {
+      setStudiesError(error.message);
+    } finally {
+      setLoadingStudyId("");
+    }
+  }, [applyStudyToWorkspace, closeStudiesPopup]);
+
+  const removeStudy = useCallback(async (study) => {
+    if (!study?.id) {
+      return;
+    }
+
+    const studyTitle = study.title ?? "Untitled study";
+
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Delete study "${studyTitle}"? This cannot be undone.`)
+    ) {
+      return;
+    }
+
+    setDeletingStudyId(study.id);
+    setStudiesError("");
+
+    try {
+      await fetchJson(`/api/studies/${study.id}`, {
+        method: "DELETE",
+      });
+      setStudies((currentStudies) =>
+        currentStudies.filter((currentStudy) => currentStudy.id !== study.id),
+      );
+      setCollections((currentCollections) =>
+        currentCollections.map((collection) =>
+          normalizeCollection({
+            ...collection,
+            studyIds: collection.studyIds.filter(
+              (currentStudyId) => currentStudyId !== study.id,
+            ),
+          }),
+        ),
+      );
+      if (managingStudy?.id === study.id) {
+        closeManageCollectionsPopup();
+      }
+      setCopyNotification(`Deleted study "${studyTitle}".`);
+    } catch (error) {
+      setStudiesError(error.message);
+    } finally {
+      setDeletingStudyId("");
+    }
+  }, [closeManageCollectionsPopup, managingStudy]);
+
+  const createCollection = useCallback(async () => {
+    setCreatingCollection(true);
+    setCreateCollectionError("");
+
+    try {
+      const createdCollection = normalizeCollection(
+        await fetchJson("/api/collections", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(createCollectionPayload(createCollectionTitle)),
+        }),
+      );
+
+      if (!createdCollection) {
+        throw new Error("Created collection is invalid.");
+      }
+
+      setCollections((currentCollections) =>
+        [createdCollection, ...currentCollections].sort((leftCollection, rightCollection) =>
+          rightCollection.updatedAt.localeCompare(leftCollection.updatedAt),
+        ),
+      );
+      setSelectedCollectionId(createdCollection.id);
+      closeCreateCollectionPopup();
+    } catch (error) {
+      setCreateCollectionError(error.message);
+    } finally {
+      setCreatingCollection(false);
+    }
+  }, [closeCreateCollectionPopup, createCollectionTitle]);
+
+  const removeCollection = useCallback(async (collection) => {
+    if (!collection?.id) {
+      return;
+    }
+
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Delete collection "${collection.title}"?`)
+    ) {
+      return;
+    }
+
+    setDeletingCollectionId(collection.id);
+    setStudiesError("");
+
+    try {
+      await fetchJson(`/api/collections/${collection.id}`, {
+        method: "DELETE",
+      });
+      setCollections((currentCollections) =>
+        currentCollections.filter(
+          (currentCollection) => currentCollection.id !== collection.id,
+        ),
+      );
+      setSelectedCollectionId((currentCollectionId) =>
+        currentCollectionId === collection.id ? "" : currentCollectionId,
+      );
+      setCopyNotification(`Deleted collection "${collection.title}".`);
+    } catch (error) {
+      setStudiesError(error.message);
+    } finally {
+      setDeletingCollectionId("");
+    }
+  }, []);
+
+  const toggleStudyCollection = useCallback(async (collection, study) => {
+    if (!collection?.id || !study?.id) {
+      return;
+    }
+
+    const isMember = collection.studyIds.includes(study.id);
+    setUpdatingCollectionId(collection.id);
+    setStudiesError("");
+
+    try {
+      const updatedCollection = normalizeCollection(
+        await fetchJson(
+          isMember
+            ? `/api/collections/${collection.id}/studies/${study.id}`
+            : `/api/collections/${collection.id}/studies`,
+          isMember
+            ? {
+                method: "DELETE",
+              }
+            : {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  studyId: study.id,
+                }),
+              },
+        ),
+      );
+
+      if (!updatedCollection) {
+        throw new Error("Updated collection is invalid.");
+      }
+
+      setCollections((currentCollections) =>
+        currentCollections
+          .map((currentCollection) =>
+            currentCollection.id === updatedCollection.id
+              ? updatedCollection
+              : currentCollection,
+          )
+          .sort((leftCollection, rightCollection) =>
+            rightCollection.updatedAt.localeCompare(leftCollection.updatedAt),
+          ),
+      );
+    } catch (error) {
+      setStudiesError(error.message);
+    } finally {
+      setUpdatingCollectionId("");
+    }
+  }, []);
+
   const openLichessSearchPopup = useCallback(() => {
     setShowLichessSearchPopup(true);
     setLichessSearchError("");
@@ -2228,6 +2742,42 @@ function App() {
         return;
       }
 
+      if (showSaveStudyPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeSaveStudyPopup();
+        }
+
+        return;
+      }
+
+      if (showCreateCollectionPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeCreateCollectionPopup();
+        }
+
+        return;
+      }
+
+      if (showManageCollectionsPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeManageCollectionsPopup();
+        }
+
+        return;
+      }
+
+      if (showStudiesPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeStudiesPopup();
+        }
+
+        return;
+      }
+
       if (showLichessSearchPopup) {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -2364,7 +2914,11 @@ function App() {
     closeImportPgnPopup,
     closeLichessSearchPopup,
     closeOtbSearchPopup,
+    closeCreateCollectionPopup,
+    closeManageCollectionsPopup,
+    closeSaveStudyPopup,
     closeShortcutsPopup,
+    closeStudiesPopup,
     jumpBackToSideline,
     jumpToMainVariant,
     goToEnd,
@@ -2374,8 +2928,12 @@ function App() {
     shortcutConfig,
     showLichessSearchPopup,
     showOtbSearchPopup,
+    showCreateCollectionPopup,
     showImportPgnPopup,
+    showManageCollectionsPopup,
+    showSaveStudyPopup,
     showShortcutsPopup,
+    showStudiesPopup,
     toggleBoardOrientation,
     toggleComments,
     toggleEngineWindow,
@@ -2490,6 +3048,34 @@ function App() {
                 onClick={() => handleMenuAction(openOtbSearchPopup)}
               >
                 Search OTB Master Games
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="menu-group">
+          <button
+            type="button"
+            className="menu-trigger"
+            onClick={() => toggleMenu("studies")}
+          >
+            Studies
+          </button>
+          {openMenu === "studies" && (
+            <div className="menu-dropdown">
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(openSaveStudyPopup)}
+              >
+                Save Current Study
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => handleMenuAction(openStudiesPopup)}
+              >
+                Browse Studies
               </button>
             </div>
           )}
@@ -3389,6 +3975,350 @@ function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showSaveStudyPopup && (
+        <div
+          style={shortcutOverlayStyle}
+          onClick={closeSaveStudyPopup}
+          role="presentation"
+        >
+          <div
+            style={shortcutModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-study-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="save-study-title">Save to Studies</h2>
+            <p>Store current game, variants, and comments on server.</p>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveCurrentStudy();
+              }}
+            >
+              <label style={modalFieldLabelStyle}>
+                Study title
+                <input
+                  type="text"
+                  value={saveStudyTitle}
+                  onChange={(event) => setSaveStudyTitle(event.target.value)}
+                  style={modalInputStyle}
+                  placeholder={buildStudyTitle(importedPgnData)}
+                />
+              </label>
+              {!!saveStudyError && <p style={modalErrorStyle}>{saveStudyError}</p>}
+              <div style={modalActionRowStyle}>
+                <button
+                  type="button"
+                  style={modalButtonStyle}
+                  onClick={closeSaveStudyPopup}
+                  disabled={savingStudy}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={modalPrimaryButtonStyle}
+                  disabled={savingStudy}
+                >
+                  {savingStudy ? "Saving..." : "Save study"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showStudiesPopup && (
+        <div
+          style={shortcutOverlayStyle}
+          onClick={closeStudiesPopup}
+          role="presentation"
+        >
+          <div
+            style={wideModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="studies-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="studies-title">Studies</h2>
+            <p>Browse saved studies and load one into current board.</p>
+            {!!studiesError && <p style={modalErrorStyle}>{studiesError}</p>}
+            <div style={modalActionRowStyle}>
+              <button
+                type="button"
+                style={modalPrimaryButtonStyle}
+                onClick={openCreateCollectionPopup}
+                disabled={collectionsLoading || studiesLoading}
+              >
+                New collection
+              </button>
+            </div>
+            <h3>Collections</h3>
+            {collectionsLoading && <p>Loading collections...</p>}
+            {!collectionsLoading && !collections.length && (
+              <p>No collections yet. Create one to group studies.</p>
+            )}
+            {!!collections.length && (
+              <ul style={collectionListStyle}>
+                <li style={collectionRowStyle}>
+                  <button
+                    type="button"
+                    style={{
+                      ...collectionSelectButtonStyle,
+                      ...(!selectedCollectionId ? modalPrimaryButtonStyle : {}),
+                    }}
+                    onClick={() => setSelectedCollectionId("")}
+                  >
+                    All studies ({studies.length})
+                  </button>
+                </li>
+                {collections.map((collection) => (
+                  <li key={collection.id} style={collectionRowStyle}>
+                    <button
+                      type="button"
+                      style={{
+                        ...collectionSelectButtonStyle,
+                        ...(selectedCollectionId === collection.id
+                          ? modalPrimaryButtonStyle
+                          : {}),
+                      }}
+                      onClick={() => setSelectedCollectionId(collection.id)}
+                      disabled={deletingCollectionId === collection.id}
+                    >
+                      {collection.title} ({collection.studyCount})
+                    </button>
+                    <button
+                      type="button"
+                      style={modalDangerButtonStyle}
+                      onClick={() => {
+                        void removeCollection(collection);
+                      }}
+                      disabled={deletingCollectionId === collection.id}
+                    >
+                      {deletingCollectionId === collection.id ? "Removing..." : "Remove"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <h3 style={{ marginTop: "1.25rem" }}>
+              {selectedCollection
+                ? `Studies in ${selectedCollection.title}`
+                : "All studies"}
+            </h3>
+            {studiesLoading && <p>Loading studies...</p>}
+            {!studiesLoading && !visibleStudies.length && !studiesError && (
+              <p>No studies saved yet.</p>
+            )}
+            {!!visibleStudies.length && (
+              <ul style={studyListStyle}>
+                {visibleStudies.map((study) => {
+                  const studyCollections = getCollectionsForStudy(collections, study.id);
+
+                  return (
+                  <li key={study.id} style={studyListItemStyle}>
+                    <div style={studyHeaderStyle}>
+                      <div>
+                        <strong>{study.title}</strong>
+                        <p style={studyMetaStyle}>{getStudySummaryText(study)}</p>
+                        <p style={studyMetaStyle}>
+                          Updated {formatStudyTimestamp(study.updatedAt)}
+                        </p>
+                        <div style={collectionTagListStyle}>
+                          {studyCollections.length ? (
+                            studyCollections.map((collection) => (
+                              <span key={`${study.id}-${collection.id}`} style={collectionTagStyle}>
+                                {collection.title}
+                              </span>
+                            ))
+                          ) : (
+                            <span style={collectionTagStyle}>No collections</span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: "grid", gap: "0.5rem" }}>
+                        <button
+                          type="button"
+                          style={modalButtonStyle}
+                          onClick={() => openManageCollectionsPopup(study)}
+                          disabled={deletingStudyId === study.id || loadingStudyId === study.id}
+                        >
+                          Collections
+                        </button>
+                        <button
+                          type="button"
+                          style={modalPrimaryButtonStyle}
+                          onClick={() => {
+                            void loadStudy(study.id);
+                          }}
+                          disabled={loadingStudyId === study.id || deletingStudyId === study.id}
+                        >
+                          {loadingStudyId === study.id ? "Loading..." : "Load"}
+                        </button>
+                        <button
+                          type="button"
+                          style={modalDangerButtonStyle}
+                          onClick={() => {
+                            void removeStudy(study);
+                          }}
+                          disabled={loadingStudyId === study.id || deletingStudyId === study.id}
+                        >
+                          {deletingStudyId === study.id ? "Removing..." : "Remove"}
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                  );
+                })}
+              </ul>
+            )}
+            <div style={modalActionRowStyle}>
+              <button
+                type="button"
+                style={modalButtonStyle}
+                onClick={() => {
+                  void loadStudies();
+                  void loadCollections();
+                }}
+                disabled={studiesLoading || collectionsLoading}
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
+                style={modalButtonStyle}
+                onClick={closeStudiesPopup}
+                disabled={
+                  studiesLoading ||
+                  collectionsLoading ||
+                  !!loadingStudyId ||
+                  !!deletingStudyId ||
+                  !!deletingCollectionId ||
+                  !!updatingCollectionId
+                }
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateCollectionPopup && (
+        <div
+          style={shortcutOverlayStyle}
+          onClick={closeCreateCollectionPopup}
+          role="presentation"
+        >
+          <div
+            style={shortcutModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-collection-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="create-collection-title">New collection</h2>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void createCollection();
+              }}
+            >
+              <label style={modalFieldLabelStyle}>
+                Collection title
+                <input
+                  type="text"
+                  value={createCollectionTitle}
+                  onChange={(event) => setCreateCollectionTitle(event.target.value)}
+                  style={modalInputStyle}
+                  placeholder="Opening prep"
+                />
+              </label>
+              {!!createCollectionError && <p style={modalErrorStyle}>{createCollectionError}</p>}
+              <div style={modalActionRowStyle}>
+                <button
+                  type="button"
+                  style={modalButtonStyle}
+                  onClick={closeCreateCollectionPopup}
+                  disabled={creatingCollection}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={modalPrimaryButtonStyle}
+                  disabled={creatingCollection}
+                >
+                  {creatingCollection ? "Creating..." : "Create"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showManageCollectionsPopup && managingStudy && (
+        <div
+          style={shortcutOverlayStyle}
+          onClick={closeManageCollectionsPopup}
+          role="presentation"
+        >
+          <div
+            style={shortcutModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="manage-study-collections-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="manage-study-collections-title">Study collections</h2>
+            <p>{managingStudy.title}</p>
+            {!collections.length && <p>No collections yet. Create one first.</p>}
+            {!!collections.length && (
+              <ul style={collectionListStyle}>
+                {collections.map((collection) => {
+                  const isMember = collection.studyIds.includes(managingStudy.id);
+
+                  return (
+                    <li key={`${managingStudy.id}-${collection.id}`} style={collectionRowStyle}>
+                      <div>
+                        <strong>{collection.title}</strong>
+                        <p style={studyMetaStyle}>{collection.studyCount} studies</p>
+                      </div>
+                      <button
+                        type="button"
+                        style={isMember ? modalDangerButtonStyle : modalPrimaryButtonStyle}
+                        onClick={() => {
+                          void toggleStudyCollection(collection, managingStudy);
+                        }}
+                        disabled={updatingCollectionId === collection.id}
+                      >
+                        {updatingCollectionId === collection.id
+                          ? "Saving..."
+                          : isMember
+                            ? "Remove"
+                            : "Add"}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <div style={modalActionRowStyle}>
+              <button
+                type="button"
+                style={modalButtonStyle}
+                onClick={closeManageCollectionsPopup}
+                disabled={!!updatingCollectionId}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
