@@ -28,7 +28,7 @@ sudo apt install stockfish
 ## Install
 
 ```bash
-cd /home/roland/own_projects/ChessLense/server
+cd ~/own_projects/ChessLense/server
 npm install
 ```
 
@@ -69,7 +69,7 @@ Optional path to a directory containing `.pgn` files for historical OTB master-g
 If not set, the server looks in:
 
 ```text
-/home/roland/own_projects/ChessLense/server/data/otb
+~/own_projects/ChessLense/server/data/otb
 ```
 
 Example:
@@ -85,7 +85,7 @@ Optional path to directory containing saved study JSON files.
 If not set, the server stores studies in:
 
 ```text
-/home/roland/own_projects/ChessLense/server/data/studies
+~/own_projects/ChessLense/server/data/studies
 ```
 
 Example:
@@ -101,7 +101,7 @@ Optional path to directory containing saved collection JSON files.
 If not set, the server stores collections in:
 
 ```text
-/home/roland/own_projects/ChessLense/server/data/collections
+~/own_projects/ChessLense/server/data/collections
 ```
 
 Example:
@@ -335,7 +335,7 @@ If no archive is configured, the API returns:
 ```json
 {
   "error": "otb_source_not_configured",
-  "details": "OTB PGN directory not found. Set OTB_PGN_DIR or add PGN files under /home/roland/own_projects/ChessLense/server/data/otb."
+  "details": "OTB PGN directory not found. Set OTB_PGN_DIR or add PGN files under ~/own_projects/ChessLense/server/data/otb."
 }
 ```
 
