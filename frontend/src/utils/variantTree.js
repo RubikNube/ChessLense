@@ -1092,7 +1092,7 @@ export function createVariantTreeFromParsedPgn(parsedPgn) {
     }
   });
 
-  tree.currentNodeId = mainlineLeafId;
+  tree.currentNodeId = tree.nodes[tree.rootId].children[0] ?? tree.rootId;
   tree.activeLineLeafId = mainlineLeafId;
 
   return finalizeVariantTree(tree);

@@ -2,7 +2,6 @@ node_modules/
 dist/
 .env
 # local data for OTB games
-server/data/otb
-server/data/studies
+server/data/
 
 .agents/skills/caveman/

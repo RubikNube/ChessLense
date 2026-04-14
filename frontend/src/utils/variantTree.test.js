@@ -166,6 +166,14 @@ describe("variantTree", () => {
     expect(game.history()).toEqual(["e4", "c5"]);
   });
 
+  it("starts imported PGN on first mainline move instead of final position", () => {
+    const parsedPgn = parse("1. e4 e5 2. Nf3 *");
+    const tree = createVariantTreeFromParsedPgn(parsedPgn);
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4"]);
+    expect(getMoveHistoryForNode(goToEndInVariantTree(tree))).toEqual(["e4", "e5", "Nf3"]);
+  });
+
   it("builds a tree from a move sequence", () => {
     const tree = createVariantTreeFromMoves([
       { from: "e2", to: "e4" },
