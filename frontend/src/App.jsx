@@ -710,7 +710,7 @@ function App() {
   const [updatingCollectionId, setUpdatingCollectionId] = useState("");
   const [deletingCollectionId, setDeletingCollectionId] = useState("");
   const [lichessSearchFilters, setLichessSearchFilters] = useState(
-    DEFAULT_LICHESS_SEARCH_FILTERS,
+    () => persistedAppState?.lichessSearchFilters ?? DEFAULT_LICHESS_SEARCH_FILTERS,
   );
   const [lichessSearchResults, setLichessSearchResults] = useState([]);
   const [lichessSearchError, setLichessSearchError] = useState("");
@@ -719,7 +719,7 @@ function App() {
   const [lichessImportingGameId, setLichessImportingGameId] = useState("");
   const [hasSearchedLichess, setHasSearchedLichess] = useState(false);
   const [otbSearchFilters, setOtbSearchFilters] = useState(
-    DEFAULT_OTB_SEARCH_FILTERS,
+    () => persistedAppState?.otbSearchFilters ?? DEFAULT_OTB_SEARCH_FILTERS,
   );
   const [otbSearchResults, setOtbSearchResults] = useState([]);
   const [otbSearchError, setOtbSearchError] = useState("");
@@ -2463,6 +2463,8 @@ function App() {
         showImportedPgn: persistedRightSideViews.showImportedPgn,
         showVariants: persistedRightSideViews.showVariants,
         showVariantArrows,
+        lichessSearchFilters,
+        otbSearchFilters,
         importedPgnData,
         positionComments,
         trainingState,
@@ -2472,8 +2474,10 @@ function App() {
     }
   }, [
     boardOrientation,
+    lichessSearchFilters,
     importedPgnData,
     isTrainingFocusMode,
+    otbSearchFilters,
     positionComments,
     showEngineWindow,
     showEvaluationBar,

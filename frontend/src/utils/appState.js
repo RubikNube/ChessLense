@@ -1,5 +1,13 @@
 import { Chess } from "chess.js";
 import { normalizeImportedPgnData } from "./annotatedPgn.js";
+import {
+  DEFAULT_LICHESS_SEARCH_FILTERS,
+  normalizeLichessSearchFilters,
+} from "./lichessSearch.js";
+import {
+  DEFAULT_OTB_SEARCH_FILTERS,
+  normalizeOtbSearchFilters,
+} from "./otbSearch.js";
 import { normalizeTrainingState } from "./training.js";
 import {
   createEmptyVariantTree,
@@ -473,6 +481,12 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         ? normalizeVariantTree(parsedState.variantTree)
         : createVariantTreeFromGameAndRedo(game, redoStack);
     const importedPgnData = normalizeImportedPgnData(parsedState.importedPgnData);
+    const lichessSearchFilters = parsedState.lichessSearchFilters
+      ? normalizeLichessSearchFilters(parsedState.lichessSearchFilters)
+      : DEFAULT_LICHESS_SEARCH_FILTERS;
+    const otbSearchFilters = parsedState.otbSearchFilters
+      ? normalizeOtbSearchFilters(parsedState.otbSearchFilters)
+      : DEFAULT_OTB_SEARCH_FILTERS;
     const positionComments = Array.isArray(parsedState.positionComments)
       ? normalizePositionComments(parsedState.positionComments)
       : seedPositionCommentsFromImportedPgnData(importedPgnData);
@@ -513,6 +527,8 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showVariantArrows === "boolean"
           ? parsedState.showVariantArrows
           : false,
+      lichessSearchFilters,
+      otbSearchFilters,
       importedPgnData,
       positionComments,
       trainingState: normalizeTrainingState(parsedState.trainingState),
@@ -551,6 +567,8 @@ export function serializePersistedAppState({
   showImportedPgn,
   showVariants,
   showVariantArrows,
+  lichessSearchFilters,
+  otbSearchFilters,
   importedPgnData,
   positionComments,
   trainingState,
@@ -566,6 +584,12 @@ export function serializePersistedAppState({
     showImportedPgn,
     showVariants,
     showVariantArrows,
+    lichessSearchFilters: normalizeLichessSearchFilters(
+      lichessSearchFilters ?? DEFAULT_LICHESS_SEARCH_FILTERS,
+    ),
+    otbSearchFilters: normalizeOtbSearchFilters(
+      otbSearchFilters ?? DEFAULT_OTB_SEARCH_FILTERS,
+    ),
     importedPgnData: normalizeImportedPgnData(importedPgnData),
     positionComments: normalizePositionComments(positionComments),
     trainingState: normalizeTrainingState(trainingState),
