@@ -134,6 +134,9 @@ export const DEFAULT_SHORTCUT_CONFIG_SIGNATURE = JSON.stringify(
 );
 
 export const FRONTEND_STATE_STORAGE_KEY = "chesslense.frontend-state";
+export const DEFAULT_ENGINE_SEARCH_DEPTH = 12;
+export const MIN_ENGINE_SEARCH_DEPTH = 1;
+export const MAX_ENGINE_SEARCH_DEPTH = 30;
 const POSITION_COMMENT_SOURCE_IMPORTED = "imported-mainline";
 const POSITION_COMMENT_SOURCE_USER = "user";
 
@@ -155,6 +158,19 @@ function normalizeShortcutKey(shortcutKey) {
 
 function createPositionCommentId() {
   return `comment-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function normalizeEngineSearchDepth(value) {
+  const parsedValue = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsedValue)) {
+    return DEFAULT_ENGINE_SEARCH_DEPTH;
+  }
+
+  return Math.min(
+    MAX_ENGINE_SEARCH_DEPTH,
+    Math.max(MIN_ENGINE_SEARCH_DEPTH, parsedValue),
+  );
 }
 
 function normalizePositionComment(entry, index = 0) {
@@ -493,6 +509,7 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
 
     return {
       variantTree,
+      engineSearchDepth: normalizeEngineSearchDepth(parsedState.engineSearchDepth),
       boardOrientation:
         parsedState.boardOrientation === "black" ? "black" : "white",
       showMoveHistory:
@@ -558,6 +575,7 @@ export function serializeMove(move) {
 
 export function serializePersistedAppState({
   variantTree,
+  engineSearchDepth,
   boardOrientation,
   showMoveHistory,
   showTrainingWindow,
@@ -575,6 +593,7 @@ export function serializePersistedAppState({
 }) {
   return JSON.stringify({
     variantTree: normalizeVariantTree(variantTree ?? createEmptyVariantTree()),
+    engineSearchDepth: normalizeEngineSearchDepth(engineSearchDepth),
     boardOrientation,
     showMoveHistory,
     showTrainingWindow,

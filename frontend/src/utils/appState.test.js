@@ -4,11 +4,15 @@ import { DEFAULT_LICHESS_SEARCH_FILTERS } from "./lichessSearch.js";
 import { DEFAULT_OTB_SEARCH_FILTERS } from "./otbSearch.js";
 import {
   createUserPositionComment,
+  DEFAULT_ENGINE_SEARCH_DEPTH,
   FRONTEND_STATE_STORAGE_KEY,
   cloneGame,
   createGameFromPgn,
   getPositionCommentsForFen,
   loadPersistedAppState,
+  MAX_ENGINE_SEARCH_DEPTH,
+  MIN_ENGINE_SEARCH_DEPTH,
+  normalizeEngineSearchDepth,
   parseGameFromPgn,
   removePositionCommentEntry,
   savePositionCommentEntry,
@@ -76,6 +80,13 @@ describe("parseGameFromPgn", () => {
 });
 
 describe("persisted app state", () => {
+  it("normalizes engine search depth values", () => {
+    expect(normalizeEngineSearchDepth("16")).toBe(16);
+    expect(normalizeEngineSearchDepth("0")).toBe(MIN_ENGINE_SEARCH_DEPTH);
+    expect(normalizeEngineSearchDepth("999")).toBe(MAX_ENGINE_SEARCH_DEPTH);
+    expect(normalizeEngineSearchDepth("abc")).toBe(DEFAULT_ENGINE_SEARCH_DEPTH);
+  });
+
   it("migrates linear persisted history into the variant tree", () => {
     const storage = createStorage(
       JSON.stringify({
@@ -85,6 +96,7 @@ describe("persisted app state", () => {
           { from: "b8", to: "c6" },
           { from: "a7" },
         ],
+        engineSearchDepth: "18",
         boardOrientation: "black",
         showMoveHistory: false,
         showTrainingWindow: false,
@@ -169,6 +181,7 @@ describe("persisted app state", () => {
         currentNodeId: expect.any(String),
         activeLineLeafId: expect.any(String),
       }),
+      engineSearchDepth: 18,
       boardOrientation: "black",
       showMoveHistory: false,
       showTrainingWindow: false,
@@ -286,6 +299,7 @@ describe("persisted app state", () => {
     const didSave = savePersistedAppState(
       {
         variantTree,
+        engineSearchDepth: "20",
         boardOrientation: "black",
         showMoveHistory: false,
         showTrainingWindow: false,
@@ -341,6 +355,7 @@ describe("persisted app state", () => {
     expect(didSave).toBe(true);
     expect(JSON.parse(storage.storedValue)).toEqual({
       variantTree,
+      engineSearchDepth: 20,
       boardOrientation: "black",
       showMoveHistory: false,
       showTrainingWindow: false,
@@ -494,6 +509,7 @@ describe("persisted app state", () => {
 
     expect(loadPersistedAppState(storage)).toEqual({
       variantTree: createEmptyVariantTree(),
+      engineSearchDepth: DEFAULT_ENGINE_SEARCH_DEPTH,
       boardOrientation: "white",
       showMoveHistory: true,
       showTrainingWindow: true,

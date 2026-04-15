@@ -3,11 +3,15 @@ import { Chess } from "chess.js";
 import { createPortal } from "react-dom";
 import { Chessboard } from "react-chessboard";
 import EvaluationBar from "./components/EvaluationBar.jsx";
+import InfoTip from "./components/InfoTip.jsx";
 import MoveHistory from "./components/MoveHistory.jsx";
 import PositionPreviewBoard from "./components/PositionPreviewBoard.jsx";
 import VariantsView from "./components/VariantsView.jsx";
 import {
   createUserPositionComment,
+  DEFAULT_ENGINE_SEARCH_DEPTH,
+  MAX_ENGINE_SEARCH_DEPTH,
+  MIN_ENGINE_SEARCH_DEPTH,
   DEFAULT_SHORTCUT_CONFIG,
   DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   SHORTCUT_ACTION_ORDER,
@@ -15,6 +19,7 @@ import {
   getShortcutDisplayLabel,
   loadPersistedAppState,
   matchesShortcut,
+  normalizeEngineSearchDepth,
   normalizeShortcutConfig,
   removePositionCommentEntry,
   savePositionCommentEntry,
@@ -341,6 +346,29 @@ const engineVariantMovesStyle = {
   fontSize: "0.95rem",
 };
 
+const engineControlsStyle = {
+  display: "grid",
+  gap: "0.5rem",
+  marginBottom: "1rem",
+};
+
+const engineDepthHeaderStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "0.5rem",
+};
+
+const engineDepthLabelStyle = {
+  fontWeight: 600,
+};
+
+const engineDepthInputStyle = {
+  ...modalInputStyle,
+  width: "8rem",
+  marginTop: 0,
+  padding: "0.6rem 0.75rem",
+};
+
 const TRAINING_PREVIEW_TOOLTIP_WIDTH_PX = 176;
 const TRAINING_PREVIEW_TOOLTIP_HEIGHT_PX = 220;
 const TRAINING_PREVIEW_TOOLTIP_GAP_PX = 12;
@@ -621,11 +649,11 @@ function getTrainingPreviewPosition(targetRect) {
     left: fitsRight
       ? targetRect.right + TRAINING_PREVIEW_TOOLTIP_GAP_PX
       : Math.max(
-          TRAINING_PREVIEW_TOOLTIP_MARGIN_PX,
-          targetRect.left -
-            TRAINING_PREVIEW_TOOLTIP_GAP_PX -
-            TRAINING_PREVIEW_TOOLTIP_WIDTH_PX,
-        ),
+        TRAINING_PREVIEW_TOOLTIP_MARGIN_PX,
+        targetRect.left -
+        TRAINING_PREVIEW_TOOLTIP_GAP_PX -
+        TRAINING_PREVIEW_TOOLTIP_WIDTH_PX,
+      ),
     top: Math.min(
       window.innerHeight - TRAINING_PREVIEW_TOOLTIP_MARGIN_PX,
       Math.max(
@@ -647,6 +675,9 @@ function App() {
   const persistedAppState = useMemo(() => loadPersistedAppState(), []);
   const [variantTree, setVariantTree] = useState(
     () => persistedAppState?.variantTree ?? createEmptyVariantTree(),
+  );
+  const [engineSearchDepth, setEngineSearchDepth] = useState(
+    () => persistedAppState?.engineSearchDepth ?? DEFAULT_ENGINE_SEARCH_DEPTH,
   );
   const [engineResult, setEngineResult] = useState(null);
   const [evaluationResult, setEvaluationResult] = useState(null);
@@ -944,8 +975,8 @@ function App() {
     () =>
       currentReplayMove
         ? normalizedTrainingState.referenceMoves
-            .slice(0, normalizedTrainingState.progressPly + 1)
-            .filter((move) => move.side === normalizedTrainingState.playerSide).length
+          .slice(0, normalizedTrainingState.progressPly + 1)
+          .filter((move) => move.side === normalizedTrainingState.playerSide).length
         : replaySummary.totalMoves,
     [currentReplayMove, normalizedTrainingState, replaySummary.totalMoves],
   );
@@ -1038,7 +1069,7 @@ function App() {
         },
         body: JSON.stringify({
           fen,
-          depth: 12,
+          depth: engineSearchDepth,
         }),
       });
 
@@ -1073,6 +1104,7 @@ function App() {
       }
     }
   }, [
+    engineSearchDepth,
     fen,
     game,
     isTrainingPlayActive,
@@ -1542,7 +1574,7 @@ function App() {
           fen,
           referenceMove: formatMoveAsUci(currentReplayMove.move),
           userMove: formatMoveAsUci(normalizedAttemptedMove),
-          depth: 12,
+          depth: engineSearchDepth,
         }),
       })
         .then((comparison) => {
@@ -1660,7 +1692,7 @@ function App() {
       );
       const nextCheckpoint =
         currentCheckpointIndex >= 0 &&
-        currentCheckpointIndex < replayNavigationCheckpoints.length - 1
+          currentCheckpointIndex < replayNavigationCheckpoints.length - 1
           ? replayNavigationCheckpoints[currentCheckpointIndex + 1]
           : null;
 
@@ -2220,17 +2252,17 @@ function App() {
             : `/api/collections/${collection.id}/studies`,
           isMember
             ? {
-                method: "DELETE",
-              }
+              method: "DELETE",
+            }
             : {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  studyId: study.id,
-                }),
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
               },
+              body: JSON.stringify({
+                studyId: study.id,
+              }),
+            },
         ),
       );
 
@@ -2444,16 +2476,17 @@ function App() {
       isTrainingFocusMode && trainingFocusRestoreRef.current
         ? trainingFocusRestoreRef.current
         : {
-            showMoveHistory,
-            showEngineWindow,
-            showComments,
-            showImportedPgn,
-            showVariants,
-          };
+          showMoveHistory,
+          showEngineWindow,
+          showComments,
+          showImportedPgn,
+          showVariants,
+        };
 
     try {
       savePersistedAppState({
         variantTree,
+        engineSearchDepth,
         boardOrientation,
         showMoveHistory: persistedRightSideViews.showMoveHistory,
         showTrainingWindow,
@@ -2474,6 +2507,7 @@ function App() {
     }
   }, [
     boardOrientation,
+    engineSearchDepth,
     lichessSearchFilters,
     importedPgnData,
     isTrainingFocusMode,
@@ -2577,7 +2611,7 @@ function App() {
           },
           body: JSON.stringify({
             fen,
-            depth: 10,
+            depth: engineSearchDepth,
             multipv: 1,
           }),
         });
@@ -2597,7 +2631,7 @@ function App() {
       ignore = true;
       window.clearTimeout(timeoutId);
     };
-  }, [fen]);
+  }, [engineSearchDepth, fen]);
 
   async function analyzePosition() {
     setShowEngineWindow(true);
@@ -2613,7 +2647,7 @@ function App() {
         },
         body: JSON.stringify({
           fen,
-          depth: 12,
+          depth: engineSearchDepth,
           multipv: 3,
         }),
       });
@@ -2640,9 +2674,9 @@ function App() {
       setEngineResult((currentValue) =>
         currentValue
           ? {
-              ...currentValue,
-              error: "Unable to add the selected engine line to the variant tree.",
-            }
+            ...currentValue,
+            error: "Unable to add the selected engine line to the variant tree.",
+          }
           : { error: "Unable to add the selected engine line to the variant tree." },
       );
       return;
@@ -3240,9 +3274,8 @@ function App() {
         )}
 
         <div
-          className={`info-column info-column-reference${
-            isTrainingFocusMode ? " info-column-training-focus" : ""
-          }`}
+          className={`info-column info-column-reference${isTrainingFocusMode ? " info-column-training-focus" : ""
+            }`}
         >
           {showTrainingWindow && (
             <div
@@ -3262,212 +3295,115 @@ function App() {
                 </button>
               </div>
               <div className="training-card-body">
-              {!hasReplaySource && (
-                <p className="annotation-empty">
-                  Import a game to enable replay training.
-                </p>
-              )}
-              {hasReplaySource && (
-                <>
-                  <div className="training-side-selector">
-                    <span className="annotation-label">Play as</span>
-                    <div className="training-side-options">
-                      <button
-                        type="button"
-                        className={
-                          normalizedTrainingState.playerSide === TRAINING_SIDE_WHITE
-                            ? "annotation-primary-button"
-                            : "annotation-secondary-button"
-                        }
-                        onClick={() => setTrainingPlayerSide(TRAINING_SIDE_WHITE)}
-                        disabled={isReplayTrainingActive || isTrainingPlayActive || trainingLoading}
-                      >
-                        {whiteTrainingLabel}
-                      </button>
-                      <button
-                        type="button"
-                        className={
-                          normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK
-                            ? "annotation-primary-button"
-                            : "annotation-secondary-button"
-                        }
-                        onClick={() => setTrainingPlayerSide(TRAINING_SIDE_BLACK)}
-                        disabled={isReplayTrainingActive || isTrainingPlayActive || trainingLoading}
-                      >
-                        {blackTrainingLabel}
-                      </button>
-                    </div>
-                  </div>
-                  <p className="current-move-label">
-                    {isTrainingPlayActive
-                      ? "Exploring a wrong try against the computer"
-                      : normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
-                      ? "Replay complete"
-                      : isReplayTrainingActive
-                        ? `Replay move ${Math.min(currentReplayMoveNumber, replaySummary.totalMoves)} of ${replaySummary.totalMoves}`
-                        : "Replay game mode is ready."}
+                {!hasReplaySource && (
+                  <p className="annotation-empty">
+                    Import a game to enable replay training.
                   </p>
-                  {normalizedTrainingState.mode !== TRAINING_MODE_REPLAY_GAME && (
-                    <p className="annotation-empty">
-                      Start replay mode to test your moves against the imported game.
-                    </p>
-                  )}
-                  {isTrainingPlayActive && activeTrainingPlaySession && (
-                    <div className="annotation-item training-feedback">
-                      <div className="annotation-item-header">
-                        <span className="annotation-label">Play vs computer</span>
-                        <span className="training-feedback-result">
-                          {isTrainingPlayUserTurn ? "Your move" : "Computer move"}
-                        </span>
-                      </div>
-                      <p>
-                        Exploring the position after{" "}
-                        <strong>{activeTrainingPlaySession.sourceAttempt.userSan}</strong>.
-                        Return to training to resume the replay exactly where you left it.
-                      </p>
-                      <div className="annotation-item-actions">
+                )}
+                {hasReplaySource && (
+                  <>
+                    <div className="training-side-selector">
+                      <span className="annotation-label">Play as</span>
+                      <div className="training-side-options">
                         <button
                           type="button"
-                          className="annotation-secondary-button"
-                          onClick={exitTrainingPlayMode}
-                          disabled={trainingLoading}
+                          className={
+                            normalizedTrainingState.playerSide === TRAINING_SIDE_WHITE
+                              ? "annotation-primary-button"
+                              : "annotation-secondary-button"
+                          }
+                          onClick={() => setTrainingPlayerSide(TRAINING_SIDE_WHITE)}
+                          disabled={isReplayTrainingActive || isTrainingPlayActive || trainingLoading}
                         >
-                          Return to training
+                          {whiteTrainingLabel}
+                        </button>
+                        <button
+                          type="button"
+                          className={
+                            normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK
+                              ? "annotation-primary-button"
+                              : "annotation-secondary-button"
+                          }
+                          onClick={() => setTrainingPlayerSide(TRAINING_SIDE_BLACK)}
+                          disabled={isReplayTrainingActive || isTrainingPlayActive || trainingLoading}
+                        >
+                          {blackTrainingLabel}
                         </button>
                       </div>
                     </div>
-                  )}
-                  {!isTrainingPlayActive && isReplayTrainingActive && currentReplayMove && (
-                    <p className="annotation-empty">
-                      Play the next move on the board. If you miss it, you can retry or
-                      reveal the next game move when you are ready.
-                    </p>
-                  )}
-                  {trainingLoading && (
-                    <p className="annotation-empty">
+                    <p className="current-move-label">
                       {isTrainingPlayActive
-                        ? "Computer is thinking..."
-                        : "Comparing your move with the game move..."}
+                        ? "Exploring a wrong try against the computer"
+                        : normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
+                          ? "Replay complete"
+                          : isReplayTrainingActive
+                            ? `Replay move ${Math.min(currentReplayMoveNumber, replaySummary.totalMoves)} of ${replaySummary.totalMoves}`
+                            : "Replay game mode is ready."}
                     </p>
-                  )}
-                  {trainingError && <p className="error">{trainingError}</p>}
-                  {!isTrainingPlayActive &&
-                    pendingTrainingAttempts.length > 0 &&
-                    currentReplayMove && (
-                    <div className="annotation-item training-feedback">
-                      <div className="annotation-item-header">
-                        <span className="annotation-label">Move not matched</span>
-                        <span className="training-feedback-result">
-                          {pendingTrainingAttempts.length} tries saved
-                        </span>
-                      </div>
-                      <p>
-                        {formatReplayGuessPrompt(currentReplayMove, currentMoveLabel)} Or reveal
-                        the next move from the game.
+                    {normalizedTrainingState.mode !== TRAINING_MODE_REPLAY_GAME && (
+                      <p className="annotation-empty">
+                        Start replay mode to test your moves against the imported game.
                       </p>
-                      <ul className="annotation-list training-attempt-list">
-                        {pendingTrainingAttempts.map((attempt, index) => (
-                          <li
-                            key={`${attempt.ply}-${attempt.userSan}-${index}`}
-                            className={`annotation-item${
-                              attempt.isCritical ? " training-feedback-critical" : ""
-                            }${attempt.resultingFen ? " training-preview-trigger" : ""}`}
-                            tabIndex={attempt.resultingFen ? 0 : undefined}
-                            onMouseEnter={(event) =>
-                              showTrainingPreview(attempt, event.currentTarget)
-                            }
-                            onMouseLeave={hideTrainingPreview}
-                            onFocus={(event) =>
-                              showTrainingPreview(attempt, event.currentTarget)
-                            }
-                            onBlur={hideTrainingPreview}
-                          >
-                            <div className="annotation-item-header">
-                              <span className="annotation-label">Try {index + 1}</span>
-                              <span className="training-feedback-result">
-                                {attempt.classification === "better"
-                                  ? "Better"
-                                  : attempt.classification === "equal"
-                                    ? "Equal"
-                                    : attempt.classification === "worse"
-                                      ? "Worse"
-                                      : "n/a"}
-                              </span>
-                            </div>
-                            <p>
-                              Played {attempt.userSan}.
-                            </p>
-                            <p className="training-feedback-detail">
-                              <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
-                              {" "}vs the game move
-                              {attempt.isCritical ? " - critical mistake" : ""}.
-                            </p>
-                            <div className="annotation-item-actions">
-                              <button
-                                type="button"
-                                className="annotation-secondary-button"
-                                onClick={() => startTrainingPlayMode(attempt)}
-                                disabled={isTrainingPlayActive || trainingLoading}
-                              >
-                                Play vs computer
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="annotation-item-actions">
-                        <button
-                          type="button"
-                          className="annotation-secondary-button"
-                          onClick={retryReplayMove}
-                        >
-                          Retry
-                        </button>
-                        <button
-                          type="button"
-                          className="annotation-primary-button"
-                          onClick={revealReplayMove}
-                        >
-                          Next move
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {!isTrainingPlayActive &&
-                    !pendingTrainingAttempts.length &&
-                    lastCompletedTrainingAttempts.length > 0 &&
-                    lastCompletedExpectedMove && (
+                    )}
+                    {isTrainingPlayActive && activeTrainingPlaySession && (
                       <div className="annotation-item training-feedback">
                         <div className="annotation-item-header">
-                          <span className="annotation-label">Last resolved move</span>
+                          <span className="annotation-label">Play vs computer</span>
                           <span className="training-feedback-result">
-                            {normalizedTrainingState.lastCompletionMode ===
-                            TRAINING_COMPLETION_REVEALED
-                              ? "Revealed"
-                              : "Matched"}
+                            {isTrainingPlayUserTurn ? "Your move" : "Computer move"}
                           </span>
                         </div>
                         <p>
-                          <strong>{formatReplayMoveLabel(lastCompletedExpectedMove)}</strong>
-                          {normalizedTrainingState.lastCompletionMode ===
-                          TRAINING_COMPLETION_REVEALED
-                            ? " was revealed from the game after your tries."
-                            : lastCompletedIncorrectTrainingAttempts.length > 0
-                              ? ` matched after ${lastCompletedIncorrectTrainingAttempts.length} earlier ${
-                                  lastCompletedIncorrectTrainingAttempts.length === 1
-                                    ? "try"
-                                    : "tries"
-                                 }.`
-                              : " matched the game move."}
+                          Exploring the position after{" "}
+                          <strong>{activeTrainingPlaySession.sourceAttempt.userSan}</strong>.
+                          Return to training to resume the replay exactly where you left it.
                         </p>
-                        {lastCompletedIncorrectTrainingAttempts.length > 0 && (
+                        <div className="annotation-item-actions">
+                          <button
+                            type="button"
+                            className="annotation-secondary-button"
+                            onClick={exitTrainingPlayMode}
+                            disabled={trainingLoading}
+                          >
+                            Return to training
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {!isTrainingPlayActive && isReplayTrainingActive && currentReplayMove && (
+                      <p className="annotation-empty">
+                        Play the next move on the board. If you miss it, you can retry or
+                        reveal the next game move when you are ready.
+                      </p>
+                    )}
+                    {trainingLoading && (
+                      <p className="annotation-empty">
+                        {isTrainingPlayActive
+                          ? "Computer is thinking..."
+                          : "Comparing your move with the game move..."}
+                      </p>
+                    )}
+                    {trainingError && <p className="error">{trainingError}</p>}
+                    {!isTrainingPlayActive &&
+                      pendingTrainingAttempts.length > 0 &&
+                      currentReplayMove && (
+                        <div className="annotation-item training-feedback">
+                          <div className="annotation-item-header">
+                            <span className="annotation-label">Move not matched</span>
+                            <span className="training-feedback-result">
+                              {pendingTrainingAttempts.length} tries saved
+                            </span>
+                          </div>
+                          <p>
+                            {formatReplayGuessPrompt(currentReplayMove, currentMoveLabel)} Or reveal
+                            the next move from the game.
+                          </p>
                           <ul className="annotation-list training-attempt-list">
-                            {lastCompletedIncorrectTrainingAttempts.map((attempt, index) => (
+                            {pendingTrainingAttempts.map((attempt, index) => (
                               <li
                                 key={`${attempt.ply}-${attempt.userSan}-${index}`}
-                                className={`annotation-item${
-                                  attempt.isCritical ? " training-feedback-critical" : ""
-                                }${attempt.resultingFen ? " training-preview-trigger" : ""}`}
+                                className={`annotation-item${attempt.isCritical ? " training-feedback-critical" : ""
+                                  }${attempt.resultingFen ? " training-preview-trigger" : ""}`}
                                 tabIndex={attempt.resultingFen ? 0 : undefined}
                                 onMouseEnter={(event) =>
                                   showTrainingPreview(attempt, event.currentTarget)
@@ -3491,8 +3427,7 @@ function App() {
                                   </span>
                                 </div>
                                 <p>
-                                  Played {attempt.userSan} instead of{" "}
-                                  {lastCompletedExpectedMove.san}.
+                                  Played {attempt.userSan}.
                                 </p>
                                 <p className="training-feedback-detail">
                                   <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
@@ -3512,122 +3447,216 @@ function App() {
                               </li>
                             ))}
                           </ul>
-                        )}
-                      </div>
-                    )}
-                  {!isTrainingPlayActive &&
-                    normalizedTrainingState.status === TRAINING_STATUS_COMPLETED && (
-                    <>
-                      <div className="training-summary-grid">
-                        <div className="training-summary-card">
-                          <span className="annotation-label">Moves</span>
-                          <strong>{replaySummary.totalMoves}</strong>
+                          <div className="annotation-item-actions">
+                            <button
+                              type="button"
+                              className="annotation-secondary-button"
+                              onClick={retryReplayMove}
+                            >
+                              Retry
+                            </button>
+                            <button
+                              type="button"
+                              className="annotation-primary-button"
+                              onClick={revealReplayMove}
+                            >
+                              Next move
+                            </button>
+                          </div>
                         </div>
-                        <div className="training-summary-card">
-                          <span className="annotation-label">Matches</span>
-                          <strong>{replaySummary.matchedMoves}</strong>
-                        </div>
-                        <div className="training-summary-card">
-                          <span className="annotation-label">Better</span>
-                          <strong>{replaySummary.betterMoves}</strong>
-                        </div>
-                        <div className="training-summary-card">
-                          <span className="annotation-label">Equal</span>
-                          <strong>{replaySummary.equalMoves}</strong>
-                        </div>
-                        <div className="training-summary-card">
-                          <span className="annotation-label">Worse</span>
-                          <strong>{replaySummary.worseMoves}</strong>
-                        </div>
-                        <div className="training-summary-card">
-                          <span className="annotation-label">Critical</span>
-                          <strong>{replaySummary.criticalMistakes.length}</strong>
-                        </div>
-                      </div>
-                      <div className="annotation-section">
-                        <h3>Critical mistakes</h3>
-                        {replaySummary.criticalMistakes.length > 0 ? (
-                          <ul className="annotation-list training-critical-list">
-                            {replaySummary.criticalMistakes.map((attempt) => (
-                              <li
-                                key={`${attempt.ply}-${attempt.userSan}-${attempt.expectedSan}`}
-                                className={`annotation-item${
-                                  attempt.resultingFen ? " training-preview-trigger" : ""
-                                }`}
-                                tabIndex={attempt.resultingFen ? 0 : undefined}
-                                onMouseEnter={(event) =>
-                                  showTrainingPreview(attempt, event.currentTarget)
-                                }
-                                onMouseLeave={hideTrainingPreview}
-                                onFocus={(event) =>
-                                  showTrainingPreview(attempt, event.currentTarget)
-                                }
-                                onBlur={hideTrainingPreview}
-                              >
-                                <div className="annotation-item-header">
-                                  <span className="annotation-label">
-                                    {formatReplayMoveLabel({
-                                      moveNumber: attempt.moveNumber,
-                                      side: attempt.side,
-                                      san: attempt.expectedSan,
-                                    })}
-                                  </span>
-                                  <span className="training-feedback-result">Critical</span>
-                                </div>
-                                <p>
-                                  Played {attempt.userSan} instead of {attempt.expectedSan}.
-                                </p>
-                                <p className="training-feedback-detail">
-                                  <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
-                                  {" "}vs the game move.
-                                </p>
-                                <div className="annotation-item-actions">
-                                  <button
-                                    type="button"
-                                    className="annotation-secondary-button"
-                                    onClick={() => startTrainingPlayMode(attempt)}
-                                    disabled={isTrainingPlayActive || trainingLoading}
-                                  >
-                                    Play vs computer
-                                  </button>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="annotation-empty">
-                            No critical mistakes in this replay.
+                      )}
+                    {!isTrainingPlayActive &&
+                      !pendingTrainingAttempts.length &&
+                      lastCompletedTrainingAttempts.length > 0 &&
+                      lastCompletedExpectedMove && (
+                        <div className="annotation-item training-feedback">
+                          <div className="annotation-item-header">
+                            <span className="annotation-label">Last resolved move</span>
+                            <span className="training-feedback-result">
+                              {normalizedTrainingState.lastCompletionMode ===
+                                TRAINING_COMPLETION_REVEALED
+                                ? "Revealed"
+                                : "Matched"}
+                            </span>
+                          </div>
+                          <p>
+                            <strong>{formatReplayMoveLabel(lastCompletedExpectedMove)}</strong>
+                            {normalizedTrainingState.lastCompletionMode ===
+                              TRAINING_COMPLETION_REVEALED
+                              ? " was revealed from the game after your tries."
+                              : lastCompletedIncorrectTrainingAttempts.length > 0
+                                ? ` matched after ${lastCompletedIncorrectTrainingAttempts.length} earlier ${lastCompletedIncorrectTrainingAttempts.length === 1
+                                  ? "try"
+                                  : "tries"
+                                }.`
+                                : " matched the game move."}
                           </p>
-                        )}
-                      </div>
-                    </>
-                  )}
-                  <div className="annotation-editor-actions">
-                    <button
-                      type="button"
-                      className="annotation-primary-button"
-                      onClick={startReplayTraining}
-                      disabled={trainingLoading}
-                    >
-                      {normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME
-                        ? normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
-                          ? "Replay again"
-                          : "Restart replay"
-                        : "Start replay game"}
-                    </button>
-                    {normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME && (
+                          {lastCompletedIncorrectTrainingAttempts.length > 0 && (
+                            <ul className="annotation-list training-attempt-list">
+                              {lastCompletedIncorrectTrainingAttempts.map((attempt, index) => (
+                                <li
+                                  key={`${attempt.ply}-${attempt.userSan}-${index}`}
+                                  className={`annotation-item${attempt.isCritical ? " training-feedback-critical" : ""
+                                    }${attempt.resultingFen ? " training-preview-trigger" : ""}`}
+                                  tabIndex={attempt.resultingFen ? 0 : undefined}
+                                  onMouseEnter={(event) =>
+                                    showTrainingPreview(attempt, event.currentTarget)
+                                  }
+                                  onMouseLeave={hideTrainingPreview}
+                                  onFocus={(event) =>
+                                    showTrainingPreview(attempt, event.currentTarget)
+                                  }
+                                  onBlur={hideTrainingPreview}
+                                >
+                                  <div className="annotation-item-header">
+                                    <span className="annotation-label">Try {index + 1}</span>
+                                    <span className="training-feedback-result">
+                                      {attempt.classification === "better"
+                                        ? "Better"
+                                        : attempt.classification === "equal"
+                                          ? "Equal"
+                                          : attempt.classification === "worse"
+                                            ? "Worse"
+                                            : "n/a"}
+                                    </span>
+                                  </div>
+                                  <p>
+                                    Played {attempt.userSan} instead of{" "}
+                                    {lastCompletedExpectedMove.san}.
+                                  </p>
+                                  <p className="training-feedback-detail">
+                                    <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
+                                    {" "}vs the game move
+                                    {attempt.isCritical ? " - critical mistake" : ""}.
+                                  </p>
+                                  <div className="annotation-item-actions">
+                                    <button
+                                      type="button"
+                                      className="annotation-secondary-button"
+                                      onClick={() => startTrainingPlayMode(attempt)}
+                                      disabled={isTrainingPlayActive || trainingLoading}
+                                    >
+                                      Play vs computer
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                    {!isTrainingPlayActive &&
+                      normalizedTrainingState.status === TRAINING_STATUS_COMPLETED && (
+                        <>
+                          <div className="training-summary-grid">
+                            <div className="training-summary-card">
+                              <span className="annotation-label">Moves</span>
+                              <strong>{replaySummary.totalMoves}</strong>
+                            </div>
+                            <div className="training-summary-card">
+                              <span className="annotation-label">Matches</span>
+                              <strong>{replaySummary.matchedMoves}</strong>
+                            </div>
+                            <div className="training-summary-card">
+                              <span className="annotation-label">Better</span>
+                              <strong>{replaySummary.betterMoves}</strong>
+                            </div>
+                            <div className="training-summary-card">
+                              <span className="annotation-label">Equal</span>
+                              <strong>{replaySummary.equalMoves}</strong>
+                            </div>
+                            <div className="training-summary-card">
+                              <span className="annotation-label">Worse</span>
+                              <strong>{replaySummary.worseMoves}</strong>
+                            </div>
+                            <div className="training-summary-card">
+                              <span className="annotation-label">Critical</span>
+                              <strong>{replaySummary.criticalMistakes.length}</strong>
+                            </div>
+                          </div>
+                          <div className="annotation-section">
+                            <h3>Critical mistakes</h3>
+                            {replaySummary.criticalMistakes.length > 0 ? (
+                              <ul className="annotation-list training-critical-list">
+                                {replaySummary.criticalMistakes.map((attempt) => (
+                                  <li
+                                    key={`${attempt.ply}-${attempt.userSan}-${attempt.expectedSan}`}
+                                    className={`annotation-item${attempt.resultingFen ? " training-preview-trigger" : ""
+                                      }`}
+                                    tabIndex={attempt.resultingFen ? 0 : undefined}
+                                    onMouseEnter={(event) =>
+                                      showTrainingPreview(attempt, event.currentTarget)
+                                    }
+                                    onMouseLeave={hideTrainingPreview}
+                                    onFocus={(event) =>
+                                      showTrainingPreview(attempt, event.currentTarget)
+                                    }
+                                    onBlur={hideTrainingPreview}
+                                  >
+                                    <div className="annotation-item-header">
+                                      <span className="annotation-label">
+                                        {formatReplayMoveLabel({
+                                          moveNumber: attempt.moveNumber,
+                                          side: attempt.side,
+                                          san: attempt.expectedSan,
+                                        })}
+                                      </span>
+                                      <span className="training-feedback-result">Critical</span>
+                                    </div>
+                                    <p>
+                                      Played {attempt.userSan} instead of {attempt.expectedSan}.
+                                    </p>
+                                    <p className="training-feedback-detail">
+                                      <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
+                                      {" "}vs the game move.
+                                    </p>
+                                    <div className="annotation-item-actions">
+                                      <button
+                                        type="button"
+                                        className="annotation-secondary-button"
+                                        onClick={() => startTrainingPlayMode(attempt)}
+                                        disabled={isTrainingPlayActive || trainingLoading}
+                                      >
+                                        Play vs computer
+                                      </button>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="annotation-empty">
+                                No critical mistakes in this replay.
+                              </p>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    <div className="annotation-editor-actions">
                       <button
                         type="button"
-                        className="annotation-secondary-button"
-                        onClick={resetTrainingSession}
+                        className="annotation-primary-button"
+                        onClick={startReplayTraining}
                         disabled={trainingLoading}
                       >
-                        Exit training
+                        {normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME
+                          ? normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
+                            ? "Replay again"
+                            : "Restart replay"
+                          : "Start replay game"}
                       </button>
-                    )}
-                  </div>
-                </>
-              )}
+                      {normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME && (
+                        <button
+                          type="button"
+                          className="annotation-secondary-button"
+                          onClick={resetTrainingSession}
+                          disabled={trainingLoading}
+                        >
+                          Exit training
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -3645,6 +3674,27 @@ function App() {
                 >
                   ×
                 </button>
+              </div>
+              <div style={engineControlsStyle}>
+                <div style={engineDepthHeaderStyle}>
+                  <label htmlFor="engine-search-depth" style={engineDepthLabelStyle}>
+                    Search depth
+                  </label>
+                  <InfoTip text="Used for evaluation bar, engine analysis, and training replies." />
+                </div>
+                <input
+                  id="engine-search-depth"
+                  type="number"
+                  min={MIN_ENGINE_SEARCH_DEPTH}
+                  max={MAX_ENGINE_SEARCH_DEPTH}
+                  step="1"
+                  inputMode="numeric"
+                  value={engineSearchDepth}
+                  onChange={(event) =>
+                    setEngineSearchDepth(normalizeEngineSearchDepth(event.target.value))
+                  }
+                  style={engineDepthInputStyle}
+                />
               </div>
               {loading && <p>Evaluating position...</p>}
               {engineResult?.error && <p className="error">{engineResult.error}</p>}
@@ -4126,58 +4176,58 @@ function App() {
                   const studyCollections = getCollectionsForStudy(collections, study.id);
 
                   return (
-                  <li key={study.id} style={studyListItemStyle}>
-                    <div style={studyHeaderStyle}>
-                      <div>
-                        <strong>{study.title}</strong>
-                        <p style={studyMetaStyle}>{getStudySummaryText(study)}</p>
-                        <p style={studyMetaStyle}>
-                          Updated {formatStudyTimestamp(study.updatedAt)}
-                        </p>
-                        <div style={collectionTagListStyle}>
-                          {studyCollections.length ? (
-                            studyCollections.map((collection) => (
-                              <span key={`${study.id}-${collection.id}`} style={collectionTagStyle}>
-                                {collection.title}
-                              </span>
-                            ))
-                          ) : (
-                            <span style={collectionTagStyle}>No collections</span>
-                          )}
+                    <li key={study.id} style={studyListItemStyle}>
+                      <div style={studyHeaderStyle}>
+                        <div>
+                          <strong>{study.title}</strong>
+                          <p style={studyMetaStyle}>{getStudySummaryText(study)}</p>
+                          <p style={studyMetaStyle}>
+                            Updated {formatStudyTimestamp(study.updatedAt)}
+                          </p>
+                          <div style={collectionTagListStyle}>
+                            {studyCollections.length ? (
+                              studyCollections.map((collection) => (
+                                <span key={`${study.id}-${collection.id}`} style={collectionTagStyle}>
+                                  {collection.title}
+                                </span>
+                              ))
+                            ) : (
+                              <span style={collectionTagStyle}>No collections</span>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gap: "0.5rem" }}>
+                          <button
+                            type="button"
+                            style={modalButtonStyle}
+                            onClick={() => openManageCollectionsPopup(study)}
+                            disabled={deletingStudyId === study.id || loadingStudyId === study.id}
+                          >
+                            Collections
+                          </button>
+                          <button
+                            type="button"
+                            style={modalPrimaryButtonStyle}
+                            onClick={() => {
+                              void loadStudy(study.id);
+                            }}
+                            disabled={loadingStudyId === study.id || deletingStudyId === study.id}
+                          >
+                            {loadingStudyId === study.id ? "Loading..." : "Load"}
+                          </button>
+                          <button
+                            type="button"
+                            style={modalDangerButtonStyle}
+                            onClick={() => {
+                              void removeStudy(study);
+                            }}
+                            disabled={loadingStudyId === study.id || deletingStudyId === study.id}
+                          >
+                            {deletingStudyId === study.id ? "Removing..." : "Remove"}
+                          </button>
                         </div>
                       </div>
-                      <div style={{ display: "grid", gap: "0.5rem" }}>
-                        <button
-                          type="button"
-                          style={modalButtonStyle}
-                          onClick={() => openManageCollectionsPopup(study)}
-                          disabled={deletingStudyId === study.id || loadingStudyId === study.id}
-                        >
-                          Collections
-                        </button>
-                        <button
-                          type="button"
-                          style={modalPrimaryButtonStyle}
-                          onClick={() => {
-                            void loadStudy(study.id);
-                          }}
-                          disabled={loadingStudyId === study.id || deletingStudyId === study.id}
-                        >
-                          {loadingStudyId === study.id ? "Loading..." : "Load"}
-                        </button>
-                        <button
-                          type="button"
-                          style={modalDangerButtonStyle}
-                          onClick={() => {
-                            void removeStudy(study);
-                          }}
-                          disabled={loadingStudyId === study.id || deletingStudyId === study.id}
-                        >
-                          {deletingStudyId === study.id ? "Removing..." : "Remove"}
-                        </button>
-                      </div>
-                    </div>
-                  </li>
+                    </li>
                   );
                 })}
               </ul>
@@ -4808,9 +4858,8 @@ function App() {
                       </p>
                       <p className="search-result-meta">
                         {gameResult.opening || gameResult.eco
-                          ? `${gameResult.opening ?? "Opening unknown"}${
-                              gameResult.eco ? ` (${gameResult.eco})` : ""
-                            }`
+                          ? `${gameResult.opening ?? "Opening unknown"}${gameResult.eco ? ` (${gameResult.eco})` : ""
+                          }`
                           : "Opening unknown"}
                         {gameResult.sourceFile ? ` · ${gameResult.sourceFile}` : ""}
                       </p>
