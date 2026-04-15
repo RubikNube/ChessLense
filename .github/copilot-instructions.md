@@ -25,31 +25,45 @@ cd server && npm run dev        # Express server on port 3001
 ChessLense/
 ├── frontend/   React + Vite SPA + Vitest unit tests
 │   └── src/
-│       ├── App.jsx             # Main UI orchestration
+│       ├── App.jsx             # Top-level orchestration for app state and feature wiring
 │       ├── shortcuts.json      # Default keyboard shortcut config
-│       └── components/
-│           ├── EvaluationBar.jsx
-│           └── MoveHistory.jsx
+│       ├── hooks/
+│       │   ├── useKeyboardShortcuts.js
+│       │   └── useTrainingController.js
+│       ├── components/
+│       │   ├── app/AppMenuBar.jsx
+│       │   ├── board/BoardWorkspace.jsx
+│       │   ├── comments/CommentsPanel.jsx
+│       │   ├── engine/EnginePanel.jsx
+│       │   ├── modals/         # ModalShell + dedicated modal dialogs
+│       │   ├── pgn/ImportedPgnPanel.jsx
+│       │   ├── training/TrainingPanel.jsx
+│       │   ├── EvaluationBar.jsx
+│       │   ├── MoveHistory.jsx
+│       │   ├── PositionPreviewBoard.jsx
+│       │   └── VariantsView.jsx
 │       └── utils/
+│           ├── api.js          # Shared fetch/error helper for frontend API calls
 │           ├── appState.js     # PGN, persistence, shortcut, and move helpers
-│           ├── annotatedPgn.js  # Annotated PGN header/comment extraction
+│           ├── annotatedPgn.js # Annotated PGN header/comment extraction
 │           └── evaluation.js   # Evaluation normalization/formatting helpers
 └── server/
     └── index.js                # Express app, single POST /api/analyze endpoint
 ```
 
-**Data flow:** User makes a move on the board → `App.jsx` calls `POST /api/analyze` with the current FEN → server spawns a Stockfish process, exchanges UCI commands, parses the output → returns `{ fen, bestmove, evaluation }` → frontend renders the eval bar and engine result.
+**Data flow:** User makes a move on the board inside `BoardWorkspace.jsx` → `App.jsx` updates the variant tree and current FEN → engine actions call `POST /api/analyze` → server spawns a Stockfish process, exchanges UCI commands, parses the output → returns `{ fen, bestmove, evaluation }` → `EnginePanel.jsx` and `EvaluationBar.jsx` render the result.
 
 **Ports:** Frontend dev server: 5173. Backend: 3001 (hardcoded). CORS is open on the server.
 
 ## Key Conventions
 
 ### Game state in `App.jsx`
-- The `chess.js` `Chess` instance (`game`) is the single source of truth for board state.
-- All mutations go through `safeGameMutate(modify)`: it clones the game via `cloneGame()` from `src/utils/appState.js`, calls `modify(next)`, and only calls `setGame` if the mutation succeeds.
-- Redo is implemented manually as a `redoStack` of `{ from, to, promotion? }` move objects, because `chess.js` has no built-in redo.
-- Frontend state (game PGN, redo stack, orientation, panel visibility, and imported PGN metadata/comments) is persisted to `localStorage` under the key `chesslense.frontend-state` via `savePersistedAppState()` and restored via `loadPersistedAppState()`.
+- `App.jsx` is now a thin orchestrator: most render-heavy UI lives in extracted feature components under `src/components/`.
+- The **variant tree** is the source of truth for game state; the current `Chess` instance is derived with `buildGameToNode(variantTree)`.
+- Move navigation, variation selection, promotion/demotion, and imported engine lines all go through helpers from `src/utils/variantTree.js`.
+- Frontend state (variant tree, orientation, panel visibility, imported PGN metadata/comments, search filters, and training state) is persisted to `localStorage` under the key `chesslense.frontend-state` via `savePersistedAppState()` and restored via `loadPersistedAppState()`.
 - Annotated PGN import uses `parseAnnotatedPgn()` from `src/utils/annotatedPgn.js`: `chess.js` still reconstructs the game state, while headers/comments/variation snippets are preserved separately in `importedPgnData`.
+- Keyboard shortcut handling is centralized in `src/hooks/useKeyboardShortcuts.js`, while training preview/focus behavior lives in `src/hooks/useTrainingController.js`.
 
 ### Evaluation format
 - The server returns `evaluation: { type: "cp" | "mate", value: number }` where `value` is always from the **side to move**'s perspective (raw Stockfish output).
@@ -65,9 +79,9 @@ ChessLense/
 - `App.css` and `index.css` handle global/layout styles; component-level overrides are inline.
 
 ### Keyboard shortcuts
-- Default shortcuts are defined in `src/shortcuts.json` and mirrored as `DEFAULT_SHORTCUT_CONFIG` in `App.jsx`.
+- Default shortcuts are defined in `src/shortcuts.json` and mirrored as `DEFAULT_SHORTCUT_CONFIG` in `src/utils/appState.js`.
 - At startup, `shortcuts.json` is loaded and merged with defaults via `normalizeShortcutConfig()`, which falls back to defaults for any invalid or missing entries.
-- Add new actions to `SHORTCUT_ACTION_ORDER` in `App.jsx` to include them in the shortcut popup.
+- Add new actions to `SHORTCUT_ACTION_ORDER` in `src/utils/appState.js` to include them in the shortcut popup.
 
 ### Server / Stockfish
 - A fresh Stockfish process is spawned **per request** (not a persistent engine).
