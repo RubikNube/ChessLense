@@ -66,6 +66,15 @@ function useKeyboardShortcuts({
         return;
       }
 
+      if (modalState.showLichessTokenPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          actions.closeLichessTokenPopup();
+        }
+
+        return;
+      }
+
       if (modalState.showOtbSearchPopup) {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -151,6 +160,12 @@ function useKeyboardShortcuts({
       if (matchesShortcut(event, shortcutConfig.toggleMoveHistory.keys)) {
         event.preventDefault();
         actions.toggleMoveHistory();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.toggleOpeningTreePanel.keys)) {
+        event.preventDefault();
+        actions.toggleOpeningTreePanel();
         return;
       }
 

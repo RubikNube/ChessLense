@@ -6,7 +6,12 @@ const {
 	normalizeMultiPv,
 } = require("./engine");
 const { HttpError } = require("./httpError");
-const { getGame: getLichessGame, searchGames: searchLichessGames } = require("./lichess");
+const {
+	getGame: getLichessGame,
+	getOpeningTree: getLichessOpeningTree,
+	LICHESS_REQUEST_TOKEN_HEADER,
+	searchGames: searchLichessGames,
+} = require("./lichess");
 const { getGame: getOtbGame, searchGames: searchOtbGames } = require("./otb");
 const {
 	addStudyToCollection,
@@ -137,6 +142,18 @@ app.get("/api/lichess/games", async (req, res) => {
 			search,
 			games,
 		});
+	} catch (error) {
+		return sendApiError(res, error);
+	}
+});
+
+app.get("/api/lichess/opening-tree", async (req, res) => {
+	try {
+		const openingTree = await getLichessOpeningTree(req.query || {}, {
+			requestToken: req.get(LICHESS_REQUEST_TOKEN_HEADER) ?? "",
+		});
+
+		return res.json(openingTree);
 	} catch (error) {
 		return sendApiError(res, error);
 	}

@@ -25,6 +25,7 @@ export const SHORTCUT_ACTION_ORDER = [
   "goToEnd",
   "flipBoard",
   "toggleMoveHistory",
+  "toggleOpeningTreePanel",
   "toggleReplayTrainingPanel",
   "togglePlayComputerPanel",
   "toggleEngineWindow",
@@ -36,6 +37,7 @@ export const SHORTCUT_ACTION_ORDER = [
 
 const VIEW_TOGGLE_SHORTCUT_ACTIONS = new Set([
   "toggleMoveHistory",
+  "toggleOpeningTreePanel",
   "toggleReplayTrainingPanel",
   "togglePlayComputerPanel",
   "toggleEngineWindow",
@@ -104,6 +106,10 @@ export const DEFAULT_SHORTCUT_CONFIG = {
   toggleMoveHistory: {
     label: "Toggle move history",
     keys: ["Ctrl+Shift+F2"],
+  },
+  toggleOpeningTreePanel: {
+    label: "Toggle opening tree panel",
+    keys: ["Ctrl+Shift+F9"],
   },
   toggleReplayTrainingPanel: {
     label: "Toggle replay training panel",
@@ -528,11 +534,19 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
     return {
       variantTree,
       engineSearchDepth: normalizeEngineSearchDepth(parsedState.engineSearchDepth),
+      lichessApiToken:
+        typeof parsedState.lichessApiToken === "string"
+          ? parsedState.lichessApiToken
+          : "",
       boardOrientation:
         parsedState.boardOrientation === "black" ? "black" : "white",
       showMoveHistory:
         typeof parsedState.showMoveHistory === "boolean"
           ? parsedState.showMoveHistory
+          : true,
+      showOpeningTreePanel:
+        typeof parsedState.showOpeningTreePanel === "boolean"
+          ? parsedState.showOpeningTreePanel
           : true,
       showReplayTrainingPanel: resolvePersistedPanelVisibility(
         parsedState,
@@ -600,8 +614,10 @@ export function serializeMove(move) {
 export function serializePersistedAppState({
   variantTree,
   engineSearchDepth,
+  lichessApiToken,
   boardOrientation,
   showMoveHistory,
+  showOpeningTreePanel,
   showReplayTrainingPanel,
   showPlayComputerPanel,
   showEngineWindow,
@@ -619,8 +635,10 @@ export function serializePersistedAppState({
   return JSON.stringify({
     variantTree: normalizeVariantTree(variantTree ?? createEmptyVariantTree()),
     engineSearchDepth: normalizeEngineSearchDepth(engineSearchDepth),
+    lichessApiToken: typeof lichessApiToken === "string" ? lichessApiToken : "",
     boardOrientation,
     showMoveHistory,
+    showOpeningTreePanel,
     showReplayTrainingPanel,
     showPlayComputerPanel,
     showEngineWindow,

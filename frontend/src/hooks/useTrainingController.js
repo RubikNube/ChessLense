@@ -34,6 +34,8 @@ function useTrainingController({
   isTrainingFocusMode,
   showMoveHistory,
   setShowMoveHistory,
+  showOpeningTreePanel,
+  setShowOpeningTreePanel,
   showEngineWindow,
   setShowEngineWindow,
   showComments,
@@ -83,6 +85,7 @@ function useTrainingController({
       if (!trainingFocusRestoreRef.current) {
         trainingFocusRestoreRef.current = {
           showMoveHistory,
+          showOpeningTreePanel,
           showEngineWindow,
           showComments,
           showImportedPgn,
@@ -92,6 +95,10 @@ function useTrainingController({
 
       if (showMoveHistory) {
         setShowMoveHistory(false);
+      }
+
+      if (showOpeningTreePanel) {
+        setShowOpeningTreePanel(false);
       }
 
       if (showEngineWindow) {
@@ -120,6 +127,7 @@ function useTrainingController({
     const restoreState = trainingFocusRestoreRef.current;
     trainingFocusRestoreRef.current = null;
     setShowMoveHistory(restoreState.showMoveHistory);
+    setShowOpeningTreePanel(restoreState.showOpeningTreePanel);
     setShowEngineWindow(restoreState.showEngineWindow);
     setShowComments(restoreState.showComments);
     setShowImportedPgn(restoreState.showImportedPgn);
@@ -130,11 +138,13 @@ function useTrainingController({
     setShowEngineWindow,
     setShowImportedPgn,
     setShowMoveHistory,
+    setShowOpeningTreePanel,
     setShowVariants,
     showComments,
     showEngineWindow,
     showImportedPgn,
     showMoveHistory,
+    showOpeningTreePanel,
     showVariants,
   ]);
 

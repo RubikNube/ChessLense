@@ -6,6 +6,7 @@ function AppMenuBar({
   canUndo,
   canRedo,
   showMoveHistory,
+  showOpeningTreePanel,
   showReplayTrainingPanel,
   showPlayComputerPanel,
   showEngineWindow,
@@ -179,6 +180,13 @@ function AppMenuBar({
             <button
               type="button"
               className="menu-entry"
+              onClick={() => onMenuAction(actions.toggleOpeningTreePanel)}
+            >
+              {showOpeningTreePanel ? "Hide Opening Tree" : "Show Opening Tree"}
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
               onClick={() => onMenuAction(actions.toggleReplayTrainingPanel)}
             >
               {showReplayTrainingPanel ? "Hide Replay Training" : "Show Replay Training"}
@@ -253,6 +261,13 @@ function AppMenuBar({
               }
             >
               About ChessLense
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
+              onClick={() => onMenuAction(actions.openLichessTokenPopup)}
+            >
+              Lichess Token
             </button>
             <button
               type="button"

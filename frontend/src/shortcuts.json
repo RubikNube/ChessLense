@@ -35,6 +35,10 @@
     "label": "Toggle move history",
     "keys": ["Ctrl+Shift+F2"]
   },
+  "toggleOpeningTreePanel": {
+    "label": "Toggle opening tree panel",
+    "keys": ["Ctrl+Shift+F9"]
+  },
   "toggleEngineWindow": {
     "label": "Toggle engine",
     "keys": ["Ctrl+Shift+F3"]

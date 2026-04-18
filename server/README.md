@@ -228,6 +228,18 @@ Search public Lichess games for a player and return compact game summaries for t
 }
 ```
 
+When the upstream explorer is temporarily unavailable or rejects anonymous requests, the endpoint returns a soft-failure payload instead of a 5xx so the panel can show a friendly empty-state message:
+
+```json
+{
+  "fen": "rn2k1nr/pp3pBp/2p1p3/3p3P/4q1P1/7R/P1P1N3/R2QKB2 b Qkq - 0 15",
+  "opening": null,
+  "moves": [],
+  "unavailable": true,
+  "details": "Lichess opening explorer request was rejected"
+}
+```
+
 #### Validation and upstream errors
 
 ```json
@@ -259,6 +271,71 @@ Fetch a single public Lichess game plus its PGN for import into the frontend.
   "pgn": "[Event \"Rated Blitz game\"]\n..."
 }
 ```
+
+### `GET /api/lichess/opening-tree`
+
+Fetch opening-explorer moves for a position from the Lichess opening explorer.
+
+#### Query parameters
+
+- `fen` (required): full FEN string for the current position
+
+#### Success response
+
+```json
+{
+  "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "environmentTokenConfigured": false,
+  "tokenConfigured": false,
+  "opening": {
+    "eco": "C20",
+    "name": "King's Pawn Game"
+  },
+  "moves": [
+    {
+      "san": "e4",
+      "uci": "e2e4",
+      "averageRating": 2120,
+      "gameCount": 200,
+      "whitePercent": 60,
+      "drawPercent": 15,
+      "blackPercent": 25
+    }
+  ]
+}
+```
+
+When the upstream explorer is unavailable, the endpoint returns a soft-failure payload instead of a 5xx so the frontend can keep the panel usable and allow a request-scoped token retry:
+
+```json
+{
+  "fen": "rn2k1nr/pp3pBp/2p1p3/3p3P/4q1P1/7R/P1P1N3/R2QKB2 b Qkq - 0 15",
+  "environmentTokenConfigured": false,
+  "tokenConfigured": false,
+  "opening": null,
+  "moves": [],
+  "unavailable": true,
+  "details": "Lichess opening explorer request was rejected"
+}
+```
+
+#### Validation and upstream errors
+
+```json
+{
+  "error": "invalid_query",
+  "details": "fen is required"
+}
+```
+
+```json
+{
+  "error": "lichess_request_rejected",
+  "details": "Lichess opening explorer request was rejected"
+}
+```
+
+Set `LICHESS_API_TOKEN` in the server environment, or send a per-request token with the `X-Lichess-Api-Token` header.
 
 ### `GET /api/otb/games`
 

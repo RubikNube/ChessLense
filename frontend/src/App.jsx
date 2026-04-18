@@ -8,12 +8,14 @@ import EnginePanel from "./components/engine/EnginePanel.jsx";
 import CreateCollectionModal from "./components/modals/CreateCollectionModal.jsx";
 import ImportPgnModal from "./components/modals/ImportPgnModal.jsx";
 import LichessSearchModal from "./components/modals/LichessSearchModal.jsx";
+import LichessTokenModal from "./components/modals/LichessTokenModal.jsx";
 import ManageCollectionsModal from "./components/modals/ManageCollectionsModal.jsx";
 import OtbSearchModal from "./components/modals/OtbSearchModal.jsx";
 import SaveStudyModal from "./components/modals/SaveStudyModal.jsx";
 import ShortcutsModal from "./components/modals/ShortcutsModal.jsx";
 import StudiesModal from "./components/modals/StudiesModal.jsx";
 import PositionPreviewBoard from "./components/PositionPreviewBoard.jsx";
+import OpeningTreePanel from "./components/opening/OpeningTreePanel.jsx";
 import ImportedPgnPanel from "./components/pgn/ImportedPgnPanel.jsx";
 import PlayComputerPanel from "./components/training/PlayComputerPanel.jsx";
 import ReplayTrainingPanel from "./components/training/ReplayTrainingPanel.jsx";
@@ -290,6 +292,9 @@ function App() {
   const [showMoveHistory, setShowMoveHistory] = useState(
     () => persistedAppState?.showMoveHistory ?? true,
   );
+  const [showOpeningTreePanel, setShowOpeningTreePanel] = useState(
+    () => persistedAppState?.showOpeningTreePanel ?? true,
+  );
   const [showReplayTrainingPanel, setShowReplayTrainingPanel] = useState(
     () => persistedAppState?.showReplayTrainingPanel ?? true,
   );
@@ -321,7 +326,11 @@ function App() {
   const [showCreateCollectionPopup, setShowCreateCollectionPopup] = useState(false);
   const [showManageCollectionsPopup, setShowManageCollectionsPopup] = useState(false);
   const [showLichessSearchPopup, setShowLichessSearchPopup] = useState(false);
+  const [showLichessTokenPopup, setShowLichessTokenPopup] = useState(false);
   const [showOtbSearchPopup, setShowOtbSearchPopup] = useState(false);
+  const [lichessApiToken, setLichessApiToken] = useState(
+    () => persistedAppState?.lichessApiToken ?? "",
+  );
   const [boardOrientation, setBoardOrientation] = useState(
     () => persistedAppState?.boardOrientation ?? "white",
   );
@@ -541,6 +550,8 @@ function App() {
     isTrainingFocusMode,
     showMoveHistory,
     setShowMoveHistory,
+    showOpeningTreePanel,
+    setShowOpeningTreePanel,
     showEngineWindow,
     setShowEngineWindow,
     showComments,
@@ -651,14 +662,6 @@ function App() {
         : replaySummary.totalMoves,
     [currentReplayMove, normalizedTrainingState, replaySummary.totalMoves],
   );
-  const trainingPanelHeight = useMemo(() => {
-    if (!boardPanelHeight) {
-      return undefined;
-    }
-
-    return Math.max(260, Math.floor((boardPanelHeight - 16) / 2));
-  }, [boardPanelHeight]);
-
   const resetTrainingSession = useCallback(() => {
     trainingRequestIdRef.current += 1;
     setTrainingState(createEmptyTrainingState(normalizedTrainingState.playerSide));
@@ -2034,6 +2037,19 @@ function App() {
     setLichessImportingGameId("");
   }, []);
 
+  const openLichessTokenPopup = useCallback(() => {
+    setShowLichessTokenPopup(true);
+  }, []);
+
+  const closeLichessTokenPopup = useCallback(() => {
+    setShowLichessTokenPopup(false);
+  }, []);
+
+  const saveLichessToken = useCallback((nextToken) => {
+    setLichessApiToken(nextToken);
+    setShowLichessTokenPopup(false);
+  }, []);
+
   const openOtbSearchPopup = useCallback(() => {
     setShowOtbSearchPopup(true);
     setOtbSearchError("");
@@ -2210,6 +2226,7 @@ function App() {
         ? trainingFocusRestoreRef.current
         : {
           showMoveHistory,
+          showOpeningTreePanel,
           showEngineWindow,
           showComments,
           showImportedPgn,
@@ -2220,8 +2237,10 @@ function App() {
       savePersistedAppState({
         variantTree,
         engineSearchDepth,
+        lichessApiToken,
         boardOrientation,
         showMoveHistory: persistedRightSideViews.showMoveHistory,
+        showOpeningTreePanel: persistedRightSideViews.showOpeningTreePanel,
         showReplayTrainingPanel,
         showPlayComputerPanel,
         showEngineWindow: persistedRightSideViews.showEngineWindow,
@@ -2242,6 +2261,7 @@ function App() {
   }, [
     boardOrientation,
     engineSearchDepth,
+    lichessApiToken,
     lichessSearchFilters,
     importedPgnData,
     isTrainingFocusMode,
@@ -2252,6 +2272,7 @@ function App() {
     showComments,
     showImportedPgn,
     showMoveHistory,
+    showOpeningTreePanel,
     showReplayTrainingPanel,
     showPlayComputerPanel,
     showVariants,
@@ -2445,6 +2466,14 @@ function App() {
     setShowMoveHistory(false);
   }, []);
 
+  const toggleOpeningTreePanel = useCallback(() => {
+    setShowOpeningTreePanel((currentValue) => !currentValue);
+  }, []);
+
+  const closeOpeningTreePanel = useCallback(() => {
+    setShowOpeningTreePanel(false);
+  }, []);
+
   const toggleReplayTrainingPanel = useCallback(() => {
     setShowReplayTrainingPanel((currentValue) => !currentValue);
   }, []);
@@ -2518,11 +2547,13 @@ function App() {
     copyFenToClipboard,
     resetGame,
     openLichessSearchPopup,
+    openLichessTokenPopup,
     openOtbSearchPopup,
     openSaveStudyPopup,
     openStudiesPopup,
     toggleBoardOrientation,
     toggleMoveHistory,
+    toggleOpeningTreePanel,
     toggleReplayTrainingPanel,
     togglePlayComputerPanel,
     toggleEngineWindow,
@@ -2536,6 +2567,7 @@ function App() {
     copyFenToClipboard,
     openImportPgnPopup,
     openLichessSearchPopup,
+    openLichessTokenPopup,
     openOtbSearchPopup,
     openSaveStudyPopup,
     openShortcutsPopup,
@@ -2548,6 +2580,7 @@ function App() {
     toggleEvaluationBar,
     toggleImportedPgn,
     toggleMoveHistory,
+    toggleOpeningTreePanel,
     toggleReplayTrainingPanel,
     togglePlayComputerPanel,
     toggleVariantArrows,
@@ -2562,6 +2595,7 @@ function App() {
     closeManageCollectionsPopup,
     closeStudiesPopup,
     closeLichessSearchPopup,
+    closeLichessTokenPopup,
     closeOtbSearchPopup,
     closeShortcutsPopup,
     openShortcutsPopup,
@@ -2574,6 +2608,7 @@ function App() {
     goToEnd,
     toggleBoardOrientation,
     toggleMoveHistory,
+    toggleOpeningTreePanel,
     toggleReplayTrainingPanel,
     togglePlayComputerPanel,
     toggleEngineWindow,
@@ -2584,6 +2619,7 @@ function App() {
     closeCreateCollectionPopup,
     closeImportPgnPopup,
     closeLichessSearchPopup,
+    closeLichessTokenPopup,
     closeManageCollectionsPopup,
     closeOtbSearchPopup,
     closeSaveStudyPopup,
@@ -2600,6 +2636,7 @@ function App() {
     toggleEngineWindow,
     toggleImportedPgn,
     toggleMoveHistory,
+    toggleOpeningTreePanel,
     toggleReplayTrainingPanel,
     togglePlayComputerPanel,
     toggleVariants,
@@ -2613,12 +2650,14 @@ function App() {
     showManageCollectionsPopup,
     showStudiesPopup,
     showLichessSearchPopup,
+    showLichessTokenPopup,
     showOtbSearchPopup,
     showShortcutsPopup,
   }), [
     showCreateCollectionPopup,
     showImportPgnPopup,
     showLichessSearchPopup,
+    showLichessTokenPopup,
     showManageCollectionsPopup,
     showOtbSearchPopup,
     showSaveStudyPopup,
@@ -2641,6 +2680,7 @@ function App() {
         canUndo={canUndo}
         canRedo={canRedo}
         showMoveHistory={showMoveHistory}
+        showOpeningTreePanel={showOpeningTreePanel}
         showReplayTrainingPanel={showReplayTrainingPanel}
         showPlayComputerPanel={showPlayComputerPanel}
         showEngineWindow={showEngineWindow}
@@ -2737,6 +2777,16 @@ function App() {
               resetTrainingSession={resetTrainingSession}
             />
           </>
+        )}
+
+        {!isTrainingFocusMode && showOpeningTreePanel && (
+          <OpeningTreePanel
+            fen={fen}
+            currentMoveLabel={currentMoveLabel}
+            lichessApiToken={lichessApiToken}
+            onClose={closeOpeningTreePanel}
+            onOpenLichessTokenPopup={openLichessTokenPopup}
+          />
         )}
 
         {!isTrainingFocusMode && showEngineWindow && (
@@ -2888,6 +2938,14 @@ function App() {
           onSearch={searchLichessGames}
           onImport={importLichessGame}
           onClose={closeLichessSearchPopup}
+        />
+      )}
+
+      {showLichessTokenPopup && (
+        <LichessTokenModal
+          currentToken={lichessApiToken}
+          onClose={closeLichessTokenPopup}
+          onSave={saveLichessToken}
         />
       )}
 

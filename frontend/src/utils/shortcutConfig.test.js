@@ -56,6 +56,10 @@ describe("normalizeShortcutConfig", () => {
           label: "Toggle engine",
           keys: ["j", "Ctrl+L", "Alt+E", "F8"],
         },
+        toggleOpeningTreePanel: {
+          label: "Toggle opening tree",
+          keys: ["o", "Ctrl+T", "Alt+O", "F11"],
+        },
         toggleReplayTrainingPanel: {
           label: "Toggle replay training",
           keys: ["k", "Ctrl+W", "Alt+T", "F9"],
@@ -68,6 +72,17 @@ describe("normalizeShortcutConfig", () => {
     ).toEqual({
       label: "Toggle engine",
       keys: ["F8"],
+    });
+    expect(
+      normalizeShortcutConfig({
+        toggleOpeningTreePanel: {
+          label: "Toggle opening tree",
+          keys: ["o", "Ctrl+T", "Alt+O", "F11"],
+        },
+      }).toggleOpeningTreePanel,
+    ).toEqual({
+      label: "Toggle opening tree",
+      keys: ["F11"],
     });
     expect(
       normalizeShortcutConfig({

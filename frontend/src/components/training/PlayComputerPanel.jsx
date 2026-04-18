@@ -67,8 +67,6 @@ function PlayComputerPanel({
   onClose,
   normalizedTrainingState,
   setTrainingPlayerSide,
-  whiteTrainingLabel,
-  blackTrainingLabel,
   isReplayTrainingActive,
   isTrainingPlayActive,
   isEngineOpponentUserTurn,
