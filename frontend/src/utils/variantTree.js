@@ -899,6 +899,43 @@ export function removeVariantLine(tree, leafId) {
   return finalizeVariantTree(nextTree);
 }
 
+export function truncateLineAfterNode(tree, nodeId) {
+  const normalizedTree = normalizeVariantTree(tree);
+
+  if (!normalizedTree.nodes[nodeId]) {
+    return normalizedTree;
+  }
+
+  const activePathNodeIds = findNodePathIds(normalizedTree, normalizedTree.activeLineLeafId);
+  const targetIndex = activePathNodeIds.indexOf(nodeId);
+
+  if (targetIndex < 0 || targetIndex >= activePathNodeIds.length - 1) {
+    return normalizedTree;
+  }
+
+  const removableChildId = activePathNodeIds[targetIndex + 1];
+  const nextTree = {
+    ...normalizedTree,
+    nodes: cloneNodes(normalizedTree.nodes),
+  };
+  const targetNode = nextTree.nodes[nodeId];
+  const removedNodeIds = collectSubtreeNodeIds(nextTree, removableChildId);
+
+  targetNode.children = targetNode.children.filter((childId) => childId !== removableChildId);
+
+  removedNodeIds.forEach((removedNodeId) => {
+    delete nextTree.nodes[removedNodeId];
+  });
+
+  if (removedNodeIds.has(nextTree.currentNodeId)) {
+    nextTree.currentNodeId = nodeId;
+  }
+
+  nextTree.activeLineLeafId = nodeId;
+
+  return finalizeVariantTree(nextTree);
+}
+
 export function getVariantLines(tree) {
   const normalizedTree = normalizeVariantTree(tree);
   const leafNodeIds = findLeafNodeIds(normalizedTree);

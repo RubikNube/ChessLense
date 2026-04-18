@@ -26,6 +26,7 @@ import {
   redoInVariantTree,
   removeVariantLine,
   selectVariantLine,
+  truncateLineAfterNode,
   undoInVariantTree,
 } from "./variantTree.js";
 import { parse } from "chess.js/src/pgn.js";
@@ -216,6 +217,46 @@ describe("variantTree", () => {
         hasVariants: false,
         isSelected: false,
       }),
+    ]);
+  });
+
+  it("truncates only the active continuation after a selected node", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = applyMoveToVariantTree(tree, { from: "b8", to: "c6" });
+    tree = goToNodeInVariantTree(tree, getMoveHistoryEntries(tree)[1].nodeId);
+    tree = applyMoveToVariantTree(tree, { from: "f1", to: "c4" });
+
+    const e5NodeId = getMoveHistoryEntries(tree)[1].nodeId;
+
+    tree = truncateLineAfterNode(tree, e5NodeId);
+
+    expect(getMoveHistoryEntries(tree).map((entry) => entry.san)).toEqual(["e4", "e5"]);
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5"]);
+    expect(tree.currentNodeId).toBe(e5NodeId);
+    expect(tree.activeLineLeafId).toBe(e5NodeId);
+    expect(tree.nodes[e5NodeId].children).toHaveLength(1);
+    expect(getVariantLines(tree).map((line) => line.moves)).toEqual([["e4", "e5", "Nf3", "Nc6"]]);
+  });
+
+  it("creates a new variant after jumping to an earlier move from history", () => {
+    let tree = createVariantTreeFromMoves([
+      { from: "e2", to: "e4" },
+      { from: "e7", to: "e5" },
+      { from: "g1", to: "f3" },
+    ]);
+    const e5NodeId = getMoveHistoryEntries(tree)[1].nodeId;
+
+    tree = goToNodeInVariantTree(tree, e5NodeId);
+    tree = applyMoveToVariantTree(tree, { from: "f1", to: "c4" });
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Bc4"]);
+    expect(getVariantLines(tree).map((line) => line.moves)).toEqual([
+      ["e4", "e5", "Nf3"],
+      ["e4", "e5", "Bc4"],
     ]);
   });
 

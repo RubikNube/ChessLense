@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const actionRowStyle = {
   display: "flex",
@@ -30,6 +30,35 @@ const disabledActionButtonStyle = {
   opacity: 0.75,
 };
 
+const contextMenuStyle = {
+  position: "fixed",
+  zIndex: 1100,
+  minWidth: "13rem",
+  padding: "0.35rem",
+  border: "1px solid #d0d7de",
+  borderRadius: "0.65rem",
+  backgroundColor: "#ffffff",
+  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.16)",
+};
+
+const contextMenuButtonStyle = {
+  width: "100%",
+  padding: "0.6rem 0.75rem",
+  border: "none",
+  borderRadius: "0.45rem",
+  backgroundColor: "transparent",
+  color: "#111827",
+  textAlign: "left",
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const disabledContextMenuButtonStyle = {
+  ...contextMenuButtonStyle,
+  color: "#9ca3af",
+  cursor: "not-allowed",
+};
+
 function MoveHistory({
   moveHistoryItems,
   currentMoveIndex,
@@ -42,9 +71,11 @@ function MoveHistory({
   onRedo,
   onGoToStart,
   onGoToEnd,
+  onRevertMovesUntil,
 }) {
   const moveHistoryRef = useRef(null);
   const selectedMoveRef = useRef(null);
+  const [contextMenu, setContextMenu] = useState(null);
   const groupedMoveHistory = useMemo(
     () =>
       moveHistoryItems.reduce((pairs, moveEntry, index) => {
@@ -101,6 +132,44 @@ function MoveHistory({
     }
   }, [currentMoveIndex]);
 
+  useEffect(() => {
+    if (!contextMenu) {
+      return undefined;
+    }
+
+    function closeContextMenu() {
+      setContextMenu(null);
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        closeContextMenu();
+      }
+    }
+
+    window.addEventListener("pointerdown", closeContextMenu);
+    window.addEventListener("resize", closeContextMenu);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", closeContextMenu);
+      window.removeEventListener("resize", closeContextMenu);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [contextMenu]);
+
+  const lastMoveNodeId = moveHistoryItems[moveHistoryItems.length - 1]?.nodeId ?? null;
+
+  function openContextMenu(event, moveEntry) {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      moveEntry,
+    });
+  }
+
   return (
     <div
       className="card move-history-card"
@@ -132,6 +201,7 @@ function MoveHistory({
                       ref={whiteIndex === currentMoveIndex ? selectedMoveRef : null}
                       className={`move-entry move-entry-button${whiteIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
                       onClick={() => onSelectMove(white.nodeId)}
+                      onContextMenu={(event) => openContextMenu(event, white)}
                     >
                       <span>{white.san}</span>
                       {(white.hasVariants || white.hasComments) && (
@@ -150,6 +220,7 @@ function MoveHistory({
                       ref={blackIndex === currentMoveIndex ? selectedMoveRef : null}
                       className={`move-entry move-entry-button${blackIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
                       onClick={() => onSelectMove(black.nodeId)}
+                      onContextMenu={(event) => openContextMenu(event, black)}
                     >
                       <span>{black.san}</span>
                       {(black.hasVariants || black.hasComments) && (
@@ -210,6 +281,39 @@ function MoveHistory({
           ⏭
         </button>
       </div>
+      {contextMenu && (
+        <div
+          style={{
+            ...contextMenuStyle,
+            left: `${Math.min(contextMenu.x, window.innerWidth - 220)}px`,
+            top: `${Math.min(contextMenu.y, window.innerHeight - 80)}px`,
+          }}
+          role="menu"
+          aria-label={`Move actions for ${contextMenu.moveEntry.san}`}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            style={
+              contextMenu.moveEntry.nodeId === lastMoveNodeId
+                ? disabledContextMenuButtonStyle
+                : contextMenuButtonStyle
+            }
+            onClick={() => {
+              if (contextMenu.moveEntry.nodeId === lastMoveNodeId) {
+                return;
+              }
+
+              onRevertMovesUntil(contextMenu.moveEntry.nodeId);
+              setContextMenu(null);
+            }}
+            disabled={contextMenu.moveEntry.nodeId === lastMoveNodeId}
+          >
+            Revert moves until here
+          </button>
+        </div>
+      )}
     </div>
   );
 }

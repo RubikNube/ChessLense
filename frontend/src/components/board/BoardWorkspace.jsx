@@ -25,6 +25,7 @@ function BoardWorkspace({
   onRedo,
   onGoToStart,
   onGoToEnd,
+  onRevertMovesUntil,
   children,
 }) {
   const arrows = showVariantArrows ? variantArrows : [];
@@ -72,6 +73,7 @@ function BoardWorkspace({
               onRedo={onRedo}
               onGoToStart={onGoToStart}
               onGoToEnd={onGoToEnd}
+              onRevertMovesUntil={onRevertMovesUntil}
             />
           )}
         </div>

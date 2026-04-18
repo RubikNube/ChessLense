@@ -81,6 +81,7 @@ import {
   redoInVariantTree,
   removeVariantLine,
   selectVariantLine,
+  truncateLineAfterNode,
   undoInVariantTree,
 } from "./utils/variantTree.js";
 import {
@@ -1555,6 +1556,13 @@ function App() {
     setEvaluationResult(null);
   }, [resetTrainingSession]);
 
+  const revertMoveHistoryToNode = useCallback((nodeId) => {
+    resetTrainingSession();
+    setVariantTree((currentValue) => truncateLineAfterNode(currentValue, nodeId));
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [resetTrainingSession]);
+
   const selectVariant = useCallback((lineId) => {
     resetTrainingSession();
     setVariantTree((currentValue) => selectVariantLine(currentValue, lineId));
@@ -2714,6 +2722,7 @@ function App() {
         onRedo={redoMove}
         onGoToStart={goToStart}
         onGoToEnd={goToEnd}
+        onRevertMovesUntil={revertMoveHistoryToNode}
       >
         {showPlayComputerPanel && !isTrainingFocusMode && (
           <>
