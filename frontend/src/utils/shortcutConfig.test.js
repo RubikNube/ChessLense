@@ -56,9 +56,13 @@ describe("normalizeShortcutConfig", () => {
           label: "Toggle engine",
           keys: ["j", "Ctrl+L", "Alt+E", "F8"],
         },
-        toggleTrainingWindow: {
-          label: "Toggle training",
+        toggleReplayTrainingPanel: {
+          label: "Toggle replay training",
           keys: ["k", "Ctrl+W", "Alt+T", "F9"],
+        },
+        togglePlayComputerPanel: {
+          label: "Toggle play computer",
+          keys: ["l", "Ctrl+R", "Alt+P", "F10"],
         },
       }).toggleEngineWindow,
     ).toEqual({
@@ -67,14 +71,25 @@ describe("normalizeShortcutConfig", () => {
     });
     expect(
       normalizeShortcutConfig({
-        toggleTrainingWindow: {
-          label: "Toggle training",
+        toggleReplayTrainingPanel: {
+          label: "Toggle replay training",
           keys: ["k", "Ctrl+W", "Alt+T", "F9"],
         },
-      }).toggleTrainingWindow,
+      }).toggleReplayTrainingPanel,
     ).toEqual({
-      label: "Toggle training",
+      label: "Toggle replay training",
       keys: ["F9"],
+    });
+    expect(
+      normalizeShortcutConfig({
+        togglePlayComputerPanel: {
+          label: "Toggle play computer",
+          keys: ["l", "Ctrl+R", "Alt+P", "F10"],
+        },
+      }).togglePlayComputerPanel,
+    ).toEqual({
+      label: "Toggle play computer",
+      keys: ["F10"],
     });
   });
 });

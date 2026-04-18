@@ -6,7 +6,8 @@ function AppMenuBar({
   canUndo,
   canRedo,
   showMoveHistory,
-  showTrainingWindow,
+  showReplayTrainingPanel,
+  showPlayComputerPanel,
   showEngineWindow,
   showEvaluationBar,
   showComments,
@@ -178,9 +179,16 @@ function AppMenuBar({
             <button
               type="button"
               className="menu-entry"
-              onClick={() => onMenuAction(actions.toggleTrainingWindow)}
+              onClick={() => onMenuAction(actions.toggleReplayTrainingPanel)}
             >
-              {showTrainingWindow ? "Hide Training" : "Show Training"}
+              {showReplayTrainingPanel ? "Hide Replay Training" : "Show Replay Training"}
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
+              onClick={() => onMenuAction(actions.togglePlayComputerPanel)}
+            >
+              {showPlayComputerPanel ? "Hide Play vs Computer" : "Show Play vs Computer"}
             </button>
             <button
               type="button"

@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   buildReplayAttempt,
   classifyReplayDelta,
+  createComputerPlayTrainingState,
   createEmptyTrainingState,
   createReplayTrainingState,
   getCurrentReplayMove,
   isCriticalReplayDelta,
   normalizeTrainingState,
   summarizeReplayAttempts,
+  TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+  TRAINING_COMPUTER_PLAY_SOURCE_INITIAL,
   TRAINING_COMPLETION_REVEALED,
+  TRAINING_MODE_PLAY_COMPUTER,
   TRAINING_SIDE_BLACK,
   TRAINING_SIDE_WHITE,
   TRAINING_MODE_REPLAY_GAME,
@@ -36,6 +40,7 @@ describe("training helpers", () => {
       lastCompletedAttempts: [],
       lastCompletedExpectedMove: null,
       lastCompletionMode: null,
+      computerPlay: null,
       playSession: null,
     });
   });
@@ -79,6 +84,29 @@ describe("training helpers", () => {
         moveNumber: 1,
         side: "white",
         san: "e4",
+      }),
+    );
+  });
+
+  it("builds a standalone computer-play session from a starting tree", () => {
+    const startVariantTree = createEmptyVariantTree();
+    const { trainingState, variantTree, error } = createComputerPlayTrainingState(
+      startVariantTree,
+      TRAINING_SIDE_BLACK,
+      TRAINING_COMPUTER_PLAY_SOURCE_INITIAL,
+    );
+
+    expect(error).toBeNull();
+    expect(variantTree).toEqual(startVariantTree);
+    expect(trainingState).toEqual(
+      expect.objectContaining({
+        mode: TRAINING_MODE_PLAY_COMPUTER,
+        status: TRAINING_STATUS_ACTIVE,
+        playerSide: TRAINING_SIDE_BLACK,
+        computerPlay: {
+          startFrom: TRAINING_COMPUTER_PLAY_SOURCE_INITIAL,
+          startVariantTree,
+        },
       }),
     );
   });
@@ -401,6 +429,54 @@ describe("training helpers", () => {
             resultingFen: wrongAttempt.resultingFen,
           }),
         ],
+      }),
+    );
+  });
+
+  it("normalizes persisted standalone computer-play sessions", () => {
+    const startVariantTree = createEmptyVariantTree(
+      "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+    );
+
+    const normalizedState = normalizeTrainingState({
+      mode: TRAINING_MODE_PLAY_COMPUTER,
+      status: TRAINING_STATUS_ACTIVE,
+      playerSide: TRAINING_SIDE_WHITE,
+      progressPly: 99,
+      referenceMoves: [
+        {
+          ply: 1,
+          moveNumber: 1,
+          side: "white",
+          san: "e4",
+          move: { from: "e2", to: "e4" },
+          fenBefore: "before-1",
+          fenAfter: "after-1",
+        },
+      ],
+      computerPlay: {
+        startFrom: TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+        startVariantTree,
+      },
+    });
+
+    expect(normalizedState).toEqual(
+      expect.objectContaining({
+        mode: TRAINING_MODE_PLAY_COMPUTER,
+        status: TRAINING_STATUS_ACTIVE,
+        playerSide: TRAINING_SIDE_WHITE,
+        progressPly: 0,
+        referenceMoves: [],
+        attempts: [],
+        pendingAttempts: [],
+        lastCompletedAttempts: [],
+        lastCompletedExpectedMove: null,
+        lastCompletionMode: null,
+        computerPlay: {
+          startFrom: TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+          startVariantTree,
+        },
+        playSession: null,
       }),
     );
   });

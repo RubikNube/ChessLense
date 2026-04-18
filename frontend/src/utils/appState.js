@@ -25,7 +25,8 @@ export const SHORTCUT_ACTION_ORDER = [
   "goToEnd",
   "flipBoard",
   "toggleMoveHistory",
-  "toggleTrainingWindow",
+  "toggleReplayTrainingPanel",
+  "togglePlayComputerPanel",
   "toggleEngineWindow",
   "toggleComments",
   "toggleImportedPgn",
@@ -35,7 +36,8 @@ export const SHORTCUT_ACTION_ORDER = [
 
 const VIEW_TOGGLE_SHORTCUT_ACTIONS = new Set([
   "toggleMoveHistory",
-  "toggleTrainingWindow",
+  "toggleReplayTrainingPanel",
+  "togglePlayComputerPanel",
   "toggleEngineWindow",
   "toggleComments",
   "toggleImportedPgn",
@@ -103,9 +105,13 @@ export const DEFAULT_SHORTCUT_CONFIG = {
     label: "Toggle move history",
     keys: ["Ctrl+Shift+F2"],
   },
-  toggleTrainingWindow: {
-    label: "Toggle training",
+  toggleReplayTrainingPanel: {
+    label: "Toggle replay training panel",
     keys: ["Ctrl+Shift+F5"],
+  },
+  togglePlayComputerPanel: {
+    label: "Toggle play vs computer panel",
+    keys: ["Ctrl+Shift+F6"],
   },
   toggleEngineWindow: {
     label: "Toggle engine",
@@ -328,6 +334,18 @@ function sanitizeShortcutKeys(actionName, shortcutKeys) {
   return shortcutKeys.filter((shortcutKey) => !isUnsafeViewToggleShortcut(shortcutKey));
 }
 
+function resolvePersistedPanelVisibility(parsedState, panelKey, legacyKey, fallbackValue = true) {
+  if (typeof parsedState?.[panelKey] === "boolean") {
+    return parsedState[panelKey];
+  }
+
+  if (typeof parsedState?.[legacyKey] === "boolean") {
+    return parsedState[legacyKey];
+  }
+
+  return fallbackValue;
+}
+
 export function normalizeShortcutConfig(config) {
   if (!config || typeof config !== "object") {
     return DEFAULT_SHORTCUT_CONFIG;
@@ -516,10 +534,16 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showMoveHistory === "boolean"
           ? parsedState.showMoveHistory
           : true,
-      showTrainingWindow:
-        typeof parsedState.showTrainingWindow === "boolean"
-          ? parsedState.showTrainingWindow
-          : true,
+      showReplayTrainingPanel: resolvePersistedPanelVisibility(
+        parsedState,
+        "showReplayTrainingPanel",
+        "showTrainingWindow",
+      ),
+      showPlayComputerPanel: resolvePersistedPanelVisibility(
+        parsedState,
+        "showPlayComputerPanel",
+        "showTrainingWindow",
+      ),
       showEngineWindow:
         typeof parsedState.showEngineWindow === "boolean"
           ? parsedState.showEngineWindow
@@ -578,7 +602,8 @@ export function serializePersistedAppState({
   engineSearchDepth,
   boardOrientation,
   showMoveHistory,
-  showTrainingWindow,
+  showReplayTrainingPanel,
+  showPlayComputerPanel,
   showEngineWindow,
   showEvaluationBar,
   showComments,
@@ -596,7 +621,8 @@ export function serializePersistedAppState({
     engineSearchDepth: normalizeEngineSearchDepth(engineSearchDepth),
     boardOrientation,
     showMoveHistory,
-    showTrainingWindow,
+    showReplayTrainingPanel,
+    showPlayComputerPanel,
     showEngineWindow,
     showEvaluationBar,
     showComments,

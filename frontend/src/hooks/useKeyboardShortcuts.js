@@ -154,9 +154,15 @@ function useKeyboardShortcuts({
         return;
       }
 
-      if (matchesShortcut(event, shortcutConfig.toggleTrainingWindow.keys)) {
+      if (matchesShortcut(event, shortcutConfig.toggleReplayTrainingPanel.keys)) {
         event.preventDefault();
-        actions.toggleTrainingWindow();
+        actions.toggleReplayTrainingPanel();
+        return;
+      }
+
+      if (matchesShortcut(event, shortcutConfig.togglePlayComputerPanel.keys)) {
+        event.preventDefault();
+        actions.togglePlayComputerPanel();
         return;
       }
 

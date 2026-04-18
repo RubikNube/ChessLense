@@ -43,6 +43,14 @@
     "label": "Toggle comments",
     "keys": ["Ctrl+Shift+F4"]
   },
+  "toggleReplayTrainingPanel": {
+    "label": "Toggle replay training panel",
+    "keys": ["Ctrl+Shift+F5"]
+  },
+  "togglePlayComputerPanel": {
+    "label": "Toggle play vs computer panel",
+    "keys": ["Ctrl+Shift+F6"]
+  },
   "toggleImportedPgn": {
     "label": "Toggle imported PGN",
     "keys": ["Ctrl+Shift+F7"]

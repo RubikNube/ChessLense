@@ -15,7 +15,8 @@ import ShortcutsModal from "./components/modals/ShortcutsModal.jsx";
 import StudiesModal from "./components/modals/StudiesModal.jsx";
 import PositionPreviewBoard from "./components/PositionPreviewBoard.jsx";
 import ImportedPgnPanel from "./components/pgn/ImportedPgnPanel.jsx";
-import TrainingPanel from "./components/training/TrainingPanel.jsx";
+import PlayComputerPanel from "./components/training/PlayComputerPanel.jsx";
+import ReplayTrainingPanel from "./components/training/ReplayTrainingPanel.jsx";
 import VariantsView from "./components/VariantsView.jsx";
 import {
   createUserPositionComment,
@@ -82,14 +83,18 @@ import {
 } from "./utils/variantTree.js";
 import {
   buildReplayAttempt,
+  createComputerPlayTrainingState,
   createEmptyTrainingState,
   createReplayTrainingState,
   getCurrentReplayMove,
   normalizeTrainingState,
   REPLAY_RESULT_MATCH,
   summarizeReplayAttempts,
+  TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+  TRAINING_COMPUTER_PLAY_SOURCE_INITIAL,
   TRAINING_COMPLETION_MATCH,
   TRAINING_COMPLETION_REVEALED,
+  TRAINING_MODE_PLAY_COMPUTER,
   TRAINING_MODE_REPLAY_GAME,
   TRAINING_PLAY_STATUS_ACTIVE,
   TRAINING_SIDE_BLACK,
@@ -232,6 +237,43 @@ function getTrainingSideForTurn(turn) {
   return turn === "b" ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
 }
 
+function getComputerPlaySourceLabel(startFrom) {
+  return startFrom === TRAINING_COMPUTER_PLAY_SOURCE_INITIAL
+    ? "initial position"
+    : "current position";
+}
+
+function getComputerPlayOutcomeText(game, playerSide) {
+  if (!(game instanceof Chess) || !game.isGameOver()) {
+    return "";
+  }
+
+  if (game.isCheckmate()) {
+    const winnerSide = game.turn() === "w" ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
+    return winnerSide === playerSide
+      ? "You won by checkmate."
+      : "Computer won by checkmate.";
+  }
+
+  if (game.isStalemate()) {
+    return "Draw by stalemate.";
+  }
+
+  if (game.isThreefoldRepetition()) {
+    return "Draw by repetition.";
+  }
+
+  if (game.isInsufficientMaterial()) {
+    return "Draw by insufficient material.";
+  }
+
+  if (game.isDraw()) {
+    return "Game drawn.";
+  }
+
+  return "Game over.";
+}
+
 function App() {
   const persistedAppState = useMemo(() => loadPersistedAppState(), []);
   const [variantTree, setVariantTree] = useState(
@@ -248,8 +290,11 @@ function App() {
   const [showMoveHistory, setShowMoveHistory] = useState(
     () => persistedAppState?.showMoveHistory ?? true,
   );
-  const [showTrainingWindow, setShowTrainingWindow] = useState(
-    () => persistedAppState?.showTrainingWindow ?? true,
+  const [showReplayTrainingPanel, setShowReplayTrainingPanel] = useState(
+    () => persistedAppState?.showReplayTrainingPanel ?? true,
+  );
+  const [showPlayComputerPanel, setShowPlayComputerPanel] = useState(
+    () => persistedAppState?.showPlayComputerPanel ?? true,
   );
   const [showEngineWindow, setShowEngineWindow] = useState(
     () => persistedAppState?.showEngineWindow ?? true,
@@ -483,7 +528,7 @@ function App() {
     normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
     normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
   const isTrainingFocusMode =
-    showTrainingWindow && normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME;
+    showReplayTrainingPanel && normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME;
   const {
     trainingPreview,
     trainingRequestIdRef,
@@ -491,7 +536,7 @@ function App() {
     showTrainingPreview,
     trainingFocusRestoreRef,
   } = useTrainingController({
-    showTrainingWindow,
+    showReplayTrainingPanel,
     trainingState,
     isTrainingFocusMode,
     showMoveHistory,
@@ -536,11 +581,58 @@ function App() {
     [lastCompletedTrainingAttempts],
   );
   const lastCompletedExpectedMove = normalizedTrainingState.lastCompletedExpectedMove;
+  const computerPlayConfig = normalizedTrainingState.computerPlay;
+  const isStandaloneComputerPlay =
+    normalizedTrainingState.mode === TRAINING_MODE_PLAY_COMPUTER;
+  const isStandaloneComputerPlayActive =
+    isStandaloneComputerPlay && normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
+  const isStandaloneComputerPlayCompleted =
+    isStandaloneComputerPlay && normalizedTrainingState.status === TRAINING_STATUS_COMPLETED;
   const activeTrainingPlaySession = normalizedTrainingState.playSession;
   const isTrainingPlayActive = !!activeTrainingPlaySession;
-  const isTrainingPlayUserTurn =
-    isTrainingPlayActive &&
+  const isEngineOpponentSessionActive =
+    isTrainingPlayActive || isStandaloneComputerPlayActive;
+  const isEngineOpponentUserTurn =
+    isEngineOpponentSessionActive &&
     getTrainingSideForTurn(game.turn()) === normalizedTrainingState.playerSide;
+  const computerPlaySourceLabel = useMemo(
+    () => getComputerPlaySourceLabel(computerPlayConfig?.startFrom),
+    [computerPlayConfig?.startFrom],
+  );
+  const computerPlayOutcomeText = useMemo(
+    () =>
+      isStandaloneComputerPlayCompleted
+        ? getComputerPlayOutcomeText(game, normalizedTrainingState.playerSide)
+        : "",
+    [
+      game,
+      isStandaloneComputerPlayCompleted,
+      normalizedTrainingState.playerSide,
+    ],
+  );
+  const computerPlayStatusText = useMemo(() => {
+    if (isTrainingPlayActive) {
+      return "";
+    }
+
+    if (isStandaloneComputerPlayCompleted) {
+      return `Computer game finished from the ${computerPlaySourceLabel}.`;
+    }
+
+    if (isStandaloneComputerPlayActive) {
+      return isEngineOpponentUserTurn
+        ? `Your move from the ${computerPlaySourceLabel}.`
+        : `Computer thinking from the ${computerPlaySourceLabel}.`;
+    }
+
+    return "Start a game against Stockfish from the initial or current position.";
+  }, [
+    computerPlaySourceLabel,
+    isEngineOpponentUserTurn,
+    isStandaloneComputerPlayActive,
+    isStandaloneComputerPlayCompleted,
+    isTrainingPlayActive,
+  ]);
   const replaySummary = useMemo(
     () =>
       summarizeReplayAttempts(
@@ -559,6 +651,13 @@ function App() {
         : replaySummary.totalMoves,
     [currentReplayMove, normalizedTrainingState, replaySummary.totalMoves],
   );
+  const trainingPanelHeight = useMemo(() => {
+    if (!boardPanelHeight) {
+      return undefined;
+    }
+
+    return Math.max(260, Math.floor((boardPanelHeight - 16) / 2));
+  }, [boardPanelHeight]);
 
   const resetTrainingSession = useCallback(() => {
     trainingRequestIdRef.current += 1;
@@ -607,14 +706,101 @@ function App() {
     setEvaluationResult(null);
   }, [activeTrainingPlaySession, hideTrainingPreview, trainingRequestIdRef]);
 
+  const startStandaloneComputerPlay = useCallback((startFrom) => {
+    const startVariantTree =
+      startFrom === TRAINING_COMPUTER_PLAY_SOURCE_INITIAL
+        ? createEmptyVariantTree()
+        : normalizeVariantTree(variantTree);
+    const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
+      createComputerPlayTrainingState(
+        startVariantTree,
+        normalizedTrainingState.playerSide,
+        startFrom,
+      );
+
+    if (error || !nextVariantTree) {
+      setTrainingError(error ?? "Unable to start computer play.");
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    setVariantTree(nextVariantTree);
+    setTrainingState(nextTrainingState);
+    hideTrainingPreview();
+    setShowPlayComputerPanel(true);
+    setTrainingError("");
+    setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [
+    hideTrainingPreview,
+    normalizedTrainingState.playerSide,
+    trainingRequestIdRef,
+    variantTree,
+  ]);
+
+  const restartStandaloneComputerPlay = useCallback(() => {
+    if (!computerPlayConfig?.startVariantTree || !computerPlayConfig?.startFrom) {
+      return;
+    }
+
+    const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
+      createComputerPlayTrainingState(
+        computerPlayConfig.startVariantTree,
+        normalizedTrainingState.playerSide,
+        computerPlayConfig.startFrom,
+      );
+
+    if (error || !nextVariantTree) {
+      setTrainingError(error ?? "Unable to restart computer play.");
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    setVariantTree(nextVariantTree);
+    setTrainingState(nextTrainingState);
+    hideTrainingPreview();
+    setTrainingError("");
+    setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [
+    computerPlayConfig,
+    hideTrainingPreview,
+    normalizedTrainingState.playerSide,
+    trainingRequestIdRef,
+  ]);
+
+  const exitStandaloneComputerPlay = useCallback(() => {
+    if (!isStandaloneComputerPlay) {
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    hideTrainingPreview();
+    setTrainingState(createEmptyTrainingState(normalizedTrainingState.playerSide));
+    setTrainingError("");
+    setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [
+    hideTrainingPreview,
+    isStandaloneComputerPlay,
+    normalizedTrainingState.playerSide,
+    trainingRequestIdRef,
+  ]);
+
   const requestTrainingPlayEngineMove = useCallback(async () => {
     if (
-      !isTrainingPlayActive ||
+      !isEngineOpponentSessionActive ||
       trainingPlayAutoReplyPaused ||
       trainingError ||
       trainingLoading ||
       game.isGameOver() ||
-      getTrainingSideForTurn(game.turn()) === normalizedTrainingState.playerSide
+      isEngineOpponentUserTurn
     ) {
       return;
     }
@@ -669,8 +855,8 @@ function App() {
     engineSearchDepth,
     fen,
     game,
-    isTrainingPlayActive,
-    normalizedTrainingState.playerSide,
+    isEngineOpponentSessionActive,
+    isEngineOpponentUserTurn,
     trainingPlayAutoReplyPaused,
     trainingError,
     trainingLoading,
@@ -766,6 +952,30 @@ function App() {
     requestTrainingPlayEngineMove();
   }, [requestTrainingPlayEngineMove]);
 
+  useEffect(() => {
+    if (!isStandaloneComputerPlayActive || !game.isGameOver()) {
+      return;
+    }
+
+    setTrainingState((currentValue) => {
+      const currentTrainingState = normalizeTrainingState(currentValue);
+
+      if (
+        currentTrainingState.mode !== TRAINING_MODE_PLAY_COMPUTER ||
+        currentTrainingState.status === TRAINING_STATUS_COMPLETED
+      ) {
+        return currentTrainingState;
+      }
+
+      return normalizeTrainingState({
+        ...currentTrainingState,
+        status: TRAINING_STATUS_COMPLETED,
+      });
+    });
+    setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
+  }, [game, isStandaloneComputerPlayActive]);
+
   const setTrainingPlayerSide = useCallback((playerSide) => {
     if (playerSide !== TRAINING_SIDE_WHITE && playerSide !== TRAINING_SIDE_BLACK) {
       return;
@@ -775,8 +985,11 @@ function App() {
       const currentTrainingState = normalizeTrainingState(currentValue);
 
       if (
-        currentTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
-        currentTrainingState.status === TRAINING_STATUS_ACTIVE
+        (currentTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
+          currentTrainingState.status === TRAINING_STATUS_ACTIVE) ||
+        (currentTrainingState.mode === TRAINING_MODE_PLAY_COMPUTER &&
+          currentTrainingState.status === TRAINING_STATUS_ACTIVE
+        )
       ) {
         return currentTrainingState;
       }
@@ -930,6 +1143,7 @@ function App() {
 
     trainingRequestIdRef.current += 1;
     setVariantTree(preparedReplayTree);
+    setShowReplayTrainingPanel(true);
     setEngineResult(null);
     setEvaluationResult(null);
     setTrainingState(preparedTrainingState);
@@ -1024,8 +1238,8 @@ function App() {
       ...(appliedUserMove.promotion ? { promotion: appliedUserMove.promotion } : {}),
     };
 
-    if (isTrainingPlayActive) {
-      if (!isTrainingPlayUserTurn) {
+    if (isTrainingPlayActive || isStandaloneComputerPlayActive) {
+      if (!isEngineOpponentUserTurn) {
         return false;
       }
 
@@ -1041,6 +1255,10 @@ function App() {
       setEngineResult(null);
       setEvaluationResult(null);
       return true;
+    }
+
+    if (isStandaloneComputerPlayCompleted) {
+      return false;
     }
 
     if (isReplayTrainingActive && currentReplayMove) {
@@ -2004,7 +2222,8 @@ function App() {
         engineSearchDepth,
         boardOrientation,
         showMoveHistory: persistedRightSideViews.showMoveHistory,
-        showTrainingWindow,
+        showReplayTrainingPanel,
+        showPlayComputerPanel,
         showEngineWindow: persistedRightSideViews.showEngineWindow,
         showEvaluationBar,
         showComments: persistedRightSideViews.showComments,
@@ -2033,7 +2252,8 @@ function App() {
     showComments,
     showImportedPgn,
     showMoveHistory,
-    showTrainingWindow,
+    showReplayTrainingPanel,
+    showPlayComputerPanel,
     showVariants,
     showVariantArrows,
     trainingState,
@@ -2225,12 +2445,20 @@ function App() {
     setShowMoveHistory(false);
   }, []);
 
-  const toggleTrainingWindow = useCallback(() => {
-    setShowTrainingWindow((currentValue) => !currentValue);
+  const toggleReplayTrainingPanel = useCallback(() => {
+    setShowReplayTrainingPanel((currentValue) => !currentValue);
   }, []);
 
-  const closeTrainingWindow = useCallback(() => {
-    setShowTrainingWindow(false);
+  const closeReplayTrainingPanel = useCallback(() => {
+    setShowReplayTrainingPanel(false);
+  }, []);
+
+  const togglePlayComputerPanel = useCallback(() => {
+    setShowPlayComputerPanel((currentValue) => !currentValue);
+  }, []);
+
+  const closePlayComputerPanel = useCallback(() => {
+    setShowPlayComputerPanel(false);
   }, []);
 
   const toggleEngineWindow = useCallback(() => {
@@ -2295,7 +2523,8 @@ function App() {
     openStudiesPopup,
     toggleBoardOrientation,
     toggleMoveHistory,
-    toggleTrainingWindow,
+    toggleReplayTrainingPanel,
+    togglePlayComputerPanel,
     toggleEngineWindow,
     toggleEvaluationBar,
     toggleComments,
@@ -2319,7 +2548,8 @@ function App() {
     toggleEvaluationBar,
     toggleImportedPgn,
     toggleMoveHistory,
-    toggleTrainingWindow,
+    toggleReplayTrainingPanel,
+    togglePlayComputerPanel,
     toggleVariantArrows,
     toggleVariants,
     undoMove,
@@ -2344,7 +2574,8 @@ function App() {
     goToEnd,
     toggleBoardOrientation,
     toggleMoveHistory,
-    toggleTrainingWindow,
+    toggleReplayTrainingPanel,
+    togglePlayComputerPanel,
     toggleEngineWindow,
     toggleComments,
     toggleImportedPgn,
@@ -2369,7 +2600,8 @@ function App() {
     toggleEngineWindow,
     toggleImportedPgn,
     toggleMoveHistory,
-    toggleTrainingWindow,
+    toggleReplayTrainingPanel,
+    togglePlayComputerPanel,
     toggleVariants,
     undoMove,
   ]);
@@ -2409,7 +2641,8 @@ function App() {
         canUndo={canUndo}
         canRedo={canRedo}
         showMoveHistory={showMoveHistory}
-        showTrainingWindow={showTrainingWindow}
+        showReplayTrainingPanel={showReplayTrainingPanel}
+        showPlayComputerPanel={showPlayComputerPanel}
         showEngineWindow={showEngineWindow}
         showEvaluationBar={showEvaluationBar}
         showComments={showComments}
@@ -2442,38 +2675,68 @@ function App() {
         onGoToStart={goToStart}
         onGoToEnd={goToEnd}
       >
-        {showTrainingWindow && (
-          <TrainingPanel
-            boardPanelHeight={boardPanelHeight}
-            onClose={closeTrainingWindow}
-            hasReplaySource={hasReplaySource}
-            normalizedTrainingState={normalizedTrainingState}
-            setTrainingPlayerSide={setTrainingPlayerSide}
-            isReplayTrainingActive={isReplayTrainingActive}
-            isTrainingPlayActive={isTrainingPlayActive}
-            trainingLoading={trainingLoading}
-            whiteTrainingLabel={whiteTrainingLabel}
-            blackTrainingLabel={blackTrainingLabel}
-            currentReplayMoveNumber={currentReplayMoveNumber}
-            replaySummary={replaySummary}
-            activeTrainingPlaySession={activeTrainingPlaySession}
-            isTrainingPlayUserTurn={isTrainingPlayUserTurn}
-            exitTrainingPlayMode={exitTrainingPlayMode}
-            currentReplayMove={currentReplayMove}
-            trainingError={trainingError}
-            pendingTrainingAttempts={pendingTrainingAttempts}
-            currentMoveLabel={currentMoveLabel}
-            showTrainingPreview={showTrainingPreview}
-            hideTrainingPreview={hideTrainingPreview}
-            startTrainingPlayMode={startTrainingPlayMode}
-            retryReplayMove={retryReplayMove}
-            revealReplayMove={revealReplayMove}
-            lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
-            lastCompletedExpectedMove={lastCompletedExpectedMove}
-            lastCompletedIncorrectTrainingAttempts={lastCompletedIncorrectTrainingAttempts}
-            startReplayTraining={startReplayTraining}
-            resetTrainingSession={resetTrainingSession}
-          />
+        {showPlayComputerPanel && !isTrainingFocusMode && (
+          <>
+            <PlayComputerPanel
+              panelHeight={boardPanelHeight}
+              onClose={closePlayComputerPanel}
+              normalizedTrainingState={normalizedTrainingState}
+              setTrainingPlayerSide={setTrainingPlayerSide}
+              isReplayTrainingActive={isReplayTrainingActive}
+              isTrainingPlayActive={isTrainingPlayActive}
+              isEngineOpponentUserTurn={isEngineOpponentUserTurn}
+              isStandaloneComputerPlayActive={isStandaloneComputerPlayActive}
+              isStandaloneComputerPlayCompleted={isStandaloneComputerPlayCompleted}
+              computerPlaySourceLabel={computerPlaySourceLabel}
+              computerPlayStatusText={computerPlayStatusText}
+              computerPlayOutcomeText={computerPlayOutcomeText}
+              trainingLoading={trainingLoading}
+              trainingError={trainingError}
+              startComputerPlayFromInitialPosition={() =>
+                startStandaloneComputerPlay(TRAINING_COMPUTER_PLAY_SOURCE_INITIAL)
+              }
+              startComputerPlayFromCurrentPosition={() =>
+                startStandaloneComputerPlay(TRAINING_COMPUTER_PLAY_SOURCE_CURRENT)
+              }
+              restartStandaloneComputerPlay={restartStandaloneComputerPlay}
+              exitStandaloneComputerPlay={exitStandaloneComputerPlay}
+            />
+          </>
+        )}
+        {showReplayTrainingPanel && (
+          <>
+            <ReplayTrainingPanel
+              panelHeight={boardPanelHeight}
+              onClose={closeReplayTrainingPanel}
+              hasReplaySource={hasReplaySource}
+              normalizedTrainingState={normalizedTrainingState}
+              setTrainingPlayerSide={setTrainingPlayerSide}
+              isReplayTrainingActive={isReplayTrainingActive}
+              isTrainingPlayActive={isTrainingPlayActive}
+              trainingLoading={trainingLoading}
+              whiteTrainingLabel={whiteTrainingLabel}
+              blackTrainingLabel={blackTrainingLabel}
+              currentReplayMoveNumber={currentReplayMoveNumber}
+              replaySummary={replaySummary}
+              activeTrainingPlaySession={activeTrainingPlaySession}
+              isEngineOpponentUserTurn={isEngineOpponentUserTurn}
+              exitTrainingPlayMode={exitTrainingPlayMode}
+              currentReplayMove={currentReplayMove}
+              trainingError={trainingError}
+              pendingTrainingAttempts={pendingTrainingAttempts}
+              currentMoveLabel={currentMoveLabel}
+              showTrainingPreview={showTrainingPreview}
+              hideTrainingPreview={hideTrainingPreview}
+              startTrainingPlayMode={startTrainingPlayMode}
+              retryReplayMove={retryReplayMove}
+              revealReplayMove={revealReplayMove}
+              lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
+              lastCompletedExpectedMove={lastCompletedExpectedMove}
+              lastCompletedIncorrectTrainingAttempts={lastCompletedIncorrectTrainingAttempts}
+              startReplayTraining={startReplayTraining}
+              resetTrainingSession={resetTrainingSession}
+            />
+          </>
         )}
 
         {!isTrainingFocusMode && showEngineWindow && (

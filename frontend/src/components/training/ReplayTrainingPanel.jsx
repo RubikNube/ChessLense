@@ -50,8 +50,65 @@ function formatReplayDelta(deltaCp) {
   return pawns > 0 ? `+${pawns.toFixed(2)}` : pawns.toFixed(2);
 }
 
-function TrainingPanel({
-  boardPanelHeight,
+function TrainingPanelHeader({ title, onClose, closeLabel }) {
+  return (
+    <div className="card-header">
+      <h2>{title}</h2>
+      <button
+        type="button"
+        className="card-close-button"
+        onClick={onClose}
+        aria-label={closeLabel}
+        title={closeLabel}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+function TrainingSideSelector({
+  normalizedTrainingState,
+  setTrainingPlayerSide,
+  whiteTrainingLabel,
+  blackTrainingLabel,
+  disabled,
+}) {
+  return (
+    <div className="training-side-selector">
+      <span className="annotation-label">Play as</span>
+      <div className="training-side-options">
+        <button
+          type="button"
+          className={
+            normalizedTrainingState.playerSide === TRAINING_SIDE_WHITE
+              ? "annotation-primary-button"
+              : "annotation-secondary-button"
+          }
+          onClick={() => setTrainingPlayerSide(TRAINING_SIDE_WHITE)}
+          disabled={disabled}
+        >
+          {whiteTrainingLabel}
+        </button>
+        <button
+          type="button"
+          className={
+            normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK
+              ? "annotation-primary-button"
+              : "annotation-secondary-button"
+          }
+          onClick={() => setTrainingPlayerSide(TRAINING_SIDE_BLACK)}
+          disabled={disabled}
+        >
+          {blackTrainingLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ReplayTrainingPanel({
+  panelHeight,
   onClose,
   hasReplaySource,
   normalizedTrainingState,
@@ -64,8 +121,7 @@ function TrainingPanel({
   currentReplayMoveNumber,
   replaySummary,
   activeTrainingPlaySession,
-  isTrainingPlayUserTurn,
-  exitTrainingPlayMode,
+  isEngineOpponentUserTurn,
   currentReplayMove,
   trainingError,
   pendingTrainingAttempts,
@@ -80,25 +136,30 @@ function TrainingPanel({
   lastCompletedIncorrectTrainingAttempts,
   startReplayTraining,
   resetTrainingSession,
+  exitTrainingPlayMode,
 }) {
+  const isReplayMode = normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME;
+  const shouldShowReplayFeedback = isReplayMode || isTrainingPlayActive;
+  const sideSelectionDisabled = isReplayTrainingActive || isTrainingPlayActive || trainingLoading;
+
   return (
     <div
       className="card training-card"
-      style={boardPanelHeight ? { height: `${boardPanelHeight}px` } : undefined}
+      style={panelHeight ? { height: `${panelHeight}px` } : undefined}
     >
-      <div className="card-header">
-        <h2>Training</h2>
-        <button
-          type="button"
-          className="card-close-button"
-          onClick={onClose}
-          aria-label="Close Training"
-          title="Close Training"
-        >
-          ×
-        </button>
-      </div>
+      <TrainingPanelHeader
+        title="Replay Training"
+        onClose={onClose}
+        closeLabel="Close Replay Training"
+      />
       <div className="training-card-body">
+        <TrainingSideSelector
+          normalizedTrainingState={normalizedTrainingState}
+          setTrainingPlayerSide={setTrainingPlayerSide}
+          whiteTrainingLabel={whiteTrainingLabel}
+          blackTrainingLabel={blackTrainingLabel}
+          disabled={sideSelectionDisabled}
+        />
         {!hasReplaySource && (
           <p className="annotation-empty">
             Import a game to enable replay training.
@@ -106,45 +167,17 @@ function TrainingPanel({
         )}
         {hasReplaySource && (
           <>
-            <div className="training-side-selector">
-              <span className="annotation-label">Play as</span>
-              <div className="training-side-options">
-                <button
-                  type="button"
-                  className={
-                    normalizedTrainingState.playerSide === TRAINING_SIDE_WHITE
-                      ? "annotation-primary-button"
-                      : "annotation-secondary-button"
-                  }
-                  onClick={() => setTrainingPlayerSide(TRAINING_SIDE_WHITE)}
-                  disabled={isReplayTrainingActive || isTrainingPlayActive || trainingLoading}
-                >
-                  {whiteTrainingLabel}
-                </button>
-                <button
-                  type="button"
-                  className={
-                    normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK
-                      ? "annotation-primary-button"
-                      : "annotation-secondary-button"
-                  }
-                  onClick={() => setTrainingPlayerSide(TRAINING_SIDE_BLACK)}
-                  disabled={isReplayTrainingActive || isTrainingPlayActive || trainingLoading}
-                >
-                  {blackTrainingLabel}
-                </button>
-              </div>
-            </div>
             <p className="current-move-label">
               {isTrainingPlayActive
                 ? "Exploring a wrong try against the computer"
-                : normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
+                : isReplayMode &&
+                    normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
                   ? "Replay complete"
                   : isReplayTrainingActive
                     ? `Replay move ${Math.min(currentReplayMoveNumber, replaySummary.totalMoves)} of ${replaySummary.totalMoves}`
                     : "Replay game mode is ready."}
             </p>
-            {normalizedTrainingState.mode !== TRAINING_MODE_REPLAY_GAME && (
+            {!isReplayMode && (
               <p className="annotation-empty">
                 Start replay mode to test your moves against the imported game.
               </p>
@@ -154,7 +187,7 @@ function TrainingPanel({
                 <div className="annotation-item-header">
                   <span className="annotation-label">Play vs computer</span>
                   <span className="training-feedback-result">
-                    {isTrainingPlayUserTurn ? "Your move" : "Computer move"}
+                    {isEngineOpponentUserTurn ? "Your move" : "Computer move"}
                   </span>
                 </div>
                 <p>
@@ -180,14 +213,14 @@ function TrainingPanel({
                 the next game move when you are ready.
               </p>
             )}
-            {trainingLoading && (
+            {shouldShowReplayFeedback && trainingLoading && (
               <p className="annotation-empty">
                 {isTrainingPlayActive
                   ? "Computer is thinking..."
                   : "Comparing your move with the game move..."}
               </p>
             )}
-            {trainingError && <p className="error">{trainingError}</p>}
+            {shouldShowReplayFeedback && trainingError && <p className="error">{trainingError}</p>}
             {!isTrainingPlayActive &&
               pendingTrainingAttempts.length > 0 &&
               currentReplayMove && (
@@ -339,6 +372,7 @@ function TrainingPanel({
                 </div>
               )}
             {!isTrainingPlayActive &&
+              isReplayMode &&
               normalizedTrainingState.status === TRAINING_STATUS_COMPLETED && (
                 <>
                   <div className="training-summary-grid">
@@ -430,13 +464,13 @@ function TrainingPanel({
                 onClick={startReplayTraining}
                 disabled={trainingLoading}
               >
-                {normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME
+                {isReplayMode
                   ? normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
                     ? "Replay again"
                     : "Restart replay"
                   : "Start replay game"}
               </button>
-              {normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME && (
+              {isReplayMode && (
                 <button
                   type="button"
                   className="annotation-secondary-button"
@@ -454,4 +488,4 @@ function TrainingPanel({
   );
 }
 
-export default TrainingPanel;
+export default ReplayTrainingPanel;

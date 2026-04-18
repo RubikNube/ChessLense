@@ -21,8 +21,11 @@ import {
   serializeMove,
 } from "./appState.js";
 import {
+  createComputerPlayTrainingState,
   createEmptyTrainingState,
+  TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
   TRAINING_SIDE_WHITE,
+  TRAINING_MODE_PLAY_COMPUTER,
   TRAINING_MODE_REPLAY_GAME,
   TRAINING_STATUS_ACTIVE,
 } from "./training.js";
@@ -184,7 +187,8 @@ describe("persisted app state", () => {
       engineSearchDepth: 18,
       boardOrientation: "black",
       showMoveHistory: false,
-      showTrainingWindow: false,
+      showReplayTrainingPanel: false,
+      showPlayComputerPanel: false,
       showEngineWindow: true,
       showEvaluationBar: true,
       showComments: false,
@@ -278,6 +282,7 @@ describe("persisted app state", () => {
         lastCompletedAttempts: [],
         lastCompletedExpectedMove: null,
         lastCompletionMode: null,
+        computerPlay: null,
         playSession: null,
       },
     });
@@ -302,7 +307,8 @@ describe("persisted app state", () => {
         engineSearchDepth: "20",
         boardOrientation: "black",
         showMoveHistory: false,
-        showTrainingWindow: false,
+        showReplayTrainingPanel: false,
+        showPlayComputerPanel: true,
         showEngineWindow: true,
         showEvaluationBar: false,
         showComments: true,
@@ -358,7 +364,8 @@ describe("persisted app state", () => {
       engineSearchDepth: 20,
       boardOrientation: "black",
       showMoveHistory: false,
-      showTrainingWindow: false,
+      showReplayTrainingPanel: false,
+      showPlayComputerPanel: true,
       showEngineWindow: true,
       showEvaluationBar: false,
       showComments: true,
@@ -500,6 +507,36 @@ describe("persisted app state", () => {
     );
   });
 
+  it("persists standalone computer-play sessions with their start snapshot", () => {
+    const storage = createStorage();
+    const startVariantTree = createVariantTreeFromMoves([{ from: "e2", to: "e4" }]);
+    const { trainingState } = createComputerPlayTrainingState(
+      startVariantTree,
+      TRAINING_SIDE_WHITE,
+      TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+    );
+
+    savePersistedAppState(
+      {
+        variantTree: startVariantTree,
+        trainingState,
+      },
+      storage,
+    );
+
+    expect(loadPersistedAppState(storage)?.trainingState).toEqual(
+      expect.objectContaining({
+        mode: TRAINING_MODE_PLAY_COMPUTER,
+        status: TRAINING_STATUS_ACTIVE,
+        playerSide: TRAINING_SIDE_WHITE,
+        computerPlay: {
+          startFrom: TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+          startVariantTree,
+        },
+      }),
+    );
+  });
+
   it("falls back to an empty tree when the persisted variant tree is invalid", () => {
     const storage = createStorage(
       JSON.stringify({
@@ -512,7 +549,8 @@ describe("persisted app state", () => {
       engineSearchDepth: DEFAULT_ENGINE_SEARCH_DEPTH,
       boardOrientation: "white",
       showMoveHistory: true,
-      showTrainingWindow: true,
+      showReplayTrainingPanel: true,
+      showPlayComputerPanel: true,
       showEngineWindow: true,
       showEvaluationBar: true,
       showComments: true,

@@ -5,6 +5,7 @@ import { goToStartInVariantTree } from "./variantTree.js";
 
 export const TRAINING_MODE_OFF = "off";
 export const TRAINING_MODE_REPLAY_GAME = "replay-game";
+export const TRAINING_MODE_PLAY_COMPUTER = "play-computer";
 
 export const TRAINING_STATUS_IDLE = "idle";
 export const TRAINING_STATUS_ACTIVE = "active";
@@ -14,6 +15,8 @@ export const TRAINING_SIDE_BLACK = "black";
 export const TRAINING_COMPLETION_MATCH = "match";
 export const TRAINING_COMPLETION_REVEALED = "revealed";
 export const TRAINING_PLAY_STATUS_ACTIVE = "active";
+export const TRAINING_COMPUTER_PLAY_SOURCE_CURRENT = "current-position";
+export const TRAINING_COMPUTER_PLAY_SOURCE_INITIAL = "initial-position";
 
 export const REPLAY_RESULT_MATCH = "match";
 export const REPLAY_RESULT_BETTER = "better";
@@ -206,7 +209,34 @@ export function createEmptyTrainingState(playerSide = TRAINING_SIDE_WHITE) {
     lastCompletedAttempts: [],
     lastCompletedExpectedMove: null,
     lastCompletionMode: null,
+    computerPlay: null,
     playSession: null,
+  };
+}
+
+function normalizeComputerPlay(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const startFrom =
+    entry.startFrom === TRAINING_COMPUTER_PLAY_SOURCE_INITIAL
+      ? TRAINING_COMPUTER_PLAY_SOURCE_INITIAL
+      : entry.startFrom === TRAINING_COMPUTER_PLAY_SOURCE_CURRENT
+        ? TRAINING_COMPUTER_PLAY_SOURCE_CURRENT
+        : null;
+  const startVariantTree =
+    entry.startVariantTree && typeof entry.startVariantTree === "object"
+      ? normalizeVariantTree(entry.startVariantTree)
+      : null;
+
+  if (!startFrom || !startVariantTree) {
+    return null;
+  }
+
+  return {
+    startFrom,
+    startVariantTree,
   };
 }
 
@@ -225,11 +255,16 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
       lastCompletedAttempts: fallbackState.lastCompletedAttempts,
       lastCompletedExpectedMove: fallbackState.lastCompletedExpectedMove,
       lastCompletionMode: fallbackState.lastCompletionMode,
+      computerPlay: fallbackState.computerPlay,
     };
   }
 
   const mode =
-    entry.mode === TRAINING_MODE_REPLAY_GAME ? TRAINING_MODE_REPLAY_GAME : TRAINING_MODE_OFF;
+    entry.mode === TRAINING_MODE_REPLAY_GAME
+      ? TRAINING_MODE_REPLAY_GAME
+      : entry.mode === TRAINING_MODE_PLAY_COMPUTER
+        ? TRAINING_MODE_PLAY_COMPUTER
+        : TRAINING_MODE_OFF;
   const normalizedPlayerSide =
     entry.playerSide === TRAINING_SIDE_BLACK ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
   const status =
@@ -255,23 +290,32 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
     entry.lastCompletionMode === TRAINING_COMPLETION_REVEALED
       ? entry.lastCompletionMode
       : null;
+  const computerPlay = normalizeComputerPlay(entry.computerPlay);
+  const normalizedMode =
+    mode === TRAINING_MODE_PLAY_COMPUTER && !computerPlay ? TRAINING_MODE_OFF : mode;
+  const supportsReplayState = normalizedMode === TRAINING_MODE_REPLAY_GAME;
+  const supportsComputerPlay =
+    normalizedMode === TRAINING_MODE_PLAY_COMPUTER && computerPlay;
 
   return {
-    mode,
+    mode: normalizedMode,
     playerSide: normalizedPlayerSide,
     status:
-      mode === TRAINING_MODE_OFF
+      normalizedMode === TRAINING_MODE_OFF
         ? TRAINING_STATUS_IDLE
         : status === TRAINING_STATUS_COMPLETED && boundedProgress < referenceMoves.length
           ? TRAINING_STATUS_ACTIVE
           : status,
-    progressPly: Math.max(0, Math.min(boundedProgress, referenceMoves.length)),
-    referenceMoves,
-    attempts,
-    pendingAttempts,
-    lastCompletedAttempts,
-    lastCompletedExpectedMove,
-    lastCompletionMode,
+    progressPly: supportsReplayState
+      ? Math.max(0, Math.min(boundedProgress, referenceMoves.length))
+      : 0,
+    referenceMoves: supportsReplayState ? referenceMoves : [],
+    attempts: supportsReplayState ? attempts : [],
+    pendingAttempts: supportsReplayState ? pendingAttempts : [],
+    lastCompletedAttempts: supportsReplayState ? lastCompletedAttempts : [],
+    lastCompletedExpectedMove: supportsReplayState ? lastCompletedExpectedMove : null,
+    lastCompletionMode: supportsReplayState ? lastCompletionMode : null,
+    computerPlay: supportsComputerPlay ? computerPlay : null,
   };
 }
 
@@ -384,10 +428,58 @@ export function createReplayTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHI
       lastCompletedAttempts: [],
       lastCompletedExpectedMove: null,
       lastCompletionMode: null,
+      computerPlay: null,
       playSession: null,
     }),
     variantTree,
     initialFen,
+    error: null,
+  };
+}
+
+export function createComputerPlayTrainingState(
+  startVariantTree,
+  playerSide = TRAINING_SIDE_WHITE,
+  startFrom = TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+) {
+  const normalizedStartVariantTree =
+    startVariantTree && typeof startVariantTree === "object"
+      ? normalizeVariantTree(startVariantTree)
+      : null;
+  const normalizedStartFrom =
+    startFrom === TRAINING_COMPUTER_PLAY_SOURCE_INITIAL
+      ? TRAINING_COMPUTER_PLAY_SOURCE_INITIAL
+      : startFrom === TRAINING_COMPUTER_PLAY_SOURCE_CURRENT
+        ? TRAINING_COMPUTER_PLAY_SOURCE_CURRENT
+        : null;
+
+  if (!normalizedStartVariantTree || !normalizedStartFrom) {
+    return {
+      trainingState: createEmptyTrainingState(playerSide),
+      variantTree: null,
+      error: "Unable to start computer play.",
+    };
+  }
+
+  return {
+    trainingState: normalizeTrainingState({
+      mode: TRAINING_MODE_PLAY_COMPUTER,
+      status: TRAINING_STATUS_ACTIVE,
+      playerSide,
+      progressPly: 0,
+      referenceMoves: [],
+      attempts: [],
+      pendingAttempts: [],
+      lastCompletedAttempts: [],
+      lastCompletedExpectedMove: null,
+      lastCompletionMode: null,
+      computerPlay: {
+        startFrom: normalizedStartFrom,
+        startVariantTree: normalizedStartVariantTree,
+      },
+      playSession: null,
+    }),
+    variantTree: normalizedStartVariantTree,
     error: null,
   };
 }
