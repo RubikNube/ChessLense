@@ -34,6 +34,10 @@ const openingTreeNumericCellStyle = {
   fontWeight: 600,
 };
 
+const openingTreeRowStyle = {
+  cursor: "pointer",
+};
+
 function formatPercent(value) {
   if (!Number.isFinite(value)) {
     return "0%";
@@ -56,6 +60,8 @@ function OpeningTreePanel({
   lichessApiToken,
   onClose,
   onOpenLichessTokenPopup,
+  onHoverMove,
+  onSelectMove,
 }) {
   const [openingTree, setOpeningTree] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -96,6 +102,12 @@ function OpeningTreePanel({
       window.clearTimeout(timeoutId);
     };
   }, [fen, lichessApiToken]);
+
+  useEffect(() => {
+    onHoverMove(null);
+  }, [fen, onHoverMove]);
+
+  useEffect(() => () => onHoverMove(null), [onHoverMove]);
 
   const openingLabel = formatOpeningLabel(openingTree?.opening);
   const tokenHintText = useMemo(() => {
@@ -177,7 +189,13 @@ function OpeningTreePanel({
           </thead>
           <tbody>
             {openingTree.moves.map((move) => (
-              <tr key={move.uci}>
+              <tr
+                key={move.uci}
+                style={openingTreeRowStyle}
+                onMouseEnter={() => onHoverMove(move)}
+                onMouseLeave={() => onHoverMove(null)}
+                onClick={() => onSelectMove(move)}
+              >
                 <td style={openingTreeCellStyle}>
                   <strong>{move.san}</strong>
                 </td>

@@ -47,6 +47,10 @@ import {
   DEFAULT_OTB_SEARCH_FILTERS,
 } from "./utils/otbSearch.js";
 import {
+  buildOpeningTreeArrow,
+  mergeBoardArrows,
+} from "./utils/openingTree.js";
+import {
   createCollectionPayload,
   filterStudiesByCollection,
   normalizeCollection,
@@ -321,6 +325,7 @@ function App() {
   const [showVariantArrows, setShowVariantArrows] = useState(
     () => persistedAppState?.showVariantArrows ?? false,
   );
+  const [hoveredOpeningTreeMove, setHoveredOpeningTreeMove] = useState(null);
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
   const [showSaveStudyPopup, setShowSaveStudyPopup] = useState(false);
@@ -399,6 +404,10 @@ function App() {
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
+
+  useEffect(() => {
+    setHoveredOpeningTreeMove(null);
+  }, [fen]);
   const currentMoveHistory = useMemo(
     () => getMoveHistoryForNode(variantTree),
     [variantTree],
@@ -435,6 +444,14 @@ function App() {
         color: "#2563eb",
       })),
     [variantTree],
+  );
+  const openingTreeHoverArrow = useMemo(
+    () => buildOpeningTreeArrow(hoveredOpeningTreeMove),
+    [hoveredOpeningTreeMove],
+  );
+  const boardArrows = useMemo(
+    () => mergeBoardArrows(showVariantArrows ? variantArrows : [], openingTreeHoverArrow),
+    [openingTreeHoverArrow, showVariantArrows, variantArrows],
   );
   const shortcutEntries = useMemo(
     () =>
@@ -1210,42 +1227,54 @@ function App() {
     (nodeId) => getVariantLinesForMoveHistoryNode(variantTree, nodeId),
     [variantTree],
   );
+  const handleOpeningTreeHoverMove = useCallback((move) => {
+    const parsedMove = parseUciMove(move?.uci);
+    setHoveredOpeningTreeMove(parsedMove);
+  }, []);
 
-  function handlePieceDrop(sourceSquareOrMove, maybeTargetSquare) {
-    const sourceSquare =
-      typeof sourceSquareOrMove === "string"
-        ? sourceSquareOrMove
-        : sourceSquareOrMove?.sourceSquare;
-    const targetSquare =
-      typeof maybeTargetSquare === "string"
-        ? maybeTargetSquare
-        : sourceSquareOrMove?.targetSquare;
-
-    if (!sourceSquare || !targetSquare) {
-      return false;
+  function getMoveAttemptForCurrentPosition(move, { defaultPromotion = false } = {}) {
+    if (!move?.from || !move?.to) {
+      return null;
     }
 
+    const previewGame = new Chess(fen);
+    const attemptedMove = {
+      from: move.from,
+      to: move.to,
+      ...(move.promotion
+        ? { promotion: move.promotion }
+        : defaultPromotion
+          ? { promotion: "q" }
+          : {}),
+    };
+    const appliedUserMove = previewGame.move(attemptedMove);
+
+    if (!appliedUserMove) {
+      return null;
+    }
+
+    return {
+      appliedUserMove,
+      normalizedAttemptedMove: {
+        from: appliedUserMove.from,
+        to: appliedUserMove.to,
+        ...(appliedUserMove.promotion ? { promotion: appliedUserMove.promotion } : {}),
+      },
+    };
+  }
+
+  function tryExecuteMove(move, { defaultPromotion = false } = {}) {
     if (trainingLoading) {
       return false;
     }
 
-    const attemptedMove = {
-      from: sourceSquare,
-      to: targetSquare,
-      promotion: "q",
-    };
-    const previewGame = new Chess(fen);
-    const appliedUserMove = previewGame.move(attemptedMove);
+    const moveAttempt = getMoveAttemptForCurrentPosition(move, { defaultPromotion });
 
-    if (!appliedUserMove) {
+    if (!moveAttempt) {
       return false;
     }
 
-    const normalizedAttemptedMove = {
-      from: appliedUserMove.from,
-      to: appliedUserMove.to,
-      ...(appliedUserMove.promotion ? { promotion: appliedUserMove.promotion } : {}),
-    };
+    const { appliedUserMove, normalizedAttemptedMove } = moveAttempt;
 
     if (isTrainingPlayActive || isStandaloneComputerPlayActive) {
       if (!isEngineOpponentUserTurn) {
@@ -1263,6 +1292,7 @@ function App() {
       setVariantTree(nextVariantTree);
       setEngineResult(null);
       setEvaluationResult(null);
+      setHoveredOpeningTreeMove(null);
       return true;
     }
 
@@ -1294,6 +1324,7 @@ function App() {
           TRAINING_COMPLETION_MATCH,
           matchingAttempt,
         );
+        setHoveredOpeningTreeMove(null);
         return true;
       }
 
@@ -1338,6 +1369,7 @@ function App() {
           }
         });
 
+      setHoveredOpeningTreeMove(null);
       return true;
     }
 
@@ -1351,8 +1383,42 @@ function App() {
     setVariantTree(nextVariantTree);
     setEngineResult(null);
     setEvaluationResult(null);
+    setHoveredOpeningTreeMove(null);
 
     return true;
+  }
+
+  function handleOpeningTreeSelectMove(move) {
+    const parsedMove = parseUciMove(move?.uci);
+
+    if (!parsedMove) {
+      return false;
+    }
+
+    return tryExecuteMove(parsedMove);
+  }
+
+  function handlePieceDrop(sourceSquareOrMove, maybeTargetSquare) {
+    const sourceSquare =
+      typeof sourceSquareOrMove === "string"
+        ? sourceSquareOrMove
+        : sourceSquareOrMove?.sourceSquare;
+    const targetSquare =
+      typeof maybeTargetSquare === "string"
+        ? maybeTargetSquare
+        : sourceSquareOrMove?.targetSquare;
+
+    if (!sourceSquare || !targetSquare) {
+      return false;
+    }
+
+    return tryExecuteMove(
+      {
+        from: sourceSquare,
+        to: targetSquare,
+      },
+      { defaultPromotion: true },
+    );
   }
 
   const undoMove = useCallback(() => {
@@ -2710,8 +2776,7 @@ function App() {
         fen={fen}
         onPieceDrop={handlePieceDrop}
         boardOrientation={boardOrientation}
-        showVariantArrows={showVariantArrows}
-        variantArrows={variantArrows}
+        boardArrows={boardArrows}
         showEvaluationBar={showEvaluationBar}
         evaluation={evaluationResult?.evaluation}
         turn={game.turn()}
@@ -2802,6 +2867,8 @@ function App() {
             lichessApiToken={lichessApiToken}
             onClose={closeOpeningTreePanel}
             onOpenLichessTokenPopup={openLichessTokenPopup}
+            onHoverMove={handleOpeningTreeHoverMove}
+            onSelectMove={handleOpeningTreeSelectMove}
           />
         )}
 

@@ -8,8 +8,7 @@ function BoardWorkspace({
   fen,
   onPieceDrop,
   boardOrientation,
-  showVariantArrows,
-  variantArrows,
+  boardArrows,
   showEvaluationBar,
   evaluation,
   turn,
@@ -30,8 +29,6 @@ function BoardWorkspace({
   onSelectVariant,
   children,
 }) {
-  const arrows = showVariantArrows ? variantArrows : [];
-
   return (
     <div className={`workspace${isTrainingFocusMode ? " workspace-training-focus" : ""}`}>
       <div className="board-panel" ref={boardPanelRef}>
@@ -41,12 +38,12 @@ function BoardWorkspace({
               position={fen}
               onPieceDrop={onPieceDrop}
               boardOrientation={boardOrientation}
-              arrows={arrows}
+              arrows={boardArrows}
               options={{
                 position: fen,
                 onPieceDrop,
                 boardOrientation,
-                arrows,
+                arrows: boardArrows,
               }}
             />
           </div>
