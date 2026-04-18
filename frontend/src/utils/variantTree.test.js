@@ -15,6 +15,7 @@ import {
   getMoveHistoryEntries,
   getMoveHistoryForNode,
   getRelevantVariantLines,
+  getVariantLinesForMoveHistoryNode,
   getVariantLines,
   goToNodeInVariantTree,
   goToEndInVariantTree,
@@ -260,6 +261,27 @@ describe("variantTree", () => {
     ]);
   });
 
+  it("creates and selects a new variant when replaying a matching move from earlier history", () => {
+    let tree = createVariantTreeFromMoves([
+      { from: "e2", to: "e4" },
+      { from: "e7", to: "e5" },
+      { from: "g1", to: "f3" },
+      { from: "b8", to: "c6" },
+    ]);
+    const e5NodeId = getMoveHistoryEntries(tree)[1].nodeId;
+
+    tree = goToNodeInVariantTree(tree, e5NodeId);
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+
+    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3"]);
+    expect(tree.currentNodeId).toBe(tree.activeLineLeafId);
+    expect(tree.nodes[e5NodeId].children).toHaveLength(2);
+    expect(getVariantLines(tree).map((line) => ({ moves: line.moves, isSelected: line.isSelected }))).toEqual([
+      { moves: ["e4", "e5", "Nf3", "Nc6"], isSelected: false },
+      { moves: ["e4", "e5", "Nf3"], isSelected: true },
+    ]);
+  });
+
   it("jumps directly to a node on the active line", () => {
     const tree = createVariantTreeFromMoves([
       { from: "e2", to: "e4" },
@@ -319,6 +341,31 @@ describe("variantTree", () => {
 
     expect(getAlternativeVariantFirstMoves(tree)).toEqual([
       { from: "g1", to: "f3" },
+    ]);
+  });
+
+  it("lists selectable variants for a move-history node", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+    tree = applyMoveToVariantTree(tree, { from: "g1", to: "f3" });
+    tree = applyMoveToVariantTree(tree, { from: "b8", to: "c6" });
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "g8", to: "f6" });
+    tree = applyMoveToVariantTree(tree, { from: "g2", to: "g3" });
+
+    const e5NodeId = getMoveHistoryEntries(tree)[1].nodeId;
+
+    expect(
+      getVariantLinesForMoveHistoryNode(tree, e5NodeId).map((line) => ({
+        continuationText: line.continuationText,
+        isSelected: line.isSelected,
+        isMainLine: line.isMainLine,
+      })),
+    ).toEqual([
+      { continuationText: "Nf3 Nc6", isSelected: false, isMainLine: true },
+      { continuationText: "Nf3 Nf6 g3", isSelected: true, isMainLine: false },
     ]);
   });
 

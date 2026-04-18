@@ -748,6 +748,9 @@ export function applyMoveToVariantTree(tree, move) {
 
   const normalizedMove = normalizeStoredMove(appliedMove);
   const currentNode = normalizedTree.nodes[normalizedTree.currentNodeId];
+  const hasFutureMovesOnActiveLine =
+    normalizedTree.currentNodeId !== normalizedTree.activeLineLeafId &&
+    isAncestorNode(normalizedTree, normalizedTree.currentNodeId, normalizedTree.activeLineLeafId);
   const matchingChildId = currentNode.children.find((childId) => {
     const childMove = normalizedTree.nodes[childId]?.move;
 
@@ -758,7 +761,7 @@ export function applyMoveToVariantTree(tree, move) {
     );
   });
 
-  if (matchingChildId) {
+  if (matchingChildId && !hasFutureMovesOnActiveLine) {
     return finalizeVariantTree({
       ...normalizedTree,
       currentNodeId: matchingChildId,
@@ -984,6 +987,31 @@ export function getRelevantVariantLines(tree) {
   );
 
   return getVariantLines(normalizedTree).filter((line) => leafNodeIds.includes(line.id));
+}
+
+export function getVariantLinesForMoveHistoryNode(tree, nodeId) {
+  const normalizedTree = normalizeVariantTree(tree);
+
+  if (!normalizedTree.nodes[nodeId]) {
+    return [];
+  }
+
+  return getVariantLines(normalizedTree)
+    .filter((line) => isAncestorNode(normalizedTree, nodeId, line.leafId) && line.leafId !== nodeId)
+    .map((line) => {
+      const pathNodeIds = findNodePathIds(normalizedTree, line.leafId);
+      const nodeIndex = pathNodeIds.indexOf(nodeId);
+      const continuationMoves = pathNodeIds
+        .slice(nodeIndex + 1)
+        .map((pathNodeId) => normalizedTree.nodes[pathNodeId]?.san)
+        .filter(Boolean);
+
+      return {
+        ...line,
+        continuationMoves,
+        continuationText: continuationMoves.join(" "),
+      };
+    });
 }
 
 export function getAlternativeVariantFirstMoves(tree) {

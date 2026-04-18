@@ -59,6 +59,29 @@ const disabledContextMenuButtonStyle = {
   cursor: "not-allowed",
 };
 
+const contextMenuSectionTitleStyle = {
+  padding: "0.35rem 0.75rem 0.25rem",
+  color: "#6b7280",
+  fontSize: "0.78rem",
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.03em",
+};
+
+const contextMenuDividerStyle = {
+  height: "1px",
+  margin: "0.35rem 0",
+  backgroundColor: "#e5e7eb",
+};
+
+const contextMenuMetaStyle = {
+  display: "block",
+  marginTop: "0.15rem",
+  color: "#6b7280",
+  fontSize: "0.8rem",
+  fontWeight: 500,
+};
+
 function MoveHistory({
   moveHistoryItems,
   currentMoveIndex,
@@ -72,6 +95,8 @@ function MoveHistory({
   onGoToStart,
   onGoToEnd,
   onRevertMovesUntil,
+  getVariantOptionsForMove,
+  onSelectVariant,
 }) {
   const moveHistoryRef = useRef(null);
   const selectedMoveRef = useRef(null);
@@ -159,6 +184,9 @@ function MoveHistory({
   }, [contextMenu]);
 
   const lastMoveNodeId = moveHistoryItems[moveHistoryItems.length - 1]?.nodeId ?? null;
+  const variantOptions = contextMenu ? getVariantOptionsForMove(contextMenu.moveEntry.nodeId) : [];
+  const shouldShowVariantOptions =
+    variantOptions.length > 1 || variantOptions.some((option) => !option.isSelected);
 
   function openContextMenu(event, moveEntry) {
     event.preventDefault();
@@ -292,6 +320,35 @@ function MoveHistory({
           aria-label={`Move actions for ${contextMenu.moveEntry.san}`}
           onPointerDown={(event) => event.stopPropagation()}
         >
+          {shouldShowVariantOptions && (
+            <>
+              <div style={contextMenuSectionTitleStyle}>Select variant</div>
+              {variantOptions.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="menuitem"
+                  style={option.isSelected ? disabledContextMenuButtonStyle : contextMenuButtonStyle}
+                  onClick={() => {
+                    if (option.isSelected) {
+                      return;
+                    }
+
+                    onSelectVariant(option.id);
+                    setContextMenu(null);
+                  }}
+                  disabled={option.isSelected}
+                >
+                  <span>{option.continuationText || option.displayText || "Current line"}</span>
+                  <span style={contextMenuMetaStyle}>
+                    {option.isMainLine ? "Main line" : "Sideline"}
+                    {option.isSelected ? " - Selected" : ""}
+                  </span>
+                </button>
+              ))}
+              <div style={contextMenuDividerStyle} />
+            </>
+          )}
           <button
             type="button"
             role="menuitem"

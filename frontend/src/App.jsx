@@ -70,6 +70,7 @@ import {
   getMoveHistoryEntries,
   getMoveHistoryForNode,
   getRelevantVariantLines,
+  getVariantLinesForMoveHistoryNode,
   goToNodeInVariantTree,
   goToEndInVariantTree,
   goToStartInVariantTree,
@@ -1204,6 +1205,10 @@ function App() {
         hasComments: moveHistoryCommentFens.has(entry.fen),
       })),
     [moveHistoryCommentFens, moveHistoryEntries],
+  );
+  const getMoveHistoryVariantOptions = useCallback(
+    (nodeId) => getVariantLinesForMoveHistoryNode(variantTree, nodeId),
+    [variantTree],
   );
 
   function handlePieceDrop(sourceSquareOrMove, maybeTargetSquare) {
@@ -2723,6 +2728,8 @@ function App() {
         onGoToStart={goToStart}
         onGoToEnd={goToEnd}
         onRevertMovesUntil={revertMoveHistoryToNode}
+        getVariantOptionsForMove={getMoveHistoryVariantOptions}
+        onSelectVariant={selectVariant}
       >
         {showPlayComputerPanel && !isTrainingFocusMode && (
           <>
