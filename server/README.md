@@ -10,7 +10,7 @@ and storing studies as server-backed JSON files.
 - Express
 - Stockfish
 - Lichess public API
-- Local PGN archive for OTB master games
+- Local SQLite database for OTB master games
 - Local JSON storage for saved studies
 
 ## Requirements
@@ -62,21 +62,39 @@ If not set, the server uses:
 stockfish
 ```
 
-### `OTB_PGN_DIR`
+### `OTB_DB_PATH`
 
-Optional path to a directory containing `.pgn` files for historical OTB master-game search.
+Optional path to the SQLite database used for historical OTB master-game search.
 
 If not set, the server looks in:
 
 ```text
-~/own_projects/ChessLense/server/data/otb
+~/own_projects/ChessLense/server/data/otb.sqlite
 ```
 
 Example:
 
 ```bash
-OTB_PGN_DIR=/path/to/master-pgn-archive npm run dev
+OTB_DB_PATH=/path/to/otb.sqlite npm run dev
 ```
+
+### Importing PGN archives into SQLite
+
+Import a PGN directory into the OTB database with:
+
+```bash
+npm run otb:import -- /path/to/master-pgn-archive
+```
+
+Optional flags:
+
+- `--db /path/to/otb.sqlite` to override the target database file
+- `--reset` to clear existing OTB records before importing
+
+If no PGN directory argument is provided, the importer uses `OTB_PGN_DIR` or `server/data/otb`.
+
+For single-file imports, the frontend can also upload one `.pgn` file at a time through the
+**Import PGN** modal and store its games in the same OTB SQLite database.
 
 ### `STUDIES_DIR`
 
@@ -339,7 +357,7 @@ Set `LICHESS_API_TOKEN` in the server environment, or send a per-request token w
 
 ### `GET /api/otb/games`
 
-Search historical OTB games from the configured local PGN archive.
+Search historical OTB games from the configured local SQLite archive.
 
 #### Query parameters
 
@@ -375,7 +393,7 @@ At least one non-`max` filter is required.
   "games": [
     {
       "id": "base64url-id",
-      "source": "local-pgn",
+      "source": "sqlite",
       "dateLabel": "1858.01.01",
       "year": 1858,
       "result": "1-0",
@@ -407,13 +425,13 @@ When either ECO bound is provided:
 - either bound may be provided on its own
 - `ecoFrom` cannot be greater than `ecoTo`
 
-If no archive is configured, the API returns:
+If no OTB database is configured, the API returns:
 
 ```json
-{
-  "error": "otb_source_not_configured",
-  "details": "OTB PGN directory not found. Set OTB_PGN_DIR or add PGN files under ~/own_projects/ChessLense/server/data/otb."
-}
+  {
+    "error": "otb_source_not_configured",
+    "details": "OTB database not found. Set OTB_DB_PATH or import PGN files with npm run otb:import to create ~/own_projects/ChessLense/server/data/otb.sqlite."
+  }
 ```
 
 ### `GET /api/otb/games/:gameId`
@@ -426,9 +444,46 @@ Fetch one OTB game plus its full PGN for import into the frontend.
 {
   "game": {
     "id": "base64url-id",
-    "source": "local-pgn"
+    "source": "sqlite"
   },
   "pgn": "[Event \"Paris Exhibition\"]\n..."
+}
+```
+
+### `POST /api/otb/import`
+
+Import one uploaded `.pgn` file into the OTB SQLite database.
+
+#### Request body
+
+```json
+{
+  "fileName": "masters.pgn",
+  "pgn": "[Event \"Paris Exhibition\"]\n..."
+}
+```
+
+- `fileName` is required and must end with `.pgn`
+- `pgn` is required and must contain PGN text
+
+#### Success response
+
+```json
+{
+  "fileName": "masters.pgn",
+  "fileCount": 1,
+  "totalGames": 24,
+  "importedGames": 20,
+  "skippedGames": 4
+}
+```
+
+#### Validation errors
+
+```json
+{
+  "error": "invalid_import",
+  "details": "fileName must end with .pgn."
 }
 ```
 

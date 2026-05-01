@@ -43,6 +43,10 @@ import {
   DEFAULT_LICHESS_SEARCH_FILTERS,
 } from "./utils/lichessSearch.js";
 import {
+  formatOtbImportSummary,
+  validateOtbImportFile,
+} from "./utils/otbImport.js";
+import {
   buildOtbSearchQuery,
   DEFAULT_OTB_SEARCH_FILTERS,
 } from "./utils/otbSearch.js";
@@ -345,6 +349,9 @@ function App() {
   const [copyNotification, setCopyNotification] = useState("");
   const [importPgnValue, setImportPgnValue] = useState("");
   const [importPgnError, setImportPgnError] = useState("");
+  const [otbFileImportError, setOtbFileImportError] = useState("");
+  const [otbFileImportStatus, setOtbFileImportStatus] = useState("");
+  const [importingOtbFile, setImportingOtbFile] = useState(false);
   const [saveStudyTitle, setSaveStudyTitle] = useState("");
   const [saveStudyError, setSaveStudyError] = useState("");
   const [savingStudy, setSavingStudy] = useState(false);
@@ -1755,6 +1762,8 @@ function App() {
   const openImportPgnPopup = useCallback(() => {
     setImportPgnValue(importedPgnData?.rawPgn ?? game.pgn());
     setImportPgnError("");
+    setOtbFileImportError("");
+    setOtbFileImportStatus("");
     setShowImportPgnPopup(true);
   }, [game, importedPgnData]);
 
@@ -1762,6 +1771,8 @@ function App() {
     setShowImportPgnPopup(false);
     setImportPgnValue("");
     setImportPgnError("");
+    setOtbFileImportError("");
+    setOtbFileImportStatus("");
   }, []);
 
   const openSaveStudyPopup = useCallback(() => {
@@ -2151,6 +2162,39 @@ function App() {
     }
 
     closeImportPgnPopup();
+  }
+
+  async function importOtbPgnFile(file) {
+    const validationError = validateOtbImportFile(file);
+
+    if (validationError) {
+      setOtbFileImportError(validationError);
+      setOtbFileImportStatus("");
+      return;
+    }
+
+    setOtbFileImportError("");
+    setOtbFileImportStatus("");
+    setImportingOtbFile(true);
+
+    try {
+      const pgn = await file.text();
+      const summary = await fetchJson("/api/otb/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          pgn,
+        }),
+      });
+      setOtbFileImportStatus(formatOtbImportSummary(summary));
+    } catch (error) {
+      setOtbFileImportError(error.message);
+    } finally {
+      setImportingOtbFile(false);
+    }
   }
 
   async function searchLichessGames() {
@@ -2943,7 +2987,13 @@ function App() {
           setImportPgnValue={setImportPgnValue}
           importPgnError={importPgnError}
           setImportPgnError={setImportPgnError}
+          otbFileImportError={otbFileImportError}
+          setOtbFileImportError={setOtbFileImportError}
+          otbFileImportStatus={otbFileImportStatus}
+          setOtbFileImportStatus={setOtbFileImportStatus}
+          importingOtbFile={importingOtbFile}
           onImport={importPgn}
+          onImportOtbFile={importOtbPgnFile}
           onClose={closeImportPgnPopup}
         />
       )}

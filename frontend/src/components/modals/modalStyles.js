@@ -114,6 +114,11 @@ export const modalErrorStyle = {
   color: "#dc2626",
 };
 
+export const modalSuccessStyle = {
+  marginTop: "0.75rem",
+  color: "#15803d",
+};
+
 export const modalFieldLabelStyle = {
   display: "block",
   marginTop: "1rem",

@@ -1,6 +1,8 @@
+const crypto = require("crypto");
 const fs = require("fs/promises");
 const path = require("path");
 const { HttpError } = require("./httpError");
+const { clearOtbDatabase, openOtbDatabase } = require("./otbDb");
 
 const DEFAULT_MAX_RESULTS = 25;
 const MAX_RESULTS_LIMIT = 100;
@@ -13,8 +15,7 @@ const RESULT_WINNER_MAP = {
 const ALLOWED_RESULTS = new Set(["1-0", "0-1", "1/2-1/2", "*"]);
 const ALLOWED_COLORS = new Set(["white", "black"]);
 const ECO_CODE_PATTERN = /^[A-E]\d{2}$/i;
-
-let cache = null;
+const GAME_ID_PATTERN = /^otb-[a-f0-9]{64}$/;
 
 function normalizeString(value) {
 	return typeof value === "string" ? value.trim() : "";
@@ -241,35 +242,15 @@ async function listPgnFiles(rootDir) {
 			if (entry.isDirectory()) {
 				directories.push(fullPath);
 			} else if (entry.isFile() && entry.name.toLowerCase().endsWith(".pgn")) {
-				const stats = await fs.stat(fullPath);
 				files.push({
 					fullPath,
 					relativePath: path.relative(rootDir, fullPath),
-					size: stats.size,
-					mtimeMs: stats.mtimeMs,
 				});
 			}
 		}
 	}
 
 	return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
-}
-
-function hasSameFileSignature(leftFiles, rightFiles) {
-	if (!Array.isArray(leftFiles) || !Array.isArray(rightFiles) || leftFiles.length !== rightFiles.length) {
-		return false;
-	}
-
-	return leftFiles.every((leftFile, index) => {
-		const rightFile = rightFiles[index];
-
-		return (
-			rightFile &&
-			leftFile.relativePath === rightFile.relativePath &&
-			leftFile.size === rightFile.size &&
-			leftFile.mtimeMs === rightFile.mtimeMs
-		);
-	});
 }
 
 function splitGames(rawContent) {
@@ -369,70 +350,22 @@ function countMoves(rawPgn) {
 	};
 }
 
-function createGameId(relativePath, index) {
-	return Buffer.from(JSON.stringify({ file: relativePath, index }), "utf8").toString("base64url");
+function normalizePgnForStorage(rawPgn) {
+	return rawPgn.replace(/\r\n/g, "\n").trim();
 }
 
-function decodeGameId(gameId) {
-	try {
-		const parsed = JSON.parse(Buffer.from(gameId, "base64url").toString("utf8"));
+function createGameId(rawPgn) {
+	return `otb-${crypto.createHash("sha256").update(normalizePgnForStorage(rawPgn)).digest("hex")}`;
+}
 
-		if (
-			!parsed ||
-			typeof parsed !== "object" ||
-			typeof parsed.file !== "string" ||
-			!Number.isInteger(parsed.index) ||
-			parsed.index < 0
-		) {
-			throw new Error("Invalid game id");
-		}
+function normalizeGameId(gameId) {
+	const normalized = normalizeString(gameId);
 
-		return parsed;
-	} catch {
+	if (!GAME_ID_PATTERN.test(normalized)) {
 		throw new HttpError(400, "invalid_query", "gameId is invalid");
 	}
-}
 
-function mapGameSummary(game) {
-	return {
-		id: game.id,
-		source: "local-pgn",
-		url: null,
-		rated: null,
-		perf: null,
-		speed: null,
-		variant: normalizeString(game.headers.Variant) || "standard",
-		status: null,
-		winner: RESULT_WINNER_MAP[game.headers.Result] ?? null,
-		createdAt: game.date.createdAt,
-		dateLabel: game.date.rawDate,
-		year: game.date.year,
-		result: normalizeString(game.headers.Result) || null,
-		moveCount: game.moveCount,
-		plyCount: game.plyCount,
-		event: normalizeString(game.headers.Event) || null,
-		site: normalizeString(game.headers.Site) || null,
-		round: normalizeString(game.headers.Round) || null,
-		eco: normalizeString(game.headers.ECO) || null,
-		opening: normalizeString(game.headers.Opening) || null,
-		sourceFile: game.relativePath,
-		players: {
-			white: {
-				name: normalizeString(game.headers.White) || "Unknown White",
-				id: null,
-				title: null,
-				rating: null,
-				ratingDiff: null,
-			},
-			black: {
-				name: normalizeString(game.headers.Black) || "Unknown Black",
-				id: null,
-				title: null,
-				rating: null,
-				ratingDiff: null,
-			},
-		},
-	};
+	return normalized;
 }
 
 function includesIgnoreCase(source, query) {
@@ -444,6 +377,17 @@ function splitNameTokens(value) {
 		.toLowerCase()
 		.split(/[^\p{L}\p{N}]+/u)
 		.filter(Boolean);
+}
+
+function normalizeNameForSearch(value, fallback = "Unknown Player") {
+	const normalized = normalizeString(value) || fallback;
+	const tokens = splitNameTokens(normalized);
+
+	return {
+		displayName: normalized,
+		normalizedName: tokens.join(" "),
+		searchName: tokens.length > 0 ? ` ${tokens.join(" ")} ` : " ",
+	};
 }
 
 function matchesNameTokens(source, query) {
@@ -573,103 +517,536 @@ function matchesSearch(game, search) {
 	return true;
 }
 
-async function buildIndex(rootDir, files = null) {
-	const resolvedFiles = files ?? (await listPgnFiles(rootDir));
-	const games = [];
-	const gamesById = new Map();
+function buildImportedGameRecord(rawPgn, sourceFile) {
+	const normalizedPgn = normalizePgnForStorage(rawPgn);
+	const headers = buildHeaderMap(extractHeaderEntries(normalizedPgn));
+	const whitePlayer = normalizeNameForSearch(headers.White, "Unknown White");
+	const blackPlayer = normalizeNameForSearch(headers.Black, "Unknown Black");
+	const date = parseDateMetadata(headers.Date);
+	const moveData = countMoves(normalizedPgn);
+	const now = new Date().toISOString();
 
-	for (const file of resolvedFiles) {
-		const content = await fs.readFile(file.fullPath, "utf8");
-		const fileGames = splitGames(content);
-
-		fileGames.forEach((rawPgn, index) => {
-			const headers = buildHeaderMap(extractHeaderEntries(rawPgn));
-			const id = createGameId(file.relativePath, index);
-			const game = {
-				id,
-				rawPgn,
-				headers,
-				relativePath: file.relativePath,
-				date: parseDateMetadata(headers.Date),
-				...countMoves(rawPgn),
-			};
-
-			games.push(game);
-			gamesById.set(id, game);
-		});
-	}
-
-	cache = {
-		rootDir,
-		files: resolvedFiles,
-		games,
-		gamesById,
+	return {
+		id: createGameId(normalizedPgn),
+		rawPgn: normalizedPgn,
+		source: "sqlite",
+		sourceFile: normalizeString(sourceFile) || null,
+		event: normalizeString(headers.Event) || null,
+		site: normalizeString(headers.Site) || null,
+		round: normalizeString(headers.Round) || null,
+		result: normalizeString(headers.Result) || null,
+		variant: normalizeString(headers.Variant) || "standard",
+		dateLabel: date.rawDate,
+		year: date.year,
+		createdAt: date.createdAt,
+		eco: normalizeString(headers.ECO) || null,
+		ecoNormalized: normalizeEcoHeader(headers.ECO) || null,
+		opening: normalizeString(headers.Opening) || null,
+		plyCount: moveData.plyCount,
+		moveCount: moveData.moveCount,
+		importedAt: now,
+		players: {
+			white: whitePlayer,
+			black: blackPlayer,
+		},
 	};
-
-	return cache;
 }
 
-async function loadIndex() {
-	const configuredRoot = normalizeString(process.env.OTB_PGN_DIR) || DEFAULT_OTB_PGN_DIR;
+function mapGameSummaryRow(row) {
+	return {
+		id: row.id,
+		source: row.source || "sqlite",
+		url: null,
+		rated: null,
+		perf: null,
+		speed: null,
+		variant: normalizeString(row.variant) || "standard",
+		status: null,
+		winner: RESULT_WINNER_MAP[row.result] ?? null,
+		createdAt: Number.isInteger(row.createdAt) ? row.createdAt : null,
+		dateLabel: normalizeString(row.dateLabel) || null,
+		year: Number.isInteger(row.year) ? row.year : null,
+		result: normalizeString(row.result) || null,
+		moveCount: Number.isInteger(row.moveCount) ? row.moveCount : 0,
+		plyCount: Number.isInteger(row.plyCount) ? row.plyCount : 0,
+		event: normalizeString(row.event) || null,
+		site: normalizeString(row.site) || null,
+		round: normalizeString(row.round) || null,
+		eco: normalizeString(row.eco) || null,
+		opening: normalizeString(row.opening) || null,
+		sourceFile: normalizeString(row.sourceFile) || null,
+		players: {
+			white: {
+				name: normalizeString(row.whiteName) || "Unknown White",
+				id: null,
+				title: null,
+				rating: null,
+				ratingDiff: null,
+			},
+			black: {
+				name: normalizeString(row.blackName) || "Unknown Black",
+				id: null,
+				title: null,
+				rating: null,
+				ratingDiff: null,
+			},
+		},
+	};
+}
 
-	if (!(await pathExists(configuredRoot))) {
+function escapeLikePattern(value) {
+	return normalizeString(value).replace(/[\\%_]/g, "\\$&").toLowerCase();
+}
+
+function buildContainsClause(column, value) {
+	return {
+		clause: `lower(${column}) LIKE ? ESCAPE '\\'`,
+		params: [`%${escapeLikePattern(value)}%`],
+	};
+}
+
+function buildTokenClause(column, value) {
+	const tokens = splitNameTokens(value);
+
+	if (tokens.length === 0) {
+		return {
+			clause: "0",
+			params: [],
+		};
+	}
+
+	return {
+		clause: `(${tokens.map(() => `${column} LIKE ? ESCAPE '\\'`).join(" AND ")})`,
+		params: tokens.map((token) => `% ${escapeLikePattern(token)} %`),
+	};
+}
+
+function appendMatchClause(clauses, params, match) {
+	clauses.push(match.clause);
+	params.push(...match.params);
+}
+
+function buildSearchStatement(search) {
+	const clauses = [];
+	const params = [];
+	const isPairSearch = Boolean(search.player && search.opponent);
+
+	if (isPairSearch) {
+		const playerWhite = buildTokenClause("pw.search_name", search.player);
+		const playerBlack = buildTokenClause("pb.search_name", search.player);
+		const opponentWhite = buildTokenClause("pw.search_name", search.opponent);
+		const opponentBlack = buildTokenClause("pb.search_name", search.opponent);
+
+		if (search.color === "white") {
+			appendMatchClause(clauses, params, {
+				clause: `(${playerWhite.clause} AND ${opponentBlack.clause})`,
+				params: [...playerWhite.params, ...opponentBlack.params],
+			});
+		} else if (search.color === "black") {
+			appendMatchClause(clauses, params, {
+				clause: `(${playerBlack.clause} AND ${opponentWhite.clause})`,
+				params: [...playerBlack.params, ...opponentWhite.params],
+			});
+		} else {
+			appendMatchClause(clauses, params, {
+				clause: `((${playerWhite.clause} AND ${opponentBlack.clause}) OR (${playerBlack.clause} AND ${opponentWhite.clause}))`,
+				params: [
+					...playerWhite.params,
+					...opponentBlack.params,
+					...playerBlack.params,
+					...opponentWhite.params,
+				],
+			});
+		}
+	} else {
+		if (search.player) {
+			if (search.color === "white") {
+				appendMatchClause(clauses, params, buildContainsClause("pw.name", search.player));
+			} else if (search.color === "black") {
+				appendMatchClause(clauses, params, buildContainsClause("pb.name", search.player));
+			} else {
+				const whitePlayerMatch = buildContainsClause("pw.name", search.player);
+				const blackPlayerMatch = buildContainsClause("pb.name", search.player);
+				appendMatchClause(clauses, params, {
+					clause: `(${whitePlayerMatch.clause} OR ${blackPlayerMatch.clause})`,
+					params: [...whitePlayerMatch.params, ...blackPlayerMatch.params],
+				});
+			}
+		}
+
+		if (search.opponent) {
+			const whiteOpponentMatch = buildContainsClause("pw.name", search.opponent);
+			const blackOpponentMatch = buildContainsClause("pb.name", search.opponent);
+			appendMatchClause(clauses, params, {
+				clause: `(${whiteOpponentMatch.clause} OR ${blackOpponentMatch.clause})`,
+				params: [...whiteOpponentMatch.params, ...blackOpponentMatch.params],
+			});
+		}
+	}
+
+	if (search.event) {
+		appendMatchClause(clauses, params, buildContainsClause("g.event", search.event));
+	}
+
+	if (search.ecoFrom) {
+		clauses.push("g.eco_normalized >= ?");
+		params.push(search.ecoFrom);
+	}
+
+	if (search.ecoTo) {
+		clauses.push("g.eco_normalized <= ?");
+		params.push(search.ecoTo);
+	}
+
+	if (search.opening) {
+		appendMatchClause(clauses, params, buildContainsClause("g.opening", search.opening));
+	}
+
+	if (search.result) {
+		clauses.push("g.result = ?");
+		params.push(search.result);
+	}
+
+	if (search.yearFrom) {
+		clauses.push("g.year >= ?");
+		params.push(search.yearFrom);
+	}
+
+	if (search.yearTo) {
+		clauses.push("g.year <= ?");
+		params.push(search.yearTo);
+	}
+
+	params.push(search.max);
+
+	return {
+		query: `
+			SELECT
+				g.id,
+				g.source,
+				g.source_file AS sourceFile,
+				g.variant,
+				g.result,
+				g.created_at AS createdAt,
+				g.date_label AS dateLabel,
+				g.year,
+				g.move_count AS moveCount,
+				g.ply_count AS plyCount,
+				g.event,
+				g.site,
+				g.round,
+				g.eco,
+				g.opening,
+				pw.name AS whiteName,
+				pb.name AS blackName
+			FROM otb_games g
+			JOIN otb_game_players gpw
+				ON gpw.game_id = g.id AND gpw.color = 'white'
+			JOIN otb_players pw
+				ON pw.id = gpw.player_id
+			JOIN otb_game_players gpb
+				ON gpb.game_id = g.id AND gpb.color = 'black'
+			JOIN otb_players pb
+				ON pb.id = gpb.player_id
+			${clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : ""}
+			ORDER BY COALESCE(g.year, 0) DESC, COALESCE(g.created_at, 0) DESC, g.id ASC
+			LIMIT ?
+		`,
+		params,
+	};
+}
+
+async function importPgnDirectory(options = {}) {
+	const rootDir = normalizeString(options.rootDir) || normalizeString(process.env.OTB_PGN_DIR) || DEFAULT_OTB_PGN_DIR;
+
+	if (!(await pathExists(rootDir))) {
 		throw new HttpError(
-			503,
+			404,
 			"otb_source_not_configured",
-			`OTB PGN directory not found. Set OTB_PGN_DIR or add PGN files under ${DEFAULT_OTB_PGN_DIR}.`,
+			`OTB PGN directory not found. Set OTB_PGN_DIR or pass a directory to npm run otb:import.`,
 		);
 	}
 
-	const files = await listPgnFiles(configuredRoot);
+	const files = await listPgnFiles(rootDir);
+	const result = await importPgnSourceEntries(
+		files.map((file) => ({
+			sourceFile: file.relativePath,
+			loadContent: () => fs.readFile(file.fullPath, "utf8"),
+		})),
+		{
+			dbPath: options.dbPath,
+			reset: options.reset,
+		},
+	);
 
-	if (cache && cache.rootDir === configuredRoot && hasSameFileSignature(cache.files, files)) {
-		return cache;
-	}
-
-	return buildIndex(configuredRoot, files);
+	return {
+		...result,
+		rootDir,
+	};
 }
 
-async function searchGames(rawQuery) {
+async function importPgnFile(options = {}) {
+	const sourceFile = normalizeString(options.sourceFile);
+	const rawContent = typeof options.content === "string" ? options.content : "";
+
+	if (!sourceFile) {
+		throw new HttpError(400, "invalid_import", "fileName is required.");
+	}
+
+	if (!sourceFile.toLowerCase().endsWith(".pgn")) {
+		throw new HttpError(400, "invalid_import", "fileName must end with .pgn.");
+	}
+
+	if (!normalizeString(rawContent)) {
+		throw new HttpError(400, "invalid_import", "PGN file content is required.");
+	}
+
+	const result = await importPgnSourceEntries(
+		[
+			{
+				sourceFile,
+				loadContent: async () => rawContent,
+			},
+		],
+		{
+			dbPath: options.dbPath,
+		},
+	);
+
+	if (result.totalGames < 1) {
+		throw new HttpError(400, "invalid_import", "No PGN games were found in the uploaded file.");
+	}
+
+	return {
+		...result,
+		fileName: sourceFile,
+	};
+}
+
+async function importPgnSourceEntries(sourceEntries, options = {}) {
+	const entries = Array.isArray(sourceEntries) ? sourceEntries : [];
+	const { database, dbPath } = await openOtbDatabase({
+		create: true,
+		dbPath: options.dbPath,
+	});
+
+	try {
+		const insertPlayerStatement = database.prepare(`
+			INSERT OR IGNORE INTO otb_players (name, normalized_name, search_name)
+			VALUES (?, ?, ?)
+		`);
+		const selectPlayerStatement = database.prepare(`
+			SELECT id
+			FROM otb_players
+			WHERE normalized_name = ? AND name = ?
+		`);
+		const insertGameStatement = database.prepare(`
+			INSERT OR IGNORE INTO otb_games (
+				id,
+				raw_pgn,
+				source,
+				source_file,
+				event,
+				site,
+				round,
+				result,
+				variant,
+				date_label,
+				year,
+				created_at,
+				eco,
+				eco_normalized,
+				opening,
+				ply_count,
+				move_count,
+				imported_at
+			)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`);
+		const insertGamePlayerStatement = database.prepare(`
+			INSERT INTO otb_game_players (game_id, color, player_id)
+			VALUES (?, ?, ?)
+			ON CONFLICT(game_id, color) DO UPDATE SET player_id = excluded.player_id
+		`);
+		let totalGames = 0;
+		let importedGames = 0;
+		let skippedGames = 0;
+		let transactionOpen = false;
+
+		const getOrCreatePlayerId = (player) => {
+			insertPlayerStatement.run(player.displayName, player.normalizedName, player.searchName);
+			const row = selectPlayerStatement.get(player.normalizedName, player.displayName);
+
+			if (!row?.id) {
+				throw new Error(`Unable to resolve player id for ${player.displayName}`);
+			}
+
+			return row.id;
+		};
+
+		try {
+			database.exec("BEGIN IMMEDIATE");
+			transactionOpen = true;
+
+			if (options.reset) {
+				clearOtbDatabase(database);
+			}
+
+			for (const entry of entries) {
+				const content = await entry.loadContent();
+				const fileGames = splitGames(content);
+
+				for (const rawPgn of fileGames) {
+					const game = buildImportedGameRecord(rawPgn, entry.sourceFile);
+					totalGames += 1;
+
+					const insertResult = insertGameStatement.run(
+						game.id,
+						game.rawPgn,
+						game.source,
+						game.sourceFile,
+						game.event,
+						game.site,
+						game.round,
+						game.result,
+						game.variant,
+						game.dateLabel,
+						game.year,
+						game.createdAt,
+						game.eco,
+						game.ecoNormalized,
+						game.opening,
+						game.plyCount,
+						game.moveCount,
+						game.importedAt,
+					);
+
+					if (insertResult.changes === 0) {
+						skippedGames += 1;
+						continue;
+					}
+
+					const whitePlayerId = getOrCreatePlayerId(game.players.white);
+					const blackPlayerId = getOrCreatePlayerId(game.players.black);
+
+					insertGamePlayerStatement.run(game.id, "white", whitePlayerId);
+					insertGamePlayerStatement.run(game.id, "black", blackPlayerId);
+					importedGames += 1;
+				}
+			}
+
+			database.exec("COMMIT");
+			transactionOpen = false;
+		} catch (error) {
+			if (transactionOpen) {
+				database.exec("ROLLBACK");
+			}
+
+			throw error;
+		}
+
+		return {
+			dbPath,
+			fileCount: entries.length,
+			totalGames,
+			importedGames,
+			skippedGames,
+		};
+	} finally {
+		database.close();
+	}
+}
+
+async function searchGames(rawQuery, options = {}) {
 	const search = normalizeSearchQuery(rawQuery);
-	const index = await loadIndex();
-	const games = index.games
-		.filter((game) => matchesSearch(game, search))
-		.sort((left, right) => {
-			const leftYear = left.date.year ?? 0;
-			const rightYear = right.date.year ?? 0;
-			return rightYear - leftYear;
-		})
-		.slice(0, search.max)
-		.map(mapGameSummary);
+	const { database } = await openOtbDatabase({
+		dbPath: options.dbPath,
+	});
 
-	return {
-		search,
-		games,
-	};
+	try {
+		const statement = buildSearchStatement(search);
+		const games = database
+			.prepare(statement.query)
+			.all(...statement.params)
+			.map(mapGameSummaryRow);
+
+		return {
+			search,
+			games,
+		};
+	} finally {
+		database.close();
+	}
 }
 
-async function getGame(gameId) {
-	decodeGameId(gameId);
-	const index = await loadIndex();
-	const game = index.gamesById.get(gameId);
+async function getGame(gameId, options = {}) {
+	const normalizedGameId = normalizeGameId(gameId);
+	const { database } = await openOtbDatabase({
+		dbPath: options.dbPath,
+	});
 
-	if (!game) {
-		throw new HttpError(404, "not_found", "OTB game not found");
+	try {
+		const row = database
+			.prepare(`
+				SELECT
+					g.id,
+					g.raw_pgn AS rawPgn,
+					g.source,
+					g.source_file AS sourceFile,
+					g.variant,
+					g.result,
+					g.created_at AS createdAt,
+					g.date_label AS dateLabel,
+					g.year,
+					g.move_count AS moveCount,
+					g.ply_count AS plyCount,
+					g.event,
+					g.site,
+					g.round,
+					g.eco,
+					g.opening,
+					pw.name AS whiteName,
+					pb.name AS blackName
+				FROM otb_games g
+				JOIN otb_game_players gpw
+					ON gpw.game_id = g.id AND gpw.color = 'white'
+				JOIN otb_players pw
+					ON pw.id = gpw.player_id
+				JOIN otb_game_players gpb
+					ON gpb.game_id = g.id AND gpb.color = 'black'
+				JOIN otb_players pb
+					ON pb.id = gpb.player_id
+				WHERE g.id = ?
+			`)
+			.get(normalizedGameId);
+
+		if (!row) {
+			throw new HttpError(404, "not_found", "OTB game not found");
+		}
+
+		return {
+			game: mapGameSummaryRow(row),
+			pgn: row.rawPgn,
+		};
+	} finally {
+		database.close();
 	}
-
-	return {
-		game: mapGameSummary(game),
-		pgn: game.rawPgn,
-	};
 }
 
 module.exports = {
+	DEFAULT_OTB_PGN_DIR,
 	getGame,
+	importPgnDirectory,
+	importPgnFile,
 	searchGames,
 	__testing: {
+		buildImportedGameRecord,
 		matchesEcoRange,
 		matchesSearch,
 		normalizeEcoCode,
+		normalizeGameId,
+		normalizeNameForSearch,
 		normalizeSearchQuery,
+		splitGames,
 	},
 };

@@ -1,6 +1,6 @@
 # ChessLense
 
-ChessLense is a local chess analysis tool that uses Stockfish to evaluate positions, Lichess to search public online games, and a local PGN archive to search historical OTB master games. It consists of a Node.js backend plus a React frontend that provides an interactive chessboard, PGN import, and search tools.
+ChessLense is a local chess analysis tool that uses Stockfish to evaluate positions, Lichess to search public online games, and a local SQLite database to search historical OTB master games. It consists of a Node.js backend plus a React frontend that provides an interactive chessboard, PGN import, and search tools.
 
 ## Development
 
@@ -18,23 +18,35 @@ recommended way to run both together is:
 
 - Analyze the current position with Stockfish
 - Import a PGN directly into the board
+- Import one local `.pgn` file into the OTB SQLite database from the app
 - Search public Lichess games by player with optional filters such as opponent, year, color, and speed
-- Search historical OTB master games from a local PGN archive with player, opponent, optional player color, event, year range, result, ECO, and opening filters
+- Search historical OTB master games from a local SQLite archive with player, opponent, optional player color, event, year range, result, ECO, and opening filters
 - Import a selected Lichess game back into the existing PGN/annotation flow
 - Import a selected OTB game back into the existing PGN/annotation flow
 
 ## OTB archive setup
 
-Historical OTB search reads `.pgn` files from either:
+Historical OTB search uses a SQLite database at either:
 
-- `OTB_PGN_DIR`, if set
-- or `server/data/otb`, by default
+- `OTB_DB_PATH`, if set
+- or `server/data/otb.sqlite`, by default
 
 Example:
 
 ```bash
-OTB_PGN_DIR=/path/to/master-pgn-archive ./dev.sh
+cd server
+npm run otb:import -- /path/to/master-pgn-archive
 ```
+
+Optional database location:
+
+```bash
+cd server
+OTB_DB_PATH=/path/to/otb.sqlite npm run otb:import -- /path/to/master-pgn-archive
+```
+
+You can also import a single `.pgn` file into the OTB database directly from the app via
+**Import PGN**. The CLI importer remains the better option for bulk archive loads.
 
 ## Frontend
 

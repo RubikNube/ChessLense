@@ -40,8 +40,10 @@ function OtbSearchModal({
         Search a local archive of historical master-game PGNs by player, opponent,
         player color, event, year range, result, ECO range, or opening. Leave player
         color on <strong>Ignore player color</strong> to match both player/opponent
-        orderings. Configure the archive with <code>OTB_PGN_DIR</code> or by adding PGN
-        files under <code>server/data/otb</code>.
+        orderings. Import PGN files into the OTB SQLite database with the app&apos;s
+        <strong>Import PGN</strong> popup for single files, or use
+        <code>cd server && npm run otb:import -- /path/to/master-pgn-archive</code>
+        for archive-sized imports.
       </p>
       <form
         onSubmit={(event) => {
