@@ -52,8 +52,12 @@ import {
 } from "./utils/otbSearch.js";
 import {
   buildOpeningTreeArrow,
-  mergeBoardArrows,
 } from "./utils/openingTree.js";
+import {
+  buildBoardHighlightSquareStyles,
+  getBoardAnnotationColor,
+  mergeBoardArrowCollections,
+} from "./utils/boardAnnotations.js";
 import {
   createCollectionPayload,
   filterStudiesByCollection,
@@ -75,6 +79,7 @@ import {
   createEmptyVariantTree,
   demoteVariantLine,
   getAlternativeVariantFirstMoves,
+  getBoardAnnotationsForNode,
   getMoveHistoryEntries,
   getMoveHistoryForNode,
   getRelevantVariantLines,
@@ -90,6 +95,8 @@ import {
   redoInVariantTree,
   removeVariantLine,
   selectVariantLine,
+  toggleBoardArrowAnnotation,
+  toggleBoardHighlightAnnotation,
   truncateLineAfterNode,
   undoInVariantTree,
 } from "./utils/variantTree.js";
@@ -410,11 +417,13 @@ function App() {
   const [trainingPlayAutoReplyPaused, setTrainingPlayAutoReplyPaused] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [commentDraft, setCommentDraft] = useState("");
+  const [boardRenderNonce, setBoardRenderNonce] = useState(0);
   const shortcutConfigSignatureRef = useRef(
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
   const boardPanelRef = useRef(null);
   const appliedOtbSearchFiltersRef = useRef(appliedOtbSearchFilters);
+  const boardRightMouseSelectionRef = useRef(null);
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
@@ -466,9 +475,26 @@ function App() {
     () => buildOpeningTreeArrow(hoveredOpeningTreeMove),
     [hoveredOpeningTreeMove],
   );
+  const currentNodeBoardAnnotations = useMemo(
+    () => getBoardAnnotationsForNode(variantTree),
+    [variantTree],
+  );
   const boardArrows = useMemo(
-    () => mergeBoardArrows(showVariantArrows ? variantArrows : [], openingTreeHoverArrow),
-    [openingTreeHoverArrow, showVariantArrows, variantArrows],
+    () =>
+      mergeBoardArrowCollections(
+        showVariantArrows ? variantArrows : [],
+        currentNodeBoardAnnotations.arrows,
+        openingTreeHoverArrow ? [openingTreeHoverArrow] : [],
+      ),
+    [currentNodeBoardAnnotations.arrows, openingTreeHoverArrow, showVariantArrows, variantArrows],
+  );
+  const boardSquareStyles = useMemo(
+    () => buildBoardHighlightSquareStyles(currentNodeBoardAnnotations.highlights),
+    [currentNodeBoardAnnotations.highlights],
+  );
+  const boardRenderKey = useMemo(
+    () => `${variantTree.currentNodeId}:${boardRenderNonce}`,
+    [boardRenderNonce, variantTree.currentNodeId],
   );
   const shortcutEntries = useMemo(
     () =>
@@ -1716,6 +1742,55 @@ function App() {
     }
   }, [editingCommentId]);
 
+  const handleBoardSquareMouseDown = useCallback(({ square }, event) => {
+    if (event.button === 2) {
+      boardRightMouseSelectionRef.current = { startSquare: square };
+      return;
+    }
+
+    boardRightMouseSelectionRef.current = null;
+  }, []);
+
+  const handleBoardSquareMouseUp = useCallback(({ square }, event) => {
+    if (event.button !== 2) {
+      boardRightMouseSelectionRef.current = null;
+      return;
+    }
+
+    const startSquare = boardRightMouseSelectionRef.current?.startSquare ?? null;
+
+    boardRightMouseSelectionRef.current = null;
+
+    if (!startSquare) {
+      return;
+    }
+
+    const color = getBoardAnnotationColor({
+      shiftKey: event.shiftKey,
+      ctrlKey: event.ctrlKey,
+    });
+
+    setBoardRenderNonce((currentValue) => currentValue + 1);
+
+    if (startSquare === square) {
+      setVariantTree((currentValue) =>
+        toggleBoardHighlightAnnotation(currentValue, currentValue.currentNodeId, {
+          square,
+          color,
+        }),
+      );
+      return;
+    }
+
+    setVariantTree((currentValue) =>
+      toggleBoardArrowAnnotation(currentValue, currentValue.currentNodeId, {
+        startSquare,
+        endSquare: square,
+        color,
+      }),
+    );
+  }, []);
+
   const saveComment = useCallback(() => {
     const trimmedDraft = commentDraft.trim();
 
@@ -2935,12 +3010,16 @@ function App() {
       />
 
       <BoardWorkspace
+        boardRenderKey={boardRenderKey}
         isTrainingFocusMode={isTrainingFocusMode}
         boardPanelRef={boardPanelRef}
         fen={fen}
         onPieceDrop={handlePieceDrop}
         boardOrientation={boardOrientation}
         boardArrows={boardArrows}
+        boardSquareStyles={boardSquareStyles}
+        onSquareMouseDown={handleBoardSquareMouseDown}
+        onSquareMouseUp={handleBoardSquareMouseUp}
         showEvaluationBar={showEvaluationBar}
         evaluation={evaluationResult?.evaluation}
         turn={game.turn()}

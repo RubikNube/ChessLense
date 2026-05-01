@@ -12,6 +12,7 @@ import {
   createVariantTreeFromMoves,
   demoteVariantLine,
   getAlternativeVariantFirstMoves,
+  getBoardAnnotationsForNode,
   getMoveHistoryEntries,
   getMoveHistoryForNode,
   getRelevantVariantLines,
@@ -27,6 +28,8 @@ import {
   redoInVariantTree,
   removeVariantLine,
   selectVariantLine,
+  toggleBoardArrowAnnotation,
+  toggleBoardHighlightAnnotation,
   truncateLineAfterNode,
   undoInVariantTree,
 } from "./variantTree.js";
@@ -149,6 +152,34 @@ describe("variantTree", () => {
 
     const endTree = redoInVariantTree(redoInVariantTree(tree));
     expect(getMoveHistoryForNode(endTree)).toEqual(["e4", "e5", "Nf3", "Nc6"]);
+  });
+
+  it("stores board annotations on the exact move node", () => {
+    let tree = createEmptyVariantTree();
+
+    tree = applyMoveToVariantTree(tree, { from: "e2", to: "e4" });
+    tree = toggleBoardArrowAnnotation(tree, tree.currentNodeId, {
+      startSquare: "e2",
+      endSquare: "e4",
+      color: "#ffaa00",
+    });
+    tree = toggleBoardHighlightAnnotation(tree, tree.currentNodeId, {
+      square: "e4",
+      color: "#4caf50",
+    });
+    tree = applyMoveToVariantTree(tree, { from: "e7", to: "e5" });
+
+    expect(getBoardAnnotationsForNode(tree)).toEqual({
+      arrows: [],
+      highlights: [],
+    });
+
+    tree = undoInVariantTree(tree);
+
+    expect(getBoardAnnotationsForNode(tree)).toEqual({
+      arrows: [{ startSquare: "e2", endSquare: "e4", color: "#ffaa00" }],
+      highlights: [{ square: "e4", color: "#4caf50" }],
+    });
   });
 
   it("parses imported PGN variations into real branches", () => {

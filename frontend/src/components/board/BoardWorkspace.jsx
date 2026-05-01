@@ -3,12 +3,16 @@ import EvaluationBar from "../EvaluationBar.jsx";
 import MoveHistory from "../MoveHistory.jsx";
 
 function BoardWorkspace({
+  boardRenderKey,
   isTrainingFocusMode,
   boardPanelRef,
   fen,
   onPieceDrop,
   boardOrientation,
   boardArrows,
+  boardSquareStyles,
+  onSquareMouseDown,
+  onSquareMouseUp,
   showEvaluationBar,
   evaluation,
   turn,
@@ -35,15 +39,20 @@ function BoardWorkspace({
         <div className="board-and-evaluation">
           <div className="chessboard-wrapper">
             <Chessboard
+              key={boardRenderKey}
               position={fen}
               onPieceDrop={onPieceDrop}
               boardOrientation={boardOrientation}
               arrows={boardArrows}
+              squareStyles={boardSquareStyles}
               options={{
                 position: fen,
                 onPieceDrop,
                 boardOrientation,
                 arrows: boardArrows,
+                squareStyles: boardSquareStyles,
+                onSquareMouseDown,
+                onSquareMouseUp,
               }}
             />
           </div>

@@ -1,4 +1,11 @@
 import { Chess, DEFAULT_POSITION } from "chess.js";
+import {
+  areNodeBoardAnnotationsEqual,
+  createEmptyBoardAnnotations,
+  normalizeNodeBoardAnnotations,
+  toggleBoardArrowInAnnotations,
+  toggleBoardHighlightInAnnotations,
+} from "./boardAnnotations.js";
 
 export const ROOT_VARIANT_NODE_ID = "root";
 export const VARIANT_TREE_VERSION = 1;
@@ -14,6 +21,7 @@ function createRootNode(initialFen) {
     ply: 0,
     moveNumber: 0,
     side: null,
+    boardAnnotations: createEmptyBoardAnnotations(),
   };
 }
 
@@ -49,6 +57,7 @@ function cloneNode(node) {
     ...node,
     children: [...node.children],
     move: node.move ? { ...node.move } : null,
+    boardAnnotations: normalizeNodeBoardAnnotations(node.boardAnnotations),
   };
 }
 
@@ -127,6 +136,7 @@ function createNodeFromMove(nodeId, parentNode, move, fen) {
     ply,
     moveNumber: Math.floor((ply - 1) / 2) + 1,
     side: move.color === "b" ? "black" : "white",
+    boardAnnotations: createEmptyBoardAnnotations(),
   };
 }
 
@@ -236,7 +246,34 @@ function sanitizeNode(rawNode, nodeId, nodes, parentId) {
         ? rawNode.moveNumber
         : 0,
     side,
+    boardAnnotations: normalizeNodeBoardAnnotations(rawNode.boardAnnotations),
   };
+}
+
+function updateNodeBoardAnnotations(tree, nodeId, updater) {
+  const normalizedTree = normalizeVariantTree(tree);
+  const currentNode = normalizedTree.nodes[nodeId];
+
+  if (!currentNode) {
+    return normalizedTree;
+  }
+
+  const nextBoardAnnotations = normalizeNodeBoardAnnotations(
+    updater(normalizeNodeBoardAnnotations(currentNode.boardAnnotations)),
+  );
+
+  if (areNodeBoardAnnotationsEqual(currentNode.boardAnnotations, nextBoardAnnotations)) {
+    return normalizedTree;
+  }
+
+  const nextTree = {
+    ...normalizedTree,
+    nodes: cloneNodes(normalizedTree.nodes),
+  };
+
+  nextTree.nodes[nodeId].boardAnnotations = nextBoardAnnotations;
+
+  return nextTree;
 }
 
 function getDeepestMainlineNodeId(tree, startNodeId = tree.rootId) {
@@ -565,6 +602,12 @@ export function getMoveHistoryForNode(tree, targetNodeId = tree.currentNodeId) {
     .slice(1)
     .map((nodeId) => normalizedTree.nodes[nodeId]?.san)
     .filter(Boolean);
+}
+
+export function getBoardAnnotationsForNode(tree, targetNodeId = tree.currentNodeId) {
+  const normalizedTree = normalizeVariantTree(tree);
+
+  return normalizeNodeBoardAnnotations(normalizedTree.nodes[targetNodeId]?.boardAnnotations);
 }
 
 export function getMoveHistoryEntries(tree, targetNodeId = tree.activeLineLeafId) {
@@ -1084,6 +1127,18 @@ export function createVariantTreeFromGameAndRedo(game, redoMoves = []) {
   tree.activeLineLeafId = activeLeafId;
 
   return finalizeVariantTree(tree);
+}
+
+export function toggleBoardArrowAnnotation(tree, nodeId, arrow) {
+  return updateNodeBoardAnnotations(tree, nodeId, (boardAnnotations) =>
+    toggleBoardArrowInAnnotations(boardAnnotations, arrow),
+  );
+}
+
+export function toggleBoardHighlightAnnotation(tree, nodeId, highlight) {
+  return updateNodeBoardAnnotations(tree, nodeId, (boardAnnotations) =>
+    toggleBoardHighlightInAnnotations(boardAnnotations, highlight),
+  );
 }
 
 export function createVariantTreeFromParsedPgn(parsedPgn) {

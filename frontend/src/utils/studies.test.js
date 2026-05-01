@@ -5,6 +5,11 @@ import {
   normalizeStudy,
   normalizeStudySummary,
 } from "./studies.js";
+import {
+  createVariantTreeFromMoves,
+  toggleBoardArrowAnnotation,
+  toggleBoardHighlightAnnotation,
+} from "./variantTree.js";
 
 describe("studies", () => {
   it("builds fallback title from PGN headers", () => {
@@ -54,6 +59,14 @@ describe("studies", () => {
   });
 
   it("normalizes full studies for loading", () => {
+    let variantTree = createVariantTreeFromMoves([{ from: "e2", to: "e4" }]);
+
+    variantTree = toggleBoardArrowAnnotation(variantTree, variantTree.currentNodeId, {
+      startSquare: "e2",
+      endSquare: "e4",
+      color: "#ffaa00",
+    });
+
     const study = normalizeStudy({
       id: "study-1",
       title: "Notes",
@@ -62,9 +75,7 @@ describe("studies", () => {
       summary: {
         event: "Club Match",
       },
-      variantTree: {
-        currentNodeId: "root",
-      },
+      variantTree,
       importedPgnData: {
         rawPgn: '[Event "Club Match"] 1. e4 *',
         headers: [{ name: "Event", value: "Club Match" }],
@@ -88,6 +99,14 @@ describe("studies", () => {
       },
       variantTree: expect.objectContaining({
         currentNodeId: expect.any(String),
+        nodes: expect.objectContaining({
+          [variantTree.currentNodeId]: expect.objectContaining({
+            boardAnnotations: {
+              arrows: [{ startSquare: "e2", endSquare: "e4", color: "#ffaa00" }],
+              highlights: [],
+            },
+          }),
+        }),
       }),
       importedPgnData: {
         rawPgn: '[Event "Club Match"] 1. e4 *',
@@ -112,12 +131,17 @@ describe("studies", () => {
   });
 
   it("creates save payload from current workspace", () => {
+    let variantTree = createVariantTreeFromMoves([{ from: "e2", to: "e4" }]);
+
+    variantTree = toggleBoardHighlightAnnotation(variantTree, variantTree.currentNodeId, {
+      square: "e4",
+      color: "#4caf50",
+    });
+
     expect(
       createStudySavePayload({
         title: "",
-        variantTree: {
-          currentNodeId: "root",
-        },
+        variantTree,
         importedPgnData: {
           headers: [
             { name: "White", value: "Alice" },
@@ -130,6 +154,14 @@ describe("studies", () => {
       title: "Alice vs Bob",
       variantTree: expect.objectContaining({
         currentNodeId: expect.any(String),
+        nodes: expect.objectContaining({
+          [variantTree.currentNodeId]: expect.objectContaining({
+            boardAnnotations: {
+              arrows: [],
+              highlights: [{ square: "e4", color: "#4caf50" }],
+            },
+          }),
+        }),
       }),
       importedPgnData: {
         rawPgn: "",

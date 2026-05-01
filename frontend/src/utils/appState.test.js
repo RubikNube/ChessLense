@@ -35,6 +35,8 @@ import {
   createVariantTreeFromMoves,
   getMoveHistoryForNode,
   redoInVariantTree,
+  toggleBoardArrowAnnotation,
+  toggleBoardHighlightAnnotation,
 } from "./variantTree.js";
 
 function createStorage(value) {
@@ -429,6 +431,35 @@ describe("persisted app state", () => {
         },
       ],
       trainingState: createEmptyTrainingState(),
+    });
+  });
+
+  it("preserves board annotations embedded in the variant tree", () => {
+    const storage = createStorage();
+    let variantTree = createVariantTreeFromMoves([{ from: "e2", to: "e4" }]);
+
+    variantTree = toggleBoardArrowAnnotation(variantTree, variantTree.currentNodeId, {
+      startSquare: "e2",
+      endSquare: "e4",
+      color: "#ffaa00",
+    });
+    variantTree = toggleBoardHighlightAnnotation(variantTree, variantTree.currentNodeId, {
+      square: "e4",
+      color: "#4caf50",
+    });
+
+    savePersistedAppState(
+      {
+        variantTree,
+      },
+      storage,
+    );
+
+    expect(
+      loadPersistedAppState(storage)?.variantTree.nodes[variantTree.currentNodeId].boardAnnotations,
+    ).toEqual({
+      arrows: [{ startSquare: "e2", endSquare: "e4", color: "#ffaa00" }],
+      highlights: [{ square: "e4", color: "#4caf50" }],
     });
   });
 
