@@ -207,11 +207,12 @@ function createApp() {
 
 	app.get("/api/otb/games", async (req, res) => {
 		try {
-			const { search, games } = await searchOtbGames(req.query || {});
+			const { search, games, pagination } = await searchOtbGames(req.query || {});
 
 			return res.json({
 				search,
 				games,
+				pagination,
 			});
 		} catch (error) {
 			return sendApiError(res, error);

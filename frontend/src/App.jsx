@@ -381,12 +381,18 @@ function App() {
   const [otbSearchFilters, setOtbSearchFilters] = useState(
     () => persistedAppState?.otbSearchFilters ?? DEFAULT_OTB_SEARCH_FILTERS,
   );
+  const [appliedOtbSearchFilters, setAppliedOtbSearchFilters] = useState(
+    () => persistedAppState?.otbSearchFilters ?? DEFAULT_OTB_SEARCH_FILTERS,
+  );
   const [otbSearchResults, setOtbSearchResults] = useState([]);
+  const [otbSearchPage, setOtbSearchPage] = useState(1);
+  const [otbSearchPagination, setOtbSearchPagination] = useState(null);
   const [otbSearchError, setOtbSearchError] = useState("");
   const [otbImportError, setOtbImportError] = useState("");
   const [otbSearchLoading, setOtbSearchLoading] = useState(false);
   const [otbImportingGameId, setOtbImportingGameId] = useState("");
   const [hasSearchedOtb, setHasSearchedOtb] = useState(false);
+  const [otbSearchNonce, setOtbSearchNonce] = useState(0);
   const [boardPanelHeight, setBoardPanelHeight] = useState(0);
   const [importedPgnData, setImportedPgnData] = useState(
     () => persistedAppState?.importedPgnData ?? null,
@@ -408,6 +414,7 @@ function App() {
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
   const boardPanelRef = useRef(null);
+  const appliedOtbSearchFiltersRef = useRef(appliedOtbSearchFilters);
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
@@ -415,6 +422,9 @@ function App() {
   useEffect(() => {
     setHoveredOpeningTreeMove(null);
   }, [fen]);
+  useEffect(() => {
+    appliedOtbSearchFiltersRef.current = appliedOtbSearchFilters;
+  }, [appliedOtbSearchFilters]);
   const currentMoveHistory = useMemo(
     () => getMoveHistoryForNode(variantTree),
     [variantTree],
@@ -2248,31 +2258,44 @@ function App() {
   }
 
   async function searchOtbGames() {
-    const { query, error } = buildOtbSearchQuery(otbSearchFilters);
+    const { error } = buildOtbSearchQuery(otbSearchFilters, 1);
 
     if (error) {
       setOtbSearchError(error);
       setOtbImportError("");
       setOtbSearchResults([]);
+      setOtbSearchPagination(null);
       setHasSearchedOtb(false);
       return;
     }
 
-    setOtbSearchLoading(true);
+    setAppliedOtbSearchFilters(otbSearchFilters);
     setOtbSearchError("");
     setOtbImportError("");
     setHasSearchedOtb(true);
-
-    try {
-      const data = await fetchJson(`/api/otb/games?${query}`);
-      setOtbSearchResults(Array.isArray(data.games) ? data.games : []);
-    } catch (error) {
-      setOtbSearchResults([]);
-      setOtbSearchError(error.message);
-    } finally {
-      setOtbSearchLoading(false);
-    }
+    setOtbSearchPage(1);
+    setOtbSearchNonce((currentValue) => currentValue + 1);
   }
+
+  const changeOtbPage = useCallback((nextPage) => {
+    setOtbSearchError("");
+    setOtbImportError("");
+    setOtbSearchPage(nextPage);
+  }, []);
+
+  const changeOtbPageSize = useCallback((nextPageSize) => {
+    setOtbSearchError("");
+    setOtbImportError("");
+    setOtbSearchFilters((currentValue) => ({
+      ...currentValue,
+      pageSize: nextPageSize,
+    }));
+    setAppliedOtbSearchFilters((currentValue) => ({
+      ...currentValue,
+      pageSize: nextPageSize,
+    }));
+    setOtbSearchPage(1);
+  }, []);
 
   async function importOtbGame(gameId) {
     setOtbImportError("");
@@ -2337,6 +2360,103 @@ function App() {
       window.clearTimeout(timeoutId);
     };
   }, [copyNotification]);
+
+  useEffect(() => {
+    if (!hasSearchedOtb) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function runOtbSearch() {
+      const { query, error } = buildOtbSearchQuery(
+        appliedOtbSearchFiltersRef.current,
+        otbSearchPage,
+      );
+
+      if (error) {
+        if (!cancelled) {
+          setOtbSearchError(error);
+          setOtbImportError("");
+          setOtbSearchResults([]);
+          setOtbSearchPagination(null);
+          setHasSearchedOtb(false);
+        }
+        return;
+      }
+
+      setOtbSearchLoading(true);
+      setOtbSearchError("");
+      setOtbImportError("");
+
+      try {
+        const data = await fetchJson(`/api/otb/games?${query}`);
+
+        if (cancelled) {
+          return;
+        }
+
+        const nextResults = Array.isArray(data.games) ? data.games : [];
+        const nextPagination =
+          data?.pagination && typeof data.pagination === "object"
+            ? data.pagination
+            : data?.search && typeof data.search === "object"
+              ? {
+                  page:
+                    Number.isInteger(data.search.page) && data.search.page > 0
+                      ? data.search.page
+                      : otbSearchPage,
+                  pageSize:
+                    Number.isInteger(data.search.pageSize) && data.search.pageSize > 0
+                      ? data.search.pageSize
+                      : Number(appliedOtbSearchFiltersRef.current.pageSize) || 25,
+                  totalResults: Number.isInteger(data.search.totalResults)
+                    ? data.search.totalResults
+                    : nextResults.length,
+                  totalPages: Number.isInteger(data.search.totalPages)
+                    ? data.search.totalPages
+                    : 1,
+                  hasPreviousPage:
+                    Number.isInteger(data.search.page) && data.search.page > 1,
+                  hasNextPage:
+                    Number.isInteger(data.search.page) &&
+                    Number.isInteger(data.search.totalPages) &&
+                    data.search.page < data.search.totalPages,
+                }
+            : {
+                page: otbSearchPage,
+                pageSize: Number(appliedOtbSearchFiltersRef.current.pageSize) || 25,
+                totalResults: nextResults.length,
+                totalPages: nextResults.length > 0 ? 1 : 1,
+                hasPreviousPage: false,
+                hasNextPage: false,
+              };
+
+        setOtbSearchResults(nextResults);
+        setOtbSearchPagination(nextPagination);
+
+        if (Number.isInteger(nextPagination.page) && nextPagination.page !== otbSearchPage) {
+          setOtbSearchPage(nextPagination.page);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setOtbSearchResults([]);
+          setOtbSearchPagination(null);
+          setOtbSearchError(error.message);
+        }
+      } finally {
+        if (!cancelled) {
+          setOtbSearchLoading(false);
+        }
+      }
+    }
+
+    void runOtbSearch();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasSearchedOtb, otbSearchNonce, otbSearchPage, otbSearchFilters.pageSize]);
 
   useEffect(() => {
     setEditingCommentId(null);
@@ -3086,6 +3206,8 @@ function App() {
         <OtbSearchModal
           filters={otbSearchFilters}
           setFilters={setOtbSearchFilters}
+          page={otbSearchPage}
+          pagination={otbSearchPagination}
           searchError={otbSearchError}
           setSearchError={setOtbSearchError}
           importError={otbImportError}
@@ -3094,6 +3216,8 @@ function App() {
           results={otbSearchResults}
           importingGameId={otbImportingGameId}
           onSearch={searchOtbGames}
+          onPageChange={changeOtbPage}
+          onPageSizeChange={changeOtbPageSize}
           onImport={importOtbGame}
           onClose={closeOtbSearchPopup}
         />

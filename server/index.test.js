@@ -97,7 +97,7 @@ test("POST /api/otb/import imports a PGN file into the SQLite database", async (
 			const searchResult = await searchGames(
 				{
 					player: "Morphy",
-					max: 10,
+					pageSize: 10,
 				},
 				{ dbPath },
 			);
@@ -140,6 +140,55 @@ test("POST /api/otb/import rejects invalid uploads", async () => {
 			assert.equal(response.status, 400);
 			assert.equal(data.error, "invalid_import");
 			assert.equal(data.details, "fileName must end with .pgn.");
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousDbPath === "string") {
+			process.env.OTB_DB_PATH = previousDbPath;
+		} else {
+			delete process.env.OTB_DB_PATH;
+		}
+
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("GET /api/otb/games includes pagination metadata", async () => {
+	const previousDbPath = process.env.OTB_DB_PATH;
+	const { dbPath, rootDir } = await createTempDbPath();
+	process.env.OTB_DB_PATH = dbPath;
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			await fetch(`${baseUrl}/api/otb/import`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					fileName: "masters.pgn",
+					pgn: SAMPLE_PGN.trim(),
+				}),
+			});
+
+			const response = await fetch(
+				`${baseUrl}/api/otb/games?player=Morphy&page=1&pageSize=1`,
+			);
+			const data = await response.json();
+
+			assert.equal(response.status, 200);
+			assert.equal(data.games.length, 1);
+			assert.deepEqual(data.pagination, {
+				page: 1,
+				pageSize: 1,
+				totalResults: 2,
+				totalPages: 2,
+				hasPreviousPage: false,
+				hasNextPage: true,
+			});
 		} finally {
 			await closeServer(server);
 		}

@@ -4,8 +4,9 @@ const path = require("path");
 const { HttpError } = require("./httpError");
 const { clearOtbDatabase, openOtbDatabase } = require("./otbDb");
 
-const DEFAULT_MAX_RESULTS = 25;
-const MAX_RESULTS_LIMIT = 100;
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 25;
+const MAX_PAGE_SIZE_LIMIT = 100;
 const DEFAULT_OTB_PGN_DIR = path.join(__dirname, "data", "otb");
 const HEADER_PATTERN = /\[\s*([A-Za-z0-9_]+)\s+"((?:\\.|[^"\\])*)"\s*\]/g;
 const RESULT_WINNER_MAP = {
@@ -35,28 +36,50 @@ function normalizeOptionalYear(value, fieldName) {
 	return Number(normalized);
 }
 
-function normalizeMaxResults(value) {
+function normalizePositiveInteger(value, fieldName) {
 	const normalized = normalizeString(value);
 
 	if (!normalized) {
-		return DEFAULT_MAX_RESULTS;
+		return null;
 	}
 
 	if (!/^\d+$/.test(normalized)) {
-		throw new HttpError(400, "invalid_query", "max must be a whole number");
+		throw new HttpError(400, "invalid_query", `${fieldName} must be a whole number`);
 	}
 
-	const max = Number(normalized);
+	return Number(normalized);
+}
 
-	if (max < 1 || max > MAX_RESULTS_LIMIT) {
+function normalizePage(value) {
+	const page = normalizePositiveInteger(value, "page");
+
+	if (page === null) {
+		return DEFAULT_PAGE;
+	}
+
+	if (page < 1) {
+		throw new HttpError(400, "invalid_query", "page must be at least 1");
+	}
+
+	return page;
+}
+
+function normalizePageSize(value) {
+	const pageSize = normalizePositiveInteger(value, "pageSize");
+
+	if (pageSize === null) {
+		return DEFAULT_PAGE_SIZE;
+	}
+
+	if (pageSize < 1 || pageSize > MAX_PAGE_SIZE_LIMIT) {
 		throw new HttpError(
 			400,
 			"invalid_query",
-			`max must be between 1 and ${MAX_RESULTS_LIMIT}`,
+			`pageSize must be between 1 and ${MAX_PAGE_SIZE_LIMIT}`,
 		);
 	}
 
-	return max;
+	return pageSize;
 }
 
 function normalizeResult(value) {
@@ -189,7 +212,8 @@ function normalizeSearchQuery(query) {
 		result: normalizeResult(query.result),
 		yearFrom: normalizeOptionalYear(query.yearFrom, "yearFrom"),
 		yearTo: normalizeOptionalYear(query.yearTo, "yearTo"),
-		max: normalizeMaxResults(query.max),
+		page: normalizePage(query.page),
+		pageSize: normalizePageSize(query.pageSize ?? query.max),
 	};
 
 	if (search.yearFrom && search.yearTo && search.yearFrom > search.yearTo) {
@@ -626,7 +650,7 @@ function appendMatchClause(clauses, params, match) {
 	params.push(...match.params);
 }
 
-function buildSearchStatement(search) {
+function buildSearchQueryDefinition(search) {
 	const clauses = [];
 	const params = [];
 	const isPairSearch = Boolean(search.player && search.opponent);
@@ -717,28 +741,8 @@ function buildSearchStatement(search) {
 		params.push(search.yearTo);
 	}
 
-	params.push(search.max);
-
 	return {
-		query: `
-			SELECT
-				g.id,
-				g.source,
-				g.source_file AS sourceFile,
-				g.variant,
-				g.result,
-				g.created_at AS createdAt,
-				g.date_label AS dateLabel,
-				g.year,
-				g.move_count AS moveCount,
-				g.ply_count AS plyCount,
-				g.event,
-				g.site,
-				g.round,
-				g.eco,
-				g.opening,
-				pw.name AS whiteName,
-				pb.name AS blackName
+		fromClause: `
 			FROM otb_games g
 			JOIN otb_game_players gpw
 				ON gpw.game_id = g.id AND gpw.color = 'white'
@@ -748,10 +752,8 @@ function buildSearchStatement(search) {
 				ON gpb.game_id = g.id AND gpb.color = 'black'
 			JOIN otb_players pb
 				ON pb.id = gpb.player_id
-			${clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : ""}
-			ORDER BY COALESCE(g.year, 0) DESC, COALESCE(g.created_at, 0) DESC, g.id ASC
-			LIMIT ?
 		`,
+		whereClause: clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "",
 		params,
 	};
 }
@@ -964,15 +966,62 @@ async function searchGames(rawQuery, options = {}) {
 	});
 
 	try {
-		const statement = buildSearchStatement(search);
+		const queryDefinition = buildSearchQueryDefinition(search);
+		const totalResults =
+			database
+				.prepare(`
+					SELECT COUNT(*) AS totalResults
+					${queryDefinition.fromClause}
+					${queryDefinition.whereClause}
+				`)
+				.get(...queryDefinition.params)?.totalResults ?? 0;
+		const totalPages = totalResults > 0 ? Math.ceil(totalResults / search.pageSize) : 1;
+		const currentPage = Math.min(search.page, totalPages);
+		const offset = (currentPage - 1) * search.pageSize;
 		const games = database
-			.prepare(statement.query)
-			.all(...statement.params)
+			.prepare(`
+				SELECT
+					g.id,
+					g.source,
+					g.source_file AS sourceFile,
+					g.variant,
+					g.result,
+					g.created_at AS createdAt,
+					g.date_label AS dateLabel,
+					g.year,
+					g.move_count AS moveCount,
+					g.ply_count AS plyCount,
+					g.event,
+					g.site,
+					g.round,
+					g.eco,
+					g.opening,
+					pw.name AS whiteName,
+					pb.name AS blackName
+					${queryDefinition.fromClause}
+					${queryDefinition.whereClause}
+					ORDER BY COALESCE(g.year, 0) DESC, COALESCE(g.created_at, 0) DESC, g.id ASC
+					LIMIT ? OFFSET ?
+			`)
+			.all(...queryDefinition.params, search.pageSize, offset)
 			.map(mapGameSummaryRow);
 
 		return {
-			search,
+			search: {
+				...search,
+				page: currentPage,
+				totalResults,
+				totalPages,
+			},
 			games,
+			pagination: {
+				page: currentPage,
+				pageSize: search.pageSize,
+				totalResults,
+				totalPages,
+				hasPreviousPage: currentPage > 1,
+				hasNextPage: currentPage < totalPages,
+			},
 		};
 	} finally {
 		database.close();

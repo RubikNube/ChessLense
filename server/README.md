@@ -369,9 +369,10 @@ Search historical OTB games from the configured local SQLite archive.
 - `result` (optional): `1-0`, `0-1`, `1/2-1/2`, or `*`
 - `ecoFrom` / `ecoTo` (optional): inclusive ECO code range bounds such as `C20` to `C99`
 - `opening` (optional): opening contains filter
-- `max` (optional): number of results to return, from `1` to `100`, defaults to `25`
+- `page` (optional): results page number, defaults to `1`
+- `pageSize` (optional): results per page, from `1` to `100`, defaults to `25`
 
-At least one non-`max` filter is required.
+At least one non-pagination filter is required.
 
 #### Success response
 
@@ -388,7 +389,16 @@ At least one non-`max` filter is required.
     "result": "",
     "yearFrom": 1858,
     "yearTo": 1858,
-    "max": 5
+    "page": 1,
+    "pageSize": 25
+  },
+  "pagination": {
+    "page": 1,
+    "pageSize": 25,
+    "totalResults": 43,
+    "totalPages": 2,
+    "hasPreviousPage": false,
+    "hasNextPage": true
   },
   "games": [
     {
@@ -410,6 +420,8 @@ At least one non-`max` filter is required.
   ]
 }
 ```
+
+Use the returned `pagination` block to move through result pages without changing the other search filters.
 
 When both `player` and `opponent` are provided:
 

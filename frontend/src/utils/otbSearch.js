@@ -9,8 +9,15 @@ export const DEFAULT_OTB_SEARCH_FILTERS = {
   ecoFrom: "",
   ecoTo: "",
   opening: "",
-  max: "25",
+  pageSize: "25",
 };
+
+export const OTB_PAGE_SIZE_OPTIONS = [
+  { value: "10", label: "10" },
+  { value: "25", label: "25" },
+  { value: "50", label: "50" },
+  { value: "100", label: "100" },
+];
 
 export const OTB_RESULT_OPTIONS = [
   { value: "", label: "Any result" },
@@ -44,11 +51,14 @@ export function normalizeOtbSearchFilters(filters) {
     ecoFrom: normalizeString(filters?.ecoFrom).toUpperCase(),
     ecoTo: normalizeString(filters?.ecoTo).toUpperCase(),
     opening: normalizeString(filters?.opening),
-    max: normalizeString(filters?.max) || DEFAULT_OTB_SEARCH_FILTERS.max,
+    pageSize:
+      normalizeString(filters?.pageSize) ||
+      normalizeString(filters?.max) ||
+      DEFAULT_OTB_SEARCH_FILTERS.pageSize,
   };
 }
 
-export function buildOtbSearchQuery(filters) {
+export function buildOtbSearchQuery(filters, page = 1) {
   const normalized = normalizeOtbSearchFilters(filters);
 
   if (normalized.color && !normalized.player) {
@@ -129,6 +139,7 @@ export function buildOtbSearchQuery(filters) {
       params.set(key, value);
     }
   });
+  params.set("page", String(Math.max(1, Number(page) || 1)));
 
   return {
     query: params.toString(),
@@ -175,4 +186,47 @@ export function formatOtbMoveCount(game) {
   }
 
   return "Move count unavailable";
+}
+
+export function getOtbPageWindow(currentPage, totalPages) {
+  const safeTotalPages = Number.isInteger(totalPages) && totalPages > 0 ? totalPages : 1;
+  const safeCurrentPage =
+    Number.isInteger(currentPage) && currentPage > 0
+      ? Math.min(currentPage, safeTotalPages)
+      : 1;
+
+  if (safeTotalPages <= 7) {
+    return Array.from({ length: safeTotalPages }, (_, index) => index + 1);
+  }
+
+  let start = Math.max(2, safeCurrentPage - 2);
+  let end = Math.min(safeTotalPages - 1, safeCurrentPage + 2);
+
+  while (end - start + 1 < 5) {
+    if (start > 2) {
+      start -= 1;
+    } else if (end < safeTotalPages - 1) {
+      end += 1;
+    } else {
+      break;
+    }
+  }
+
+  const items = [1];
+
+  if (start > 2) {
+    items.push("ellipsis-left");
+  }
+
+  for (let page = start; page <= end; page += 1) {
+    items.push(page);
+  }
+
+  if (end < safeTotalPages - 1) {
+    items.push("ellipsis-right");
+  }
+
+  items.push(safeTotalPages);
+
+  return items;
 }

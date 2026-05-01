@@ -129,7 +129,7 @@ describe("persisted app state", () => {
           ecoFrom: " c20 ",
           ecoTo: " c99 ",
           opening: " Italian ",
-          max: "",
+          pageSize: "",
         },
         importedPgnData: {
           rawPgn: "[Event \"Test\"] 1. e4",
@@ -217,7 +217,7 @@ describe("persisted app state", () => {
         ecoFrom: "C20",
         ecoTo: "C99",
         opening: "Italian",
-        max: DEFAULT_OTB_SEARCH_FILTERS.max,
+        pageSize: DEFAULT_OTB_SEARCH_FILTERS.pageSize,
       },
       importedPgnData: {
         rawPgn: "[Event \"Test\"] 1. e4",
@@ -339,7 +339,7 @@ describe("persisted app state", () => {
           ecoFrom: " c20 ",
           ecoTo: " c99 ",
           opening: " Italian ",
-          max: "",
+          pageSize: "",
         },
         importedPgnData: {
           rawPgn: "[Event \"Test\"] 1. e4",
@@ -398,7 +398,7 @@ describe("persisted app state", () => {
         ecoFrom: "C20",
         ecoTo: "C99",
         opening: "Italian",
-        max: DEFAULT_OTB_SEARCH_FILTERS.max,
+        pageSize: DEFAULT_OTB_SEARCH_FILTERS.pageSize,
       },
       importedPgnData: {
         rawPgn: "[Event \"Test\"] 1. e4",

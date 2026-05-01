@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOtbSearchQuery,
+  getOtbPageWindow,
   OTB_COLOR_OPTIONS,
+  OTB_PAGE_SIZE_OPTIONS,
   formatOtbGameDate,
   formatOtbMoveCount,
   formatOtbResult,
@@ -9,7 +11,7 @@ import {
 } from "./otbSearch.js";
 
 describe("normalizeOtbSearchFilters", () => {
-  it("trims filters and applies the default max", () => {
+  it("trims filters and applies the default page size", () => {
       expect(
         normalizeOtbSearchFilters({
           player: " Morphy ",
@@ -22,7 +24,7 @@ describe("normalizeOtbSearchFilters", () => {
           ecoFrom: " c20 ",
           ecoTo: " c99 ",
           opening: " Italian ",
-          max: "",
+          pageSize: "",
         }),
       ).toEqual({
         player: "Morphy",
@@ -35,14 +37,14 @@ describe("normalizeOtbSearchFilters", () => {
         ecoFrom: "C20",
         ecoTo: "C99",
         opening: "Italian",
-        max: "25",
+        pageSize: "25",
       });
   });
 });
 
 describe("buildOtbSearchQuery", () => {
   it("requires at least one real filter", () => {
-    expect(buildOtbSearchQuery({ max: "10" })).toEqual({
+    expect(buildOtbSearchQuery({ pageSize: "10" })).toEqual({
       query: "",
       error: "Enter at least one OTB search filter.",
     });
@@ -86,13 +88,24 @@ describe("buildOtbSearchQuery", () => {
         result: "1-0",
         ecoFrom: "c20",
         ecoTo: "c99",
-        max: "5",
+        pageSize: "50",
       }),
     ).toEqual({
       query:
-        "player=Morphy&opponent=Anderssen&color=black&event=Paris&yearFrom=1858&yearTo=1858&result=1-0&ecoFrom=C20&ecoTo=C99&max=5",
+        "player=Morphy&opponent=Anderssen&color=black&event=Paris&yearFrom=1858&yearTo=1858&result=1-0&ecoFrom=C20&ecoTo=C99&pageSize=50&page=1",
       error: "",
     });
+  });
+});
+
+describe("OTB_PAGE_SIZE_OPTIONS", () => {
+  it("offers the supported per-page choices", () => {
+    expect(OTB_PAGE_SIZE_OPTIONS).toEqual([
+      { value: "10", label: "10" },
+      { value: "25", label: "25" },
+      { value: "50", label: "50" },
+      { value: "100", label: "100" },
+    ]);
   });
 });
 
@@ -127,5 +140,43 @@ describe("formatOtbMoveCount", () => {
     expect(formatOtbMoveCount({ moveCount: 1 })).toBe("1 move");
     expect(formatOtbMoveCount({ plyCount: 93 })).toBe("47 moves");
     expect(formatOtbMoveCount({ moveCount: 0 })).toBe("Move count unavailable");
+  });
+});
+
+describe("getOtbPageWindow", () => {
+  it("shows all pages when the total is small", () => {
+    expect(getOtbPageWindow(3, 5)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("shows a left ellipsis when the current page is deep into the results", () => {
+    expect(getOtbPageWindow(8, 20)).toEqual([
+      1,
+      "ellipsis-left",
+      6,
+      7,
+      8,
+      9,
+      10,
+      "ellipsis-right",
+      20,
+    ]);
+  });
+
+  it("shows a right ellipsis near the start", () => {
+    expect(getOtbPageWindow(2, 20)).toEqual([1, 2, 3, 4, 5, 6, "ellipsis-right", 20]);
+  });
+
+  it("shows both ellipses in the middle", () => {
+    expect(getOtbPageWindow(10, 20)).toEqual([
+      1,
+      "ellipsis-left",
+      8,
+      9,
+      10,
+      11,
+      12,
+      "ellipsis-right",
+      20,
+    ]);
   });
 });

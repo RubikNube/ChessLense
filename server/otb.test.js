@@ -103,7 +103,8 @@ test("normalizeSearchQuery accepts ECO-only range searches", () => {
 		result: "",
 		yearFrom: null,
 		yearTo: null,
-		max: 25,
+		page: 1,
+		pageSize: 25,
 	});
 });
 
@@ -185,7 +186,7 @@ test("searchGames supports pair searches with and without color constraints", as
 			{
 				player: "Morphy",
 				opponent: "Anderssen",
-				max: 10,
+				pageSize: 10,
 			},
 			{ dbPath },
 		);
@@ -194,7 +195,7 @@ test("searchGames supports pair searches with and without color constraints", as
 				player: "Morphy",
 				opponent: "Anderssen",
 				color: "white",
-				max: 10,
+				pageSize: 10,
 			},
 			{ dbPath },
 		);
@@ -203,7 +204,7 @@ test("searchGames supports pair searches with and without color constraints", as
 				player: "Morphy",
 				opponent: "Anderssen",
 				color: "black",
-				max: 10,
+				pageSize: 10,
 			},
 			{ dbPath },
 		);
@@ -236,7 +237,7 @@ test("searchGames filters SQLite-backed OTB results by ECO, year, event, opening
 				result: "1/2-1/2",
 				yearFrom: "1985",
 				yearTo: "1985",
-				max: 10,
+				pageSize: 10,
 			},
 			{ dbPath },
 		);
@@ -263,7 +264,7 @@ test("getGame returns imported PGN text from SQLite", async () => {
 		const searchResult = await searchGames(
 			{
 				event: "paris",
-				max: 1,
+				pageSize: 1,
 			},
 			{ dbPath },
 		);
@@ -272,6 +273,56 @@ test("getGame returns imported PGN text from SQLite", async () => {
 		assert.equal(loadedGame.game.event, "Paris Exhibition");
 		assert.match(loadedGame.pgn, /\[White "Paul Morphy"\]/);
 		assert.match(loadedGame.pgn, /1\. e4 e5 2\. Nf3 Nc6 3\. Bc4 Bc5 1-0/);
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("searchGames returns pagination metadata and page slices", async () => {
+	const { archiveDir, dbPath, rootDir } = await createTempOtbWorkspace();
+
+	try {
+		await importPgnDirectory({
+			rootDir: archiveDir,
+			dbPath,
+		});
+
+		const firstPage = await searchGames(
+			{
+				player: "Morphy",
+				page: "1",
+				pageSize: "1",
+			},
+			{ dbPath },
+		);
+		const secondPage = await searchGames(
+			{
+				player: "Morphy",
+				page: "2",
+				pageSize: "1",
+			},
+			{ dbPath },
+		);
+
+		assert.equal(firstPage.games.length, 1);
+		assert.equal(secondPage.games.length, 1);
+		assert.notEqual(firstPage.games[0].id, secondPage.games[0].id);
+		assert.deepEqual(firstPage.pagination, {
+			page: 1,
+			pageSize: 1,
+			totalResults: 2,
+			totalPages: 2,
+			hasPreviousPage: false,
+			hasNextPage: true,
+		});
+		assert.deepEqual(secondPage.pagination, {
+			page: 2,
+			pageSize: 1,
+			totalResults: 2,
+			totalPages: 2,
+			hasPreviousPage: true,
+			hasNextPage: false,
+		});
 	} finally {
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}
