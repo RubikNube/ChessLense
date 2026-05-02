@@ -5,6 +5,7 @@ import { goToStartInVariantTree } from "./variantTree.js";
 
 export const TRAINING_MODE_OFF = "off";
 export const TRAINING_MODE_REPLAY_GAME = "replay-game";
+export const TRAINING_MODE_GUESS_THE_MOVE = "guess-the-move";
 export const TRAINING_MODE_PLAY_COMPUTER = "play-computer";
 
 export const TRAINING_STATUS_IDLE = "idle";
@@ -26,6 +27,12 @@ export const REPLAY_RESULT_WORSE = "worse";
 
 export const REPLAY_EQUAL_THRESHOLD_CP = 30;
 export const REPLAY_CRITICAL_THRESHOLD_CP = 150;
+
+export const GUESS_THE_MOVE_POINTS_MATCH = 3;
+export const GUESS_THE_MOVE_POINTS_BETTER = 4;
+export const GUESS_THE_MOVE_POINTS_EQUAL = 3;
+export const GUESS_THE_MOVE_POINTS_WORSE = -1;
+export const GUESS_THE_MOVE_POINTS_CRITICAL_WORSE = -3;
 
 function normalizeMove(move) {
   if (
@@ -263,6 +270,8 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
   const mode =
     entry.mode === TRAINING_MODE_REPLAY_GAME
       ? TRAINING_MODE_REPLAY_GAME
+      : entry.mode === TRAINING_MODE_GUESS_THE_MOVE
+        ? TRAINING_MODE_GUESS_THE_MOVE
       : entry.mode === TRAINING_MODE_PLAY_COMPUTER
         ? TRAINING_MODE_PLAY_COMPUTER
         : TRAINING_MODE_OFF;
@@ -296,7 +305,9 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
   const computerPlay = normalizeComputerPlay(entry.computerPlay);
   const normalizedMode =
     mode === TRAINING_MODE_PLAY_COMPUTER && !computerPlay ? TRAINING_MODE_OFF : mode;
-  const supportsReplayState = normalizedMode === TRAINING_MODE_REPLAY_GAME;
+  const supportsReferenceTrainingState =
+    normalizedMode === TRAINING_MODE_REPLAY_GAME ||
+    normalizedMode === TRAINING_MODE_GUESS_THE_MOVE;
   const supportsComputerPlay =
     normalizedMode === TRAINING_MODE_PLAY_COMPUTER && computerPlay;
 
@@ -309,15 +320,15 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
         : status === TRAINING_STATUS_COMPLETED && boundedProgress < referenceMoves.length
           ? TRAINING_STATUS_ACTIVE
           : status,
-    progressPly: supportsReplayState
+    progressPly: supportsReferenceTrainingState
       ? Math.max(0, Math.min(boundedProgress, referenceMoves.length))
       : 0,
-    referenceMoves: supportsReplayState ? referenceMoves : [],
-    attempts: supportsReplayState ? attempts : [],
-    pendingAttempts: supportsReplayState ? pendingAttempts : [],
-    lastCompletedAttempts: supportsReplayState ? lastCompletedAttempts : [],
-    lastCompletedExpectedMove: supportsReplayState ? lastCompletedExpectedMove : null,
-    lastCompletionMode: supportsReplayState ? lastCompletionMode : null,
+    referenceMoves: supportsReferenceTrainingState ? referenceMoves : [],
+    attempts: supportsReferenceTrainingState ? attempts : [],
+    pendingAttempts: supportsReferenceTrainingState ? pendingAttempts : [],
+    lastCompletedAttempts: supportsReferenceTrainingState ? lastCompletedAttempts : [],
+    lastCompletedExpectedMove: supportsReferenceTrainingState ? lastCompletedExpectedMove : null,
+    lastCompletionMode: supportsReferenceTrainingState ? lastCompletionMode : null,
     computerPlay: supportsComputerPlay ? computerPlay : null,
   };
 }
@@ -407,7 +418,12 @@ export function getReplayReferenceMoves(rawPgn) {
   };
 }
 
-export function createReplayTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHITE) {
+function createReferenceTrainingState(
+  mode,
+  rawPgn,
+  playerSide = TRAINING_SIDE_WHITE,
+  errorMessage,
+) {
   const { initialFen, variantTree, referenceMoves, error } = getReplayReferenceMoves(rawPgn);
 
   if (error || !variantTree) {
@@ -415,13 +431,13 @@ export function createReplayTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHI
       trainingState: createEmptyTrainingState(playerSide),
       variantTree: null,
       initialFen,
-      error: error ?? "Unable to start replay training.",
+      error: error ?? errorMessage,
     };
   }
 
   return {
     trainingState: normalizeTrainingState({
-      mode: TRAINING_MODE_REPLAY_GAME,
+      mode,
       status: referenceMoves.length ? TRAINING_STATUS_ACTIVE : TRAINING_STATUS_COMPLETED,
       playerSide,
       progressPly: 0,
@@ -438,6 +454,24 @@ export function createReplayTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHI
     initialFen,
     error: null,
   };
+}
+
+export function createReplayTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHITE) {
+  return createReferenceTrainingState(
+    TRAINING_MODE_REPLAY_GAME,
+    rawPgn,
+    playerSide,
+    "Unable to start replay training.",
+  );
+}
+
+export function createGuessTheMoveTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHITE) {
+  return createReferenceTrainingState(
+    TRAINING_MODE_GUESS_THE_MOVE,
+    rawPgn,
+    playerSide,
+    "Unable to start guess the move training.",
+  );
 }
 
 export function createComputerPlayTrainingState(
@@ -492,6 +526,19 @@ export function getCurrentReplayMove(trainingState) {
 
   if (
     normalizedState.mode !== TRAINING_MODE_REPLAY_GAME ||
+    normalizedState.status !== TRAINING_STATUS_ACTIVE
+  ) {
+    return null;
+  }
+
+  return normalizedState.referenceMoves[normalizedState.progressPly] ?? null;
+}
+
+export function getCurrentGuessTheMove(trainingState) {
+  const normalizedState = normalizeTrainingState(trainingState);
+
+  if (
+    normalizedState.mode !== TRAINING_MODE_GUESS_THE_MOVE ||
     normalizedState.status !== TRAINING_STATUS_ACTIVE
   ) {
     return null;
@@ -643,5 +690,135 @@ export function summarizeReplayAttempts(
     ).length,
     criticalMistakes,
     moveHistory,
+  };
+}
+
+export function getGuessTheMovePoints(attempt) {
+  const normalizedAttempt = normalizeAttempt(attempt);
+
+  if (!normalizedAttempt) {
+    return 0;
+  }
+
+  if (normalizedAttempt.outcome === REPLAY_RESULT_MATCH) {
+    return GUESS_THE_MOVE_POINTS_MATCH;
+  }
+
+  if (normalizedAttempt.classification === REPLAY_RESULT_BETTER) {
+    return GUESS_THE_MOVE_POINTS_BETTER;
+  }
+
+  if (normalizedAttempt.classification === REPLAY_RESULT_EQUAL) {
+    return GUESS_THE_MOVE_POINTS_EQUAL;
+  }
+
+  if (normalizedAttempt.classification === REPLAY_RESULT_WORSE) {
+    return normalizedAttempt.isCritical
+      ? GUESS_THE_MOVE_POINTS_CRITICAL_WORSE
+      : GUESS_THE_MOVE_POINTS_WORSE;
+  }
+
+  return 0;
+}
+
+function getGuessTheMoveEvaluationLabel(scoreRatio) {
+  if (!Number.isFinite(scoreRatio)) {
+    return "No score yet";
+  }
+
+  if (scoreRatio >= 1) {
+    return "Outstanding";
+  }
+
+  if (scoreRatio >= 0.85) {
+    return "Strong";
+  }
+
+  if (scoreRatio >= 0.65) {
+    return "Solid";
+  }
+
+  if (scoreRatio >= 0.4) {
+    return "Mixed";
+  }
+
+  return "Needs work";
+}
+
+export function summarizeGuessTheMoveAttempts(
+  referenceMoves,
+  attempts,
+  playerSide = TRAINING_SIDE_WHITE,
+) {
+  const normalizedReferenceMoves = Array.isArray(referenceMoves)
+    ? referenceMoves.map(normalizeReferenceMove).filter(Boolean)
+    : [];
+  const normalizedAttempts = Array.isArray(attempts)
+    ? attempts.map(normalizeAttempt).filter(Boolean)
+    : [];
+  const playerReferenceMoves = normalizedReferenceMoves.filter(
+    (move) => move.side === playerSide,
+  );
+  const parScore = playerReferenceMoves.length * GUESS_THE_MOVE_POINTS_MATCH;
+  const attemptedMoves = normalizedAttempts.length;
+  const completedParScore = attemptedMoves * GUESS_THE_MOVE_POINTS_MATCH;
+  const totalScore = normalizedAttempts.reduce(
+    (score, attempt) => score + getGuessTheMovePoints(attempt),
+    0,
+  );
+  const evaluationBaseScore = completedParScore || parScore || 0;
+  const scoreRatio =
+    evaluationBaseScore > 0 ? totalScore / evaluationBaseScore : null;
+  const moveHistory = playerReferenceMoves
+    .map((move) => {
+      const attempt = normalizedAttempts.find((entry) => entry.ply === move.ply);
+
+      if (!attempt) {
+        return null;
+      }
+
+      return {
+        ply: move.ply,
+        moveNumber: move.moveNumber,
+        side: move.side,
+        expectedSan: move.san,
+        expectedResultingFen: move.fenAfter,
+        userSan: attempt.userSan,
+        outcome: attempt.outcome,
+        classification: attempt.classification,
+        deltaCp: attempt.deltaCp,
+        isCritical: attempt.isCritical,
+        resultingFen: attempt.resultingFen,
+        points: getGuessTheMovePoints(attempt),
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    totalMoves: playerReferenceMoves.length,
+    attemptedMoves,
+    remainingMoves: Math.max(0, playerReferenceMoves.length - attemptedMoves),
+    parScore,
+    completedParScore,
+    totalScore,
+    matchedMoves: normalizedAttempts.filter(
+      (attempt) => attempt.outcome === REPLAY_RESULT_MATCH,
+    ).length,
+    betterMoves: normalizedAttempts.filter(
+      (attempt) => attempt.classification === REPLAY_RESULT_BETTER,
+    ).length,
+    equalMoves: normalizedAttempts.filter(
+      (attempt) => attempt.classification === REPLAY_RESULT_EQUAL,
+    ).length,
+    worseMoves: normalizedAttempts.filter(
+      (attempt) => attempt.classification === REPLAY_RESULT_WORSE && !attempt.isCritical,
+    ).length,
+    criticalWorseMoves: normalizedAttempts.filter((attempt) => attempt.isCritical).length,
+    moveHistory,
+    evaluation: {
+      label: getGuessTheMoveEvaluationLabel(scoreRatio),
+      scoreRatio,
+      basedOnCompletedMoves: completedParScore > 0,
+    },
   };
 }

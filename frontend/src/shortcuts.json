@@ -51,6 +51,10 @@
     "label": "Toggle replay training panel",
     "keys": ["Ctrl+Shift+F5"]
   },
+  "toggleGuessTrainingPanel": {
+    "label": "Toggle guess the move training panel",
+    "keys": ["Ctrl+Shift+F10"]
+  },
   "togglePlayComputerPanel": {
     "label": "Toggle play vs computer panel",
     "keys": ["Ctrl+Shift+F6"]

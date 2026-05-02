@@ -175,6 +175,12 @@ function useKeyboardShortcuts({
         return;
       }
 
+      if (matchesShortcut(event, shortcutConfig.toggleGuessTrainingPanel.keys)) {
+        event.preventDefault();
+        actions.toggleGuessTrainingPanel();
+        return;
+      }
+
       if (matchesShortcut(event, shortcutConfig.togglePlayComputerPanel.keys)) {
         event.preventDefault();
         actions.togglePlayComputerPanel();

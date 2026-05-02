@@ -64,6 +64,10 @@ describe("normalizeShortcutConfig", () => {
           label: "Toggle replay training",
           keys: ["k", "Ctrl+W", "Alt+T", "F9"],
         },
+        toggleGuessTrainingPanel: {
+          label: "Toggle guess training",
+          keys: ["g", "Ctrl+L", "Alt+G", "F12"],
+        },
         togglePlayComputerPanel: {
           label: "Toggle play computer",
           keys: ["l", "Ctrl+R", "Alt+P", "F10"],
@@ -94,6 +98,17 @@ describe("normalizeShortcutConfig", () => {
     ).toEqual({
       label: "Toggle replay training",
       keys: ["F9"],
+    });
+    expect(
+      normalizeShortcutConfig({
+        toggleGuessTrainingPanel: {
+          label: "Toggle guess training",
+          keys: ["g", "Ctrl+L", "Alt+G", "F12"],
+        },
+      }).toggleGuessTrainingPanel,
+    ).toEqual({
+      label: "Toggle guess training",
+      keys: ["F12"],
     });
     expect(
       normalizeShortcutConfig({

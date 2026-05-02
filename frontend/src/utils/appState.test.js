@@ -24,6 +24,7 @@ import {
   createComputerPlayTrainingState,
   createEmptyTrainingState,
   TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+  TRAINING_MODE_GUESS_THE_MOVE,
   TRAINING_SIDE_WHITE,
   TRAINING_MODE_PLAY_COMPUTER,
   TRAINING_MODE_REPLAY_GAME,
@@ -193,6 +194,7 @@ describe("persisted app state", () => {
       showMoveHistory: false,
       showOpeningTreePanel: true,
       showReplayTrainingPanel: false,
+      showGuessTrainingPanel: false,
       showPlayComputerPanel: false,
       showEngineWindow: true,
       showEvaluationBar: true,
@@ -299,6 +301,42 @@ describe("persisted app state", () => {
     expect(loadPersistedAppState(storage)).toBeNull();
   });
 
+  it("loads persisted guess training panel visibility and mode", () => {
+    const storage = createStorage(
+      JSON.stringify({
+        showGuessTrainingPanel: false,
+        trainingState: {
+          mode: TRAINING_MODE_GUESS_THE_MOVE,
+          status: TRAINING_STATUS_ACTIVE,
+          playerSide: TRAINING_SIDE_WHITE,
+          progressPly: 0,
+          referenceMoves: [
+            {
+              ply: 1,
+              moveNumber: 1,
+              side: "white",
+              san: "e4",
+              move: { from: "e2", to: "e4" },
+              fenBefore: "before-1",
+              fenAfter: "after-1",
+            },
+          ],
+          attempts: [],
+        },
+      }),
+    );
+
+    expect(loadPersistedAppState(storage)).toEqual(
+      expect.objectContaining({
+        showGuessTrainingPanel: false,
+        trainingState: expect.objectContaining({
+          mode: TRAINING_MODE_GUESS_THE_MOVE,
+          status: TRAINING_STATUS_ACTIVE,
+        }),
+      }),
+    );
+  });
+
   it("serializes and saves the durable UI state", () => {
     const storage = createStorage();
     const variantTree = createVariantTreeFromMoves([
@@ -315,6 +353,7 @@ describe("persisted app state", () => {
         showMoveHistory: false,
         showOpeningTreePanel: false,
         showReplayTrainingPanel: false,
+        showGuessTrainingPanel: true,
         showPlayComputerPanel: true,
         showEngineWindow: true,
         showEvaluationBar: false,
@@ -374,6 +413,7 @@ describe("persisted app state", () => {
       showMoveHistory: false,
       showOpeningTreePanel: false,
       showReplayTrainingPanel: false,
+      showGuessTrainingPanel: true,
       showPlayComputerPanel: true,
       showEngineWindow: true,
       showEvaluationBar: false,
@@ -590,6 +630,7 @@ describe("persisted app state", () => {
       showMoveHistory: true,
       showOpeningTreePanel: true,
       showReplayTrainingPanel: true,
+      showGuessTrainingPanel: true,
       showPlayComputerPanel: true,
       showEngineWindow: true,
       showEvaluationBar: true,

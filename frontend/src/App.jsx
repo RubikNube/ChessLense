@@ -17,6 +17,7 @@ import StudiesModal from "./components/modals/StudiesModal.jsx";
 import PositionPreviewBoard from "./components/PositionPreviewBoard.jsx";
 import OpeningTreePanel from "./components/opening/OpeningTreePanel.jsx";
 import ImportedPgnPanel from "./components/pgn/ImportedPgnPanel.jsx";
+import GuessTheMoveTrainingPanel from "./components/training/GuessTheMoveTrainingPanel.jsx";
 import PlayComputerPanel from "./components/training/PlayComputerPanel.jsx";
 import ReplayTrainingPanel from "./components/training/ReplayTrainingPanel.jsx";
 import VariantsView from "./components/VariantsView.jsx";
@@ -104,15 +105,19 @@ import {
   buildReplayAttempt,
   createComputerPlayTrainingState,
   createEmptyTrainingState,
+  createGuessTheMoveTrainingState,
   createReplayTrainingState,
+  getCurrentGuessTheMove,
   getCurrentReplayMove,
   normalizeTrainingState,
   REPLAY_RESULT_MATCH,
+  summarizeGuessTheMoveAttempts,
   summarizeReplayAttempts,
   TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
   TRAINING_COMPUTER_PLAY_SOURCE_INITIAL,
   TRAINING_COMPLETION_MATCH,
   TRAINING_COMPLETION_REVEALED,
+  TRAINING_MODE_GUESS_THE_MOVE,
   TRAINING_MODE_PLAY_COMPUTER,
   TRAINING_MODE_REPLAY_GAME,
   TRAINING_PLAY_STATUS_ACTIVE,
@@ -315,6 +320,9 @@ function App() {
   );
   const [showReplayTrainingPanel, setShowReplayTrainingPanel] = useState(
     () => persistedAppState?.showReplayTrainingPanel ?? true,
+  );
+  const [showGuessTrainingPanel, setShowGuessTrainingPanel] = useState(
+    () => persistedAppState?.showGuessTrainingPanel ?? true,
   );
   const [showPlayComputerPanel, setShowPlayComputerPanel] = useState(
     () => persistedAppState?.showPlayComputerPanel ?? true,
@@ -602,8 +610,20 @@ function App() {
   const isReplayTrainingEnded =
     normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
     normalizedTrainingState.status === TRAINING_STATUS_ENDED;
+  const isGuessTrainingActive =
+    normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE &&
+    normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
+  const isGuessTrainingEnded =
+    normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE &&
+    normalizedTrainingState.status === TRAINING_STATUS_ENDED;
+  const isReferenceTrainingMode =
+    normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME ||
+    normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE;
   const isTrainingFocusMode =
-    showReplayTrainingPanel && normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME;
+    (showReplayTrainingPanel &&
+      normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) ||
+    (showGuessTrainingPanel &&
+      normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE);
   const {
     trainingPreview,
     trainingRequestIdRef,
@@ -631,8 +651,12 @@ function App() {
     () => getCurrentReplayMove(normalizedTrainingState),
     [normalizedTrainingState],
   );
-  const replayNavigationCheckpoints = useMemo(() => {
-    if (normalizedTrainingState.mode !== TRAINING_MODE_REPLAY_GAME) {
+  const currentGuessMove = useMemo(
+    () => getCurrentGuessTheMove(normalizedTrainingState),
+    [normalizedTrainingState],
+  );
+  const trainingNavigationCheckpoints = useMemo(() => {
+    if (!isReferenceTrainingMode) {
       return [];
     }
 
@@ -647,7 +671,11 @@ function App() {
     checkpoints.push(normalizedTrainingState.referenceMoves.length);
 
     return [...new Set(checkpoints)];
-  }, [normalizedTrainingState.mode, normalizedTrainingState.playerSide, normalizedTrainingState.referenceMoves]);
+  }, [
+    isReferenceTrainingMode,
+    normalizedTrainingState.playerSide,
+    normalizedTrainingState.referenceMoves,
+  ]);
   const pendingTrainingAttempts = normalizedTrainingState.pendingAttempts;
   const lastCompletedTrainingAttempts = normalizedTrainingState.lastCompletedAttempts;
   const lastCompletedIncorrectTrainingAttempts = useMemo(
@@ -719,6 +747,15 @@ function App() {
       ),
     [normalizedTrainingState],
   );
+  const guessTheMoveSummary = useMemo(
+    () =>
+      summarizeGuessTheMoveAttempts(
+        normalizedTrainingState.referenceMoves,
+        normalizedTrainingState.attempts,
+        normalizedTrainingState.playerSide,
+      ),
+    [normalizedTrainingState],
+  );
   const currentReplayMoveNumber = useMemo(
     () =>
       currentReplayMove
@@ -727,6 +764,15 @@ function App() {
           .filter((move) => move.side === normalizedTrainingState.playerSide).length
         : replaySummary.totalMoves,
     [currentReplayMove, normalizedTrainingState, replaySummary.totalMoves],
+  );
+  const currentGuessMoveNumber = useMemo(
+    () =>
+      currentGuessMove
+        ? normalizedTrainingState.referenceMoves
+          .slice(0, normalizedTrainingState.progressPly + 1)
+          .filter((move) => move.side === normalizedTrainingState.playerSide).length
+        : guessTheMoveSummary.totalMoves,
+    [currentGuessMove, guessTheMoveSummary.totalMoves, normalizedTrainingState],
   );
   const resetTrainingSession = useCallback(() => {
     trainingRequestIdRef.current += 1;
@@ -1056,6 +1102,8 @@ function App() {
       if (
         (currentTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
           currentTrainingState.status === TRAINING_STATUS_ACTIVE) ||
+        (currentTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE &&
+          currentTrainingState.status === TRAINING_STATUS_ACTIVE) ||
         (currentTrainingState.mode === TRAINING_MODE_PLAY_COMPUTER &&
           currentTrainingState.status === TRAINING_STATUS_ACTIVE
         )
@@ -1213,6 +1261,7 @@ function App() {
     trainingRequestIdRef.current += 1;
     setVariantTree(preparedReplayTree);
     setShowReplayTrainingPanel(true);
+    setShowGuessTrainingPanel(false);
     setEngineResult(null);
     setEvaluationResult(null);
     setTrainingState(preparedTrainingState);
@@ -1258,6 +1307,78 @@ function App() {
     setEngineResult(null);
     setEvaluationResult(null);
   }, [hideTrainingPreview, isReplayTrainingActive, trainingRequestIdRef]);
+
+  const startGuessTraining = useCallback(() => {
+    if (!hasReplaySource) {
+      setTrainingError("Import a game before starting guess the move training.");
+      return;
+    }
+
+    const { trainingState: nextTrainingState, variantTree: guessTree, error } =
+      createGuessTheMoveTrainingState(importedPgnData.rawPgn, normalizedTrainingState.playerSide);
+
+    if (error || !guessTree) {
+      setTrainingError(error ?? "Unable to start guess the move training.");
+      return;
+    }
+
+    const {
+      trainingState: preparedTrainingState,
+      variantTree: preparedGuessTree,
+      error: autoAdvanceError,
+    } = advanceReplayToPlayerTurn(nextTrainingState, guessTree);
+
+    if (autoAdvanceError) {
+      setTrainingError(autoAdvanceError);
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    setVariantTree(preparedGuessTree);
+    setShowGuessTrainingPanel(true);
+    setShowReplayTrainingPanel(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+    setTrainingState(preparedTrainingState);
+    setTrainingError("");
+    setTrainingLoading(false);
+  }, [
+    advanceReplayToPlayerTurn,
+    hasReplaySource,
+    importedPgnData,
+    normalizedTrainingState.playerSide,
+    trainingRequestIdRef,
+  ]);
+
+  const endGuessTraining = useCallback(() => {
+    if (!isGuessTrainingActive) {
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    hideTrainingPreview();
+    setTrainingState((currentValue) => {
+      const currentTrainingState = normalizeTrainingState(currentValue);
+
+      if (
+        currentTrainingState.mode !== TRAINING_MODE_GUESS_THE_MOVE ||
+        currentTrainingState.status !== TRAINING_STATUS_ACTIVE
+      ) {
+        return currentTrainingState;
+      }
+
+      return normalizeTrainingState({
+        ...currentTrainingState,
+        status: TRAINING_STATUS_ENDED,
+        pendingAttempts: [],
+      });
+    });
+    setTrainingError("");
+    setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [hideTrainingPreview, isGuessTrainingActive, trainingRequestIdRef]);
 
   function applyImportedPgn(rawPgn) {
     const {
@@ -1453,6 +1574,89 @@ function App() {
       return true;
     }
 
+    if (isGuessTrainingActive && currentGuessMove) {
+      setTrainingError("");
+
+      const didMatchExpectedMove =
+        currentGuessMove.move.from === normalizedAttemptedMove.from &&
+        currentGuessMove.move.to === normalizedAttemptedMove.to &&
+        currentGuessMove.move.promotion === normalizedAttemptedMove.promotion;
+
+      if (didMatchExpectedMove) {
+        const matchingAttempt = buildResolvedReplayAttempt(
+          currentGuessMove,
+          normalizedAttemptedMove,
+          appliedUserMove.san,
+        );
+
+        if (!matchingAttempt) {
+          setTrainingError("Unable to record the guess attempt.");
+          return false;
+        }
+
+        completeReplayMove(
+          currentGuessMove,
+          TRAINING_COMPLETION_MATCH,
+          matchingAttempt,
+        );
+        setHoveredOpeningTreeMove(null);
+        return true;
+      }
+
+      const requestId = ++trainingRequestIdRef.current;
+      setTrainingLoading(true);
+      fetchJson("/api/analyze/compare-moves", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fen,
+          referenceMove: formatMoveAsUci(currentGuessMove.move),
+          userMove: formatMoveAsUci(normalizedAttemptedMove),
+          depth: engineSearchDepth,
+        }),
+      })
+        .then((comparison) => {
+          if (requestId !== trainingRequestIdRef.current) {
+            return;
+          }
+
+          const resolvedAttempt = buildResolvedReplayAttempt(
+            currentGuessMove,
+            normalizedAttemptedMove,
+            appliedUserMove.san,
+            comparison,
+          );
+
+          if (!resolvedAttempt) {
+            setTrainingError("Unable to record the guess attempt.");
+            return;
+          }
+
+          completeReplayMove(
+            currentGuessMove,
+            TRAINING_COMPLETION_REVEALED,
+            resolvedAttempt,
+          );
+        })
+        .catch((error) => {
+          if (requestId !== trainingRequestIdRef.current) {
+            return;
+          }
+
+          setTrainingError(error.message);
+        })
+        .finally(() => {
+          if (requestId === trainingRequestIdRef.current) {
+            setTrainingLoading(false);
+          }
+        });
+
+      setHoveredOpeningTreeMove(null);
+      return true;
+    }
+
     const nextVariantTree = applyMoveToVariantTree(variantTree, normalizedAttemptedMove);
 
     if (!nextVariantTree) {
@@ -1518,13 +1722,13 @@ function App() {
       return;
     }
 
-    if (normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) {
-      const currentCheckpointIndex = replayNavigationCheckpoints.indexOf(
+    if (isReferenceTrainingMode) {
+      const currentCheckpointIndex = trainingNavigationCheckpoints.indexOf(
         normalizedTrainingState.progressPly,
       );
       const previousCheckpoint =
         currentCheckpointIndex > 0
-          ? replayNavigationCheckpoints[currentCheckpointIndex - 1]
+          ? trainingNavigationCheckpoints[currentCheckpointIndex - 1]
           : null;
 
       if (previousCheckpoint === null || previousCheckpoint === undefined) {
@@ -1542,11 +1746,11 @@ function App() {
   }, [
     canUndo,
     hideTrainingPreview,
+    isReferenceTrainingMode,
     isTrainingPlayActive,
     navigateReplayTrainingToProgress,
-    normalizedTrainingState.mode,
     normalizedTrainingState.progressPly,
-    replayNavigationCheckpoints,
+    trainingNavigationCheckpoints,
     resetTrainingSession,
     trainingRequestIdRef,
   ]);
@@ -1568,14 +1772,14 @@ function App() {
       return;
     }
 
-    if (normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) {
-      const currentCheckpointIndex = replayNavigationCheckpoints.indexOf(
+    if (isReferenceTrainingMode) {
+      const currentCheckpointIndex = trainingNavigationCheckpoints.indexOf(
         normalizedTrainingState.progressPly,
       );
       const nextCheckpoint =
         currentCheckpointIndex >= 0 &&
-          currentCheckpointIndex < replayNavigationCheckpoints.length - 1
-          ? replayNavigationCheckpoints[currentCheckpointIndex + 1]
+          currentCheckpointIndex < trainingNavigationCheckpoints.length - 1
+          ? trainingNavigationCheckpoints[currentCheckpointIndex + 1]
           : null;
 
       if (nextCheckpoint === null || nextCheckpoint === undefined) {
@@ -1593,11 +1797,11 @@ function App() {
   }, [
     canRedo,
     hideTrainingPreview,
+    isReferenceTrainingMode,
     isTrainingPlayActive,
     navigateReplayTrainingToProgress,
-    normalizedTrainingState.mode,
     normalizedTrainingState.progressPly,
-    replayNavigationCheckpoints,
+    trainingNavigationCheckpoints,
     resetTrainingSession,
     trainingRequestIdRef,
   ]);
@@ -1619,8 +1823,8 @@ function App() {
       return;
     }
 
-    if (normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) {
-      navigateReplayTrainingToProgress(replayNavigationCheckpoints[0] ?? 0);
+    if (isReferenceTrainingMode) {
+      navigateReplayTrainingToProgress(trainingNavigationCheckpoints[0] ?? 0);
       return;
     }
 
@@ -1631,10 +1835,10 @@ function App() {
   }, [
     canUndo,
     hideTrainingPreview,
+    isReferenceTrainingMode,
     isTrainingPlayActive,
     navigateReplayTrainingToProgress,
-    normalizedTrainingState.mode,
-    replayNavigationCheckpoints,
+    trainingNavigationCheckpoints,
     resetTrainingSession,
     trainingRequestIdRef,
   ]);
@@ -1656,9 +1860,9 @@ function App() {
       return;
     }
 
-    if (normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) {
+    if (isReferenceTrainingMode) {
       navigateReplayTrainingToProgress(
-        replayNavigationCheckpoints[replayNavigationCheckpoints.length - 1] ?? 0,
+        trainingNavigationCheckpoints[trainingNavigationCheckpoints.length - 1] ?? 0,
       );
       return;
     }
@@ -1670,10 +1874,10 @@ function App() {
   }, [
     canRedo,
     hideTrainingPreview,
+    isReferenceTrainingMode,
     isTrainingPlayActive,
     navigateReplayTrainingToProgress,
-    normalizedTrainingState.mode,
-    replayNavigationCheckpoints,
+    trainingNavigationCheckpoints,
     resetTrainingSession,
     trainingRequestIdRef,
   ]);
@@ -2597,6 +2801,7 @@ function App() {
         showMoveHistory: persistedRightSideViews.showMoveHistory,
         showOpeningTreePanel: persistedRightSideViews.showOpeningTreePanel,
         showReplayTrainingPanel,
+        showGuessTrainingPanel,
         showPlayComputerPanel,
         showEngineWindow: persistedRightSideViews.showEngineWindow,
         showEvaluationBar,
@@ -2629,6 +2834,7 @@ function App() {
     showMoveHistory,
     showOpeningTreePanel,
     showReplayTrainingPanel,
+    showGuessTrainingPanel,
     showPlayComputerPanel,
     showVariants,
     showVariantArrows,
@@ -2830,11 +3036,35 @@ function App() {
   }, []);
 
   const toggleReplayTrainingPanel = useCallback(() => {
-    setShowReplayTrainingPanel((currentValue) => !currentValue);
+    setShowReplayTrainingPanel((currentValue) => {
+      const nextValue = !currentValue;
+
+      if (nextValue) {
+        setShowGuessTrainingPanel(false);
+      }
+
+      return nextValue;
+    });
   }, []);
 
   const closeReplayTrainingPanel = useCallback(() => {
     setShowReplayTrainingPanel(false);
+  }, []);
+
+  const toggleGuessTrainingPanel = useCallback(() => {
+    setShowGuessTrainingPanel((currentValue) => {
+      const nextValue = !currentValue;
+
+      if (nextValue) {
+        setShowReplayTrainingPanel(false);
+      }
+
+      return nextValue;
+    });
+  }, []);
+
+  const closeGuessTrainingPanel = useCallback(() => {
+    setShowGuessTrainingPanel(false);
   }, []);
 
   const togglePlayComputerPanel = useCallback(() => {
@@ -2910,6 +3140,7 @@ function App() {
     toggleMoveHistory,
     toggleOpeningTreePanel,
     toggleReplayTrainingPanel,
+    toggleGuessTrainingPanel,
     togglePlayComputerPanel,
     toggleEngineWindow,
     toggleEvaluationBar,
@@ -2937,6 +3168,7 @@ function App() {
     toggleMoveHistory,
     toggleOpeningTreePanel,
     toggleReplayTrainingPanel,
+    toggleGuessTrainingPanel,
     togglePlayComputerPanel,
     toggleVariantArrows,
     toggleVariants,
@@ -2965,6 +3197,7 @@ function App() {
     toggleMoveHistory,
     toggleOpeningTreePanel,
     toggleReplayTrainingPanel,
+    toggleGuessTrainingPanel,
     togglePlayComputerPanel,
     toggleEngineWindow,
     toggleComments,
@@ -2993,6 +3226,7 @@ function App() {
     toggleMoveHistory,
     toggleOpeningTreePanel,
     toggleReplayTrainingPanel,
+    toggleGuessTrainingPanel,
     togglePlayComputerPanel,
     toggleVariants,
     undoMove,
@@ -3037,6 +3271,7 @@ function App() {
         showMoveHistory={showMoveHistory}
         showOpeningTreePanel={showOpeningTreePanel}
         showReplayTrainingPanel={showReplayTrainingPanel}
+        showGuessTrainingPanel={showGuessTrainingPanel}
         showPlayComputerPanel={showPlayComputerPanel}
         showEngineWindow={showEngineWindow}
         showEvaluationBar={showEvaluationBar}
@@ -3083,7 +3318,7 @@ function App() {
               onClose={closePlayComputerPanel}
               normalizedTrainingState={normalizedTrainingState}
               setTrainingPlayerSide={setTrainingPlayerSide}
-              isReplayTrainingActive={isReplayTrainingActive}
+              isReplayTrainingActive={isReplayTrainingActive || isGuessTrainingActive}
               isReplayTrainingEnded={isReplayTrainingEnded}
               isTrainingPlayActive={isTrainingPlayActive}
               isEngineOpponentUserTurn={isEngineOpponentUserTurn}
@@ -3141,6 +3376,32 @@ function App() {
               resetTrainingSession={resetTrainingSession}
             />
           </>
+        )}
+        {showGuessTrainingPanel && (
+          <GuessTheMoveTrainingPanel
+            panelHeight={boardPanelHeight}
+            onClose={closeGuessTrainingPanel}
+            hasReplaySource={hasReplaySource}
+            normalizedTrainingState={normalizedTrainingState}
+            setTrainingPlayerSide={setTrainingPlayerSide}
+            isGuessTrainingActive={isGuessTrainingActive}
+            isGuessTrainingEnded={isGuessTrainingEnded}
+            trainingLoading={trainingLoading}
+            whiteTrainingLabel={whiteTrainingLabel}
+            blackTrainingLabel={blackTrainingLabel}
+            currentGuessMoveNumber={currentGuessMoveNumber}
+            currentGuessMove={currentGuessMove}
+            guessTheMoveSummary={guessTheMoveSummary}
+            trainingError={trainingError}
+            currentMoveLabel={currentMoveLabel}
+            showTrainingPreview={showTrainingPreview}
+            hideTrainingPreview={hideTrainingPreview}
+            lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
+            lastCompletedExpectedMove={lastCompletedExpectedMove}
+            startGuessTraining={startGuessTraining}
+            endGuessTraining={endGuessTraining}
+            resetTrainingSession={resetTrainingSession}
+          />
         )}
 
         {!isTrainingFocusMode && showOpeningTreePanel && (

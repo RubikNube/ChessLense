@@ -27,6 +27,7 @@ export const SHORTCUT_ACTION_ORDER = [
   "toggleMoveHistory",
   "toggleOpeningTreePanel",
   "toggleReplayTrainingPanel",
+  "toggleGuessTrainingPanel",
   "togglePlayComputerPanel",
   "toggleEngineWindow",
   "toggleComments",
@@ -39,6 +40,7 @@ const VIEW_TOGGLE_SHORTCUT_ACTIONS = new Set([
   "toggleMoveHistory",
   "toggleOpeningTreePanel",
   "toggleReplayTrainingPanel",
+  "toggleGuessTrainingPanel",
   "togglePlayComputerPanel",
   "toggleEngineWindow",
   "toggleComments",
@@ -114,6 +116,10 @@ export const DEFAULT_SHORTCUT_CONFIG = {
   toggleReplayTrainingPanel: {
     label: "Toggle replay training panel",
     keys: ["Ctrl+Shift+F5"],
+  },
+  toggleGuessTrainingPanel: {
+    label: "Toggle guess the move training panel",
+    keys: ["Ctrl+Shift+F10"],
   },
   togglePlayComputerPanel: {
     label: "Toggle play vs computer panel",
@@ -553,6 +559,11 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         "showReplayTrainingPanel",
         "showTrainingWindow",
       ),
+      showGuessTrainingPanel: resolvePersistedPanelVisibility(
+        parsedState,
+        "showGuessTrainingPanel",
+        "showTrainingWindow",
+      ),
       showPlayComputerPanel: resolvePersistedPanelVisibility(
         parsedState,
         "showPlayComputerPanel",
@@ -619,6 +630,7 @@ export function serializePersistedAppState({
   showMoveHistory,
   showOpeningTreePanel,
   showReplayTrainingPanel,
+  showGuessTrainingPanel,
   showPlayComputerPanel,
   showEngineWindow,
   showEvaluationBar,
@@ -640,6 +652,7 @@ export function serializePersistedAppState({
     showMoveHistory,
     showOpeningTreePanel,
     showReplayTrainingPanel,
+    showGuessTrainingPanel,
     showPlayComputerPanel,
     showEngineWindow,
     showEvaluationBar,

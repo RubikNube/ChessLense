@@ -4,14 +4,24 @@ import {
   classifyReplayDelta,
   createComputerPlayTrainingState,
   createEmptyTrainingState,
+  createGuessTheMoveTrainingState,
   createReplayTrainingState,
+  getCurrentGuessTheMove,
+  getGuessTheMovePoints,
   getCurrentReplayMove,
   isCriticalReplayDelta,
   normalizeTrainingState,
+  summarizeGuessTheMoveAttempts,
   summarizeReplayAttempts,
+  GUESS_THE_MOVE_POINTS_BETTER,
+  GUESS_THE_MOVE_POINTS_CRITICAL_WORSE,
+  GUESS_THE_MOVE_POINTS_EQUAL,
+  GUESS_THE_MOVE_POINTS_MATCH,
+  GUESS_THE_MOVE_POINTS_WORSE,
   TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
   TRAINING_COMPUTER_PLAY_SOURCE_INITIAL,
   TRAINING_COMPLETION_REVEALED,
+  TRAINING_MODE_GUESS_THE_MOVE,
   TRAINING_MODE_PLAY_COMPUTER,
   TRAINING_SIDE_BLACK,
   TRAINING_SIDE_WHITE,
@@ -633,6 +643,239 @@ describe("training helpers", () => {
           startVariantTree,
         },
         playSession: null,
+      }),
+    );
+  });
+
+  it("builds a guess the move session from the imported main line", () => {
+    const { trainingState, variantTree, error } = createGuessTheMoveTrainingState(
+      "1. e4 e5 2. Nf3 Nc6",
+    );
+
+    expect(error).toBeNull();
+    expect(variantTree.currentNodeId).toBe(variantTree.rootId);
+    expect(trainingState).toEqual(
+      expect.objectContaining({
+        mode: TRAINING_MODE_GUESS_THE_MOVE,
+        status: TRAINING_STATUS_ACTIVE,
+        playerSide: TRAINING_SIDE_WHITE,
+        progressPly: 0,
+      }),
+    );
+    expect(trainingState.referenceMoves.map((move) => move.san)).toEqual([
+      "e4",
+      "e5",
+      "Nf3",
+      "Nc6",
+    ]);
+  });
+
+  it("returns the current guess-the-move target move", () => {
+    const trainingState = normalizeTrainingState({
+      mode: TRAINING_MODE_GUESS_THE_MOVE,
+      status: TRAINING_STATUS_ACTIVE,
+      playerSide: TRAINING_SIDE_BLACK,
+      progressPly: 1,
+      referenceMoves: [
+        {
+          ply: 1,
+          moveNumber: 1,
+          side: "white",
+          san: "e4",
+          move: { from: "e2", to: "e4" },
+          fenBefore: "before-1",
+          fenAfter: "after-1",
+        },
+        {
+          ply: 2,
+          moveNumber: 1,
+          side: "black",
+          san: "e5",
+          move: { from: "e7", to: "e5" },
+          fenBefore: "before-2",
+          fenAfter: "after-2",
+        },
+      ],
+      attempts: [],
+    });
+
+    expect(getCurrentGuessTheMove(trainingState)).toEqual(
+      expect.objectContaining({
+        ply: 2,
+        san: "e5",
+      }),
+    );
+  });
+
+  it("scores guess-the-move attempts from replay classifications", () => {
+    const matchingAttempt = buildReplayAttempt({
+      expectedMove: {
+        ply: 1,
+        moveNumber: 1,
+        side: "white",
+        san: "e4",
+        move: { from: "e2", to: "e4" },
+        fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      },
+      userMove: { from: "e2", to: "e4" },
+      userSan: "e4",
+    });
+    const betterAttempt = buildReplayAttempt({
+      expectedMove: {
+        ply: 3,
+        moveNumber: 2,
+        side: "white",
+        san: "Nf3",
+        move: { from: "g1", to: "f3" },
+        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      },
+      userMove: { from: "f1", to: "c4" },
+      userSan: "Bc4",
+      referenceEvaluation: { type: "cp", value: 25 },
+      userEvaluation: { type: "cp", value: 180 },
+    });
+    const equalAttempt = buildReplayAttempt({
+      expectedMove: {
+        ply: 5,
+        moveNumber: 3,
+        side: "white",
+        san: "Bb5",
+        move: { from: "f1", to: "b5" },
+        fenBefore: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 3 3",
+        fenAfter: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+      },
+      userMove: { from: "d2", to: "d3" },
+      userSan: "d3",
+      referenceEvaluation: { type: "cp", value: 30 },
+      userEvaluation: { type: "cp", value: 25 },
+    });
+    const worseAttempt = buildReplayAttempt({
+      expectedMove: {
+        ply: 7,
+        moveNumber: 4,
+        side: "white",
+        san: "c3",
+        move: { from: "c2", to: "c3" },
+        fenBefore: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 3 4",
+        fenAfter: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/2P2N2/PP1P1PPP/RNBQK2R b KQkq - 0 4",
+      },
+      userMove: { from: "h2", to: "h3" },
+      userSan: "h3",
+      referenceEvaluation: { type: "cp", value: 40 },
+      userEvaluation: { type: "cp", value: -45 },
+    });
+    const criticalAttempt = buildReplayAttempt({
+      expectedMove: {
+        ply: 9,
+        moveNumber: 5,
+        side: "white",
+        san: "d4",
+        move: { from: "d2", to: "d4" },
+        fenBefore: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/2P2N2/PP1P1PPP/RNBQK2R w KQkq - 0 5",
+        fenAfter: "r1bqkbnr/pppp1ppp/2n5/1B2p3/3PP3/2P2N2/PP3PPP/RNBQK2R b KQkq - 0 5",
+      },
+      userMove: { from: "g2", to: "g4" },
+      userSan: "g4",
+      referenceEvaluation: { type: "cp", value: 35 },
+      userEvaluation: { type: "cp", value: -200 },
+    });
+
+    expect(getGuessTheMovePoints(matchingAttempt)).toBe(GUESS_THE_MOVE_POINTS_MATCH);
+    expect(getGuessTheMovePoints(betterAttempt)).toBe(GUESS_THE_MOVE_POINTS_BETTER);
+    expect(getGuessTheMovePoints(equalAttempt)).toBe(GUESS_THE_MOVE_POINTS_EQUAL);
+    expect(getGuessTheMovePoints(worseAttempt)).toBe(GUESS_THE_MOVE_POINTS_WORSE);
+    expect(getGuessTheMovePoints(criticalAttempt)).toBe(
+      GUESS_THE_MOVE_POINTS_CRITICAL_WORSE,
+    );
+  });
+
+  it("summarizes guess-the-move scores and evaluation", () => {
+    const referenceMoves = [
+      {
+        ply: 1,
+        moveNumber: 1,
+        side: "white",
+        san: "e4",
+        move: { from: "e2", to: "e4" },
+        fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      },
+      {
+        ply: 2,
+        moveNumber: 1,
+        side: "black",
+        san: "e5",
+        move: { from: "e7", to: "e5" },
+        fenBefore: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+      },
+      {
+        ply: 3,
+        moveNumber: 2,
+        side: "white",
+        san: "Nf3",
+        move: { from: "g1", to: "f3" },
+        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      },
+      {
+        ply: 4,
+        moveNumber: 2,
+        side: "black",
+        san: "Nc6",
+        move: { from: "b8", to: "c6" },
+        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+        fenAfter: "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+      },
+    ];
+    const attempts = [
+      buildReplayAttempt({
+        expectedMove: referenceMoves[0],
+        userMove: { from: "e2", to: "e4" },
+        userSan: "e4",
+      }),
+      buildReplayAttempt({
+        expectedMove: referenceMoves[2],
+        userMove: { from: "f1", to: "c4" },
+        userSan: "Bc4",
+        referenceEvaluation: { type: "cp", value: 25 },
+        userEvaluation: { type: "cp", value: -90 },
+      }),
+    ];
+
+    expect(
+      summarizeGuessTheMoveAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE),
+    ).toEqual(
+      expect.objectContaining({
+        totalMoves: 2,
+        attemptedMoves: 2,
+        remainingMoves: 0,
+        parScore: 6,
+        completedParScore: 6,
+        totalScore: 2,
+        matchedMoves: 1,
+        betterMoves: 0,
+        equalMoves: 0,
+        worseMoves: 1,
+        criticalWorseMoves: 0,
+        evaluation: expect.objectContaining({
+          label: "Needs work",
+          basedOnCompletedMoves: true,
+        }),
+        moveHistory: [
+          expect.objectContaining({
+            expectedSan: "e4",
+            userSan: "e4",
+            points: 3,
+          }),
+          expect.objectContaining({
+            expectedSan: "Nf3",
+            userSan: "Bc4",
+            points: -1,
+          }),
+        ],
       }),
     );
   });
