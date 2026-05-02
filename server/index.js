@@ -27,6 +27,7 @@ const {
 	removeStudyFromAllCollections,
 	removeStudyFromCollection,
 } = require("./collections");
+const { appendGuessHistory, listGuessHistory } = require("./guessHistory");
 const { deleteStudy, getStudy, listStudies, saveStudy } = require("./studies");
 
 const PORT = 3001;
@@ -246,6 +247,26 @@ function createApp() {
 			const study = await getStudy(req.params.studyId);
 
 			return res.json(study);
+		} catch (error) {
+			return sendApiError(res, error);
+		}
+	});
+
+	app.post("/api/guess-history/query", async (req, res) => {
+		try {
+			const history = await listGuessHistory(req.body?.rawPgn);
+
+			return res.json(history);
+		} catch (error) {
+			return sendApiError(res, error);
+		}
+	});
+
+	app.post("/api/guess-history", async (req, res) => {
+		try {
+			const history = await appendGuessHistory(req.body?.rawPgn, req.body?.entry);
+
+			return res.status(201).json(history);
 		} catch (error) {
 			return sendApiError(res, error);
 		}

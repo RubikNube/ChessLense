@@ -90,6 +90,17 @@ function normalizeFen(value) {
   }
 }
 
+function normalizeIsoTimestamp(value) {
+  const normalized = normalizeString(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const timestamp = new Date(normalized);
+  return Number.isNaN(timestamp.getTime()) ? null : timestamp.toISOString();
+}
+
 function normalizeReferenceMove(entry) {
   if (!entry || typeof entry !== "object") {
     return null;
@@ -822,5 +833,79 @@ export function summarizeGuessTheMoveAttempts(
       scoreRatio,
       basedOnCompletedMoves: completedParScore > 0,
     },
+  };
+}
+
+export function normalizeGuessHistoryEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const id = normalizeString(entry.id);
+  const completedAt = normalizeIsoTimestamp(entry.completedAt);
+  const status =
+    entry.status === TRAINING_STATUS_COMPLETED || entry.status === TRAINING_STATUS_ENDED
+      ? entry.status
+      : null;
+  const playerSide =
+    entry.playerSide === TRAINING_SIDE_BLACK ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
+  const referenceMoves = Array.isArray(entry.referenceMoves)
+    ? entry.referenceMoves.map(normalizeReferenceMove).filter(Boolean)
+    : [];
+  const attempts = Array.isArray(entry.attempts)
+    ? entry.attempts.map(normalizeAttempt).filter(Boolean)
+    : [];
+
+  if (!id || !completedAt || !status || !referenceMoves.length) {
+    return null;
+  }
+
+  return {
+    id,
+    completedAt,
+    status,
+    playerSide,
+    referenceMoves,
+    attempts,
+    summary: summarizeGuessTheMoveAttempts(referenceMoves, attempts, playerSide),
+  };
+}
+
+export function normalizeGuessHistoryEntries(entries) {
+  return Array.isArray(entries)
+    ? entries
+        .map(normalizeGuessHistoryEntry)
+        .filter(Boolean)
+        .sort((leftEntry, rightEntry) =>
+          rightEntry.completedAt.localeCompare(leftEntry.completedAt),
+        )
+    : [];
+}
+
+export function createGuessHistoryEntryPayload(trainingState, completedAt = new Date().toISOString()) {
+  const normalizedTrainingState = normalizeTrainingState(trainingState);
+
+  if (
+    normalizedTrainingState.mode !== TRAINING_MODE_GUESS_THE_MOVE ||
+    (normalizedTrainingState.status !== TRAINING_STATUS_COMPLETED &&
+      normalizedTrainingState.status !== TRAINING_STATUS_ENDED) ||
+    !normalizedTrainingState.referenceMoves.length ||
+    !normalizedTrainingState.attempts.length
+  ) {
+    return null;
+  }
+
+  const normalizedCompletedAt = normalizeIsoTimestamp(completedAt);
+
+  if (!normalizedCompletedAt) {
+    return null;
+  }
+
+  return {
+    completedAt: normalizedCompletedAt,
+    playerSide: normalizedTrainingState.playerSide,
+    status: normalizedTrainingState.status,
+    referenceMoves: normalizedTrainingState.referenceMoves,
+    attempts: normalizedTrainingState.attempts,
   };
 }

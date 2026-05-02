@@ -103,12 +103,14 @@ import {
 } from "./utils/variantTree.js";
 import {
   buildReplayAttempt,
+  createGuessHistoryEntryPayload,
   createComputerPlayTrainingState,
   createEmptyTrainingState,
   createGuessTheMoveTrainingState,
   createReplayTrainingState,
   getCurrentGuessTheMove,
   getCurrentReplayMove,
+  normalizeGuessHistoryEntries,
   normalizeTrainingState,
   REPLAY_RESULT_MATCH,
   summarizeGuessTheMoveAttempts,
@@ -424,6 +426,10 @@ function App() {
   const [trainingError, setTrainingError] = useState("");
   const [trainingLoading, setTrainingLoading] = useState(false);
   const [trainingPlayAutoReplyPaused, setTrainingPlayAutoReplyPaused] = useState(false);
+  const [guessHistoryEntries, setGuessHistoryEntries] = useState([]);
+  const [guessHistoryLoading, setGuessHistoryLoading] = useState(false);
+  const [guessHistoryError, setGuessHistoryError] = useState("");
+  const [activeGuessHistoryEntryId, setActiveGuessHistoryEntryId] = useState("");
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [boardRenderNonce, setBoardRenderNonce] = useState(0);
@@ -433,6 +439,8 @@ function App() {
   const boardPanelRef = useRef(null);
   const appliedOtbSearchFiltersRef = useRef(appliedOtbSearchFilters);
   const boardRightMouseSelectionRef = useRef(null);
+  const guessHistoryRunIdRef = useRef(null);
+  const savedGuessHistoryRunIdRef = useRef(null);
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
@@ -756,6 +764,11 @@ function App() {
       ),
     [normalizedTrainingState],
   );
+  const activeGuessHistoryEntry = useMemo(
+    () =>
+      guessHistoryEntries.find((entry) => entry.id === activeGuessHistoryEntryId) ?? null,
+    [activeGuessHistoryEntryId, guessHistoryEntries],
+  );
   const currentReplayMoveNumber = useMemo(
     () =>
       currentReplayMove
@@ -776,7 +789,10 @@ function App() {
   );
   const resetTrainingSession = useCallback(() => {
     trainingRequestIdRef.current += 1;
+    guessHistoryRunIdRef.current = null;
+    savedGuessHistoryRunIdRef.current = null;
     setTrainingState(createEmptyTrainingState(normalizedTrainingState.playerSide));
+    setActiveGuessHistoryEntryId("");
     hideTrainingPreview();
     setTrainingError("");
     setTrainingLoading(false);
@@ -1014,6 +1030,44 @@ function App() {
     variantTree,
   ]);
 
+  const loadGuessHistory = useCallback(async (rawPgn) => {
+    const normalizedRawPgn = typeof rawPgn === "string" ? rawPgn.trim() : "";
+
+    if (!normalizedRawPgn) {
+      setGuessHistoryEntries([]);
+      setGuessHistoryError("");
+      setGuessHistoryLoading(false);
+      setActiveGuessHistoryEntryId("");
+      return;
+    }
+
+    setGuessHistoryLoading(true);
+    setGuessHistoryError("");
+
+    try {
+      const data = await fetchJson("/api/guess-history/query", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rawPgn: normalizedRawPgn,
+        }),
+      });
+      const nextEntries = normalizeGuessHistoryEntries(data.entries);
+      setGuessHistoryEntries(nextEntries);
+      setActiveGuessHistoryEntryId((currentValue) =>
+        nextEntries.some((entry) => entry.id === currentValue) ? currentValue : "",
+      );
+    } catch (error) {
+      setGuessHistoryEntries([]);
+      setActiveGuessHistoryEntryId("");
+      setGuessHistoryError(error.message);
+    } finally {
+      setGuessHistoryLoading(false);
+    }
+  }, []);
+
   const navigateReplayTrainingToProgress = useCallback((targetProgressPly) => {
     const currentTrainingValue = normalizeTrainingState(normalizedTrainingState);
     const boundedProgressPly = Math.max(
@@ -1066,6 +1120,78 @@ function App() {
   useEffect(() => {
     requestTrainingPlayEngineMove();
   }, [requestTrainingPlayEngineMove]);
+
+  useEffect(() => {
+    loadGuessHistory(importedPgnData?.rawPgn ?? "");
+  }, [importedPgnData?.rawPgn, loadGuessHistory]);
+
+  useEffect(() => {
+    if (
+      normalizedTrainingState.mode !== TRAINING_MODE_GUESS_THE_MOVE ||
+      (normalizedTrainingState.status !== TRAINING_STATUS_COMPLETED &&
+        normalizedTrainingState.status !== TRAINING_STATUS_ENDED) ||
+      !normalizedTrainingState.attempts.length ||
+      !hasReplaySource
+    ) {
+      return;
+    }
+
+    if (!guessHistoryRunIdRef.current) {
+      guessHistoryRunIdRef.current = `guess-run-${Date.now().toString(36)}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
+    }
+
+    if (savedGuessHistoryRunIdRef.current === guessHistoryRunIdRef.current) {
+      return;
+    }
+
+    const entry = createGuessHistoryEntryPayload(normalizedTrainingState);
+
+    if (!entry) {
+      return;
+    }
+
+    const runId = guessHistoryRunIdRef.current;
+    let cancelled = false;
+
+    async function persistGuessHistory() {
+      try {
+        const data = await fetchJson("/api/guess-history", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            rawPgn: importedPgnData?.rawPgn ?? "",
+            entry,
+          }),
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        savedGuessHistoryRunIdRef.current = runId;
+        setGuessHistoryEntries(normalizeGuessHistoryEntries(data.entries));
+        setGuessHistoryError("");
+      } catch (error) {
+        if (!cancelled) {
+          setGuessHistoryError(error.message);
+        }
+      }
+    }
+
+    void persistGuessHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    hasReplaySource,
+    importedPgnData?.rawPgn,
+    normalizedTrainingState,
+  ]);
 
   useEffect(() => {
     if (!isStandaloneComputerPlayActive || !game.isGameOver()) {
@@ -1334,13 +1460,19 @@ function App() {
     }
 
     trainingRequestIdRef.current += 1;
+    guessHistoryRunIdRef.current = `guess-run-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+    savedGuessHistoryRunIdRef.current = null;
     setVariantTree(preparedGuessTree);
     setShowGuessTrainingPanel(true);
     setShowReplayTrainingPanel(false);
+    setActiveGuessHistoryEntryId("");
     setEngineResult(null);
     setEvaluationResult(null);
     setTrainingState(preparedTrainingState);
     setTrainingError("");
+    setGuessHistoryError("");
     setTrainingLoading(false);
   }, [
     advanceReplayToPlayerTurn,
@@ -1396,6 +1528,10 @@ function App() {
     setVariantTree(importedVariantTree);
     setEngineResult(null);
     setEvaluationResult(null);
+    guessHistoryRunIdRef.current = null;
+    savedGuessHistoryRunIdRef.current = null;
+    setActiveGuessHistoryEntryId("");
+    setGuessHistoryError("");
     resetTrainingSession();
     setImportedPgnData(nextImportedPgnData);
     setPositionComments(seedPositionCommentsFromImportedPgnData(nextImportedPgnData));
@@ -3067,6 +3203,14 @@ function App() {
     setShowGuessTrainingPanel(false);
   }, []);
 
+  const viewGuessHistoryEntry = useCallback((entryId) => {
+    setActiveGuessHistoryEntryId(entryId);
+  }, []);
+
+  const closeGuessHistoryView = useCallback(() => {
+    setActiveGuessHistoryEntryId("");
+  }, []);
+
   const togglePlayComputerPanel = useCallback(() => {
     setShowPlayComputerPanel((currentValue) => !currentValue);
   }, []);
@@ -3396,6 +3540,10 @@ function App() {
             currentGuessMove={currentGuessMove}
             guessTheMoveSummary={guessTheMoveSummary}
             trainingError={trainingError}
+            guessHistoryEntries={guessHistoryEntries}
+            guessHistoryLoading={guessHistoryLoading}
+            guessHistoryError={guessHistoryError}
+            activeGuessHistoryEntry={activeGuessHistoryEntry}
             currentMoveLabel={currentMoveLabel}
             showTrainingPreview={showTrainingPreview}
             hideTrainingPreview={hideTrainingPreview}
@@ -3405,6 +3553,8 @@ function App() {
             exitTrainingPlayMode={exitTrainingPlayMode}
             startGuessTraining={startGuessTraining}
             endGuessTraining={endGuessTraining}
+            viewGuessHistoryEntry={viewGuessHistoryEntry}
+            closeGuessHistoryView={closeGuessHistoryView}
             resetTrainingSession={resetTrainingSession}
           />
         )}

@@ -4,12 +4,14 @@ import {
   classifyReplayDelta,
   createComputerPlayTrainingState,
   createEmptyTrainingState,
+  createGuessHistoryEntryPayload,
   createGuessTheMoveTrainingState,
   createReplayTrainingState,
   getCurrentGuessTheMove,
   getGuessTheMovePoints,
   getCurrentReplayMove,
   isCriticalReplayDelta,
+  normalizeGuessHistoryEntries,
   normalizeTrainingState,
   summarizeGuessTheMoveAttempts,
   summarizeReplayAttempts,
@@ -29,6 +31,7 @@ import {
   TRAINING_MODE_OFF,
   TRAINING_PLAY_STATUS_ACTIVE,
   TRAINING_STATUS_ACTIVE,
+  TRAINING_STATUS_COMPLETED,
   TRAINING_STATUS_ENDED,
   TRAINING_STATUS_IDLE,
   REPLAY_RESULT_BETTER,
@@ -952,5 +955,112 @@ describe("training helpers", () => {
         ],
       }),
     );
+  });
+
+  it("normalizes saved guess history entries and derives summaries", () => {
+    const entries = normalizeGuessHistoryEntries([
+      {
+        id: "entry-1",
+        completedAt: "2026-05-02T12:00:00.000Z",
+        playerSide: TRAINING_SIDE_WHITE,
+        status: TRAINING_STATUS_COMPLETED,
+        referenceMoves: [
+          {
+            ply: 1,
+            moveNumber: 1,
+            side: "white",
+            san: "e4",
+            move: { from: "e2", to: "e4" },
+            fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+          },
+        ],
+        attempts: [
+          {
+            ply: 1,
+            moveNumber: 1,
+            side: "white",
+            expectedSan: "e4",
+            userSan: "e4",
+            expectedMove: { from: "e2", to: "e4" },
+            userMove: { from: "e2", to: "e4" },
+            outcome: REPLAY_RESULT_MATCH,
+            classification: null,
+            deltaCp: null,
+            isCritical: false,
+            resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+          },
+        ],
+      },
+    ]);
+
+    expect(entries).toEqual([
+      expect.objectContaining({
+        id: "entry-1",
+        completedAt: "2026-05-02T12:00:00.000Z",
+        summary: expect.objectContaining({
+          totalScore: GUESS_THE_MOVE_POINTS_MATCH,
+          parScore: 3,
+          evaluation: expect.objectContaining({
+            label: "Outstanding",
+          }),
+        }),
+      }),
+    ]);
+  });
+
+  it("creates a guess history payload from a finished guess session", () => {
+    const payload = createGuessHistoryEntryPayload(
+      {
+        mode: TRAINING_MODE_GUESS_THE_MOVE,
+        status: TRAINING_STATUS_ENDED,
+        playerSide: TRAINING_SIDE_WHITE,
+        progressPly: 1,
+        referenceMoves: [
+          {
+            ply: 1,
+            moveNumber: 1,
+            side: "white",
+            san: "e4",
+            move: { from: "e2", to: "e4" },
+            fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+          },
+        ],
+        attempts: [
+          {
+            ply: 1,
+            moveNumber: 1,
+            side: "white",
+            expectedSan: "e4",
+            userSan: "e4",
+            expectedMove: { from: "e2", to: "e4" },
+            userMove: { from: "e2", to: "e4" },
+            outcome: REPLAY_RESULT_MATCH,
+            classification: null,
+            deltaCp: null,
+            isCritical: false,
+            resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+          },
+        ],
+      },
+      "2026-05-02T12:00:00.000Z",
+    );
+
+    expect(payload).toEqual({
+      completedAt: "2026-05-02T12:00:00.000Z",
+      playerSide: TRAINING_SIDE_WHITE,
+      status: TRAINING_STATUS_ENDED,
+      referenceMoves: [
+        expect.objectContaining({
+          san: "e4",
+        }),
+      ],
+      attempts: [
+        expect.objectContaining({
+          userSan: "e4",
+        }),
+      ],
+    });
   });
 });
