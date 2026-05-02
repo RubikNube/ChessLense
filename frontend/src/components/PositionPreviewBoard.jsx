@@ -18,6 +18,7 @@ const PIECE_SYMBOLS = {
 const boardStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(8, 1fr)",
+  gridTemplateRows: "repeat(8, 1fr)",
   borderRadius: "0.5rem",
   overflow: "hidden",
   border: "1px solid rgba(148, 163, 184, 0.35)",
@@ -33,6 +34,8 @@ const squareStyle = {
   fontSize: "1rem",
   lineHeight: 1,
   userSelect: "none",
+  aspectRatio: "1 / 1",
+  minHeight: 0,
 };
 
 function getOrientedBoardRows(boardRows, orientation) {
