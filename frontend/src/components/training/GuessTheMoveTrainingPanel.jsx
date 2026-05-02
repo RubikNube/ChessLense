@@ -608,7 +608,7 @@ function GuessTheMoveTrainingPanel({
                 allowPlayVsComputer={!isViewingHistoricalResult}
               />
             )}
-            {!isTrainingPlayActive && (
+            {!isTrainingPlayActive && !isGuessTrainingActive && (
               <GuessHistorySection
                 guessHistoryEntries={guessHistoryEntries}
                 guessHistoryLoading={guessHistoryLoading}
