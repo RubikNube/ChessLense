@@ -23,6 +23,41 @@ function AppMenuBar({
         <button
           type="button"
           className="menu-trigger"
+          onClick={() => onToggleMenu("training")}
+        >
+          Training
+        </button>
+        {openMenu === "training" && (
+          <div className="menu-dropdown">
+            <button
+              type="button"
+              className="menu-entry"
+              onClick={() => onMenuAction(actions.togglePlayComputerPanel)}
+            >
+              {showPlayComputerPanel ? "Hide Play vs Computer" : "Show Play vs Computer"}
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
+              onClick={() => onMenuAction(actions.toggleReplayTrainingPanel)}
+            >
+              {showReplayTrainingPanel ? "Hide Replay Mode" : "Show Replay Mode"}
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
+              onClick={() => onMenuAction(actions.toggleGuessTrainingPanel)}
+            >
+              {showGuessTrainingPanel ? "Hide Guess The Move" : "Show Guess The Move"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="menu-group">
+        <button
+          type="button"
+          className="menu-trigger"
           onClick={() => onToggleMenu("engine")}
         >
           Engine
@@ -190,16 +225,14 @@ function AppMenuBar({
               className="menu-entry"
               onClick={() => onMenuAction(actions.toggleReplayTrainingPanel)}
             >
-              {showReplayTrainingPanel ? "Hide Replay Training" : "Show Replay Training"}
+              {showReplayTrainingPanel ? "Hide Replay Mode" : "Show Replay Mode"}
             </button>
             <button
               type="button"
               className="menu-entry"
               onClick={() => onMenuAction(actions.toggleGuessTrainingPanel)}
             >
-              {showGuessTrainingPanel
-                ? "Hide Guess The Move Training"
-                : "Show Guess The Move Training"}
+              {showGuessTrainingPanel ? "Hide Guess The Move" : "Show Guess The Move"}
             </button>
             <button
               type="button"
