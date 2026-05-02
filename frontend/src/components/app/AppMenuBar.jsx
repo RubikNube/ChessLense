@@ -50,6 +50,13 @@ function AppMenuBar({
             >
               {showGuessTrainingPanel ? "Hide Guess The Move" : "Show Guess The Move"}
             </button>
+            <button
+              type="button"
+              className="menu-entry"
+              onClick={() => onMenuAction(actions.openGuessHistoryBrowser)}
+            >
+              Browse Guess History
+            </button>
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import {
   getCurrentGuessTheMove,
   getGuessTheMovePoints,
   getCurrentReplayMove,
+  normalizeGuessHistoryBrowseEntries,
   isCriticalReplayDelta,
   normalizeGuessHistoryEntries,
   normalizeTrainingState,
@@ -1001,6 +1002,67 @@ describe("training helpers", () => {
         summary: expect.objectContaining({
           totalScore: GUESS_THE_MOVE_POINTS_MATCH,
           parScore: 3,
+          evaluation: expect.objectContaining({
+            label: "Outstanding",
+          }),
+        }),
+      }),
+    ]);
+  });
+
+  it("normalizes guess-history browser entries with latest result summaries", () => {
+    const entries = normalizeGuessHistoryBrowseEntries([
+      {
+        gameKey: "abc123",
+        updatedAt: "2026-05-02T12:30:00.000Z",
+        runCount: 1,
+        game: {
+          event: "Training Match",
+          white: "Alice",
+          black: "Bob",
+        },
+        latestEntry: {
+          id: "entry-1",
+          completedAt: "2026-05-02T12:00:00.000Z",
+          playerSide: TRAINING_SIDE_WHITE,
+          status: TRAINING_STATUS_COMPLETED,
+          referenceMoves: [
+            {
+              ply: 1,
+              moveNumber: 1,
+              side: "white",
+              san: "e4",
+              move: { from: "e2", to: "e4" },
+              fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+              fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            },
+          ],
+          attempts: [
+            {
+              ply: 1,
+              moveNumber: 1,
+              side: "white",
+              expectedSan: "e4",
+              userSan: "e4",
+              expectedMove: { from: "e2", to: "e4" },
+              userMove: { from: "e2", to: "e4" },
+              outcome: REPLAY_RESULT_MATCH,
+              classification: null,
+              deltaCp: null,
+              isCritical: false,
+              resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(entries).toEqual([
+      expect.objectContaining({
+        gameKey: "abc123",
+        runCount: 1,
+        latestSummary: expect.objectContaining({
+          totalScore: GUESS_THE_MOVE_POINTS_MATCH,
           evaluation: expect.objectContaining({
             label: "Outstanding",
           }),

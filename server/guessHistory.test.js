@@ -4,9 +4,16 @@ const fs = require("fs/promises");
 const os = require("os");
 const path = require("path");
 const { HttpError } = require("./httpError");
-const { appendGuessHistory, getGameKey, listGuessHistory, __testing } = require("./guessHistory");
+const {
+	appendGuessHistory,
+	getGameKey,
+	getGuessHistoryGame,
+	listGuessHistory,
+	listGuessHistoryGames,
+	__testing,
+} = require("./guessHistory");
 
-const { createGameSummary, normalizeGuessHistoryEntry } = __testing;
+const { buildGuessHistoryBrowseEntry, createGameSummary, normalizeGuessHistoryEntry } = __testing;
 
 const SAMPLE_PGN = `
 [Event "Training Match"]
@@ -90,6 +97,7 @@ test("appendGuessHistory persists entries keyed by the imported PGN", async () =
 		});
 
 		assert.equal(savedRecord.gameKey, getGameKey(SAMPLE_PGN));
+		assert.equal(savedRecord.rawPgn, SAMPLE_PGN.trim());
 		assert.equal(savedRecord.entries.length, 1);
 		assert.match(savedRecord.entries[0].id, /^guess-history-/);
 		assert.deepEqual(loadedRecord.entries, savedRecord.entries);
@@ -98,6 +106,82 @@ test("appendGuessHistory persists entries keyed by the imported PGN", async () =
 			white: "Alice",
 			black: "Bob",
 		});
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("buildGuessHistoryBrowseEntry exposes metadata for the browser panel", async () => {
+	const rootDir = await createTempGuessHistoryDir();
+
+	try {
+		const savedRecord = await appendGuessHistory(SAMPLE_PGN, createGuessHistoryEntryPayload(), {
+			guessHistoryRootDir: rootDir,
+		});
+
+		assert.deepEqual(buildGuessHistoryBrowseEntry(savedRecord), {
+			gameKey: savedRecord.gameKey,
+			updatedAt: savedRecord.updatedAt,
+			game: {
+				event: "Training Match",
+				white: "Alice",
+				black: "Bob",
+			},
+			runCount: 1,
+			latestEntry: savedRecord.entries[0],
+		});
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("listGuessHistoryGames returns saved games sorted by recency", async () => {
+	const rootDir = await createTempGuessHistoryDir();
+
+	try {
+		const olderPgn = `
+[Event "Older Match"]
+[White "Carol"]
+[Black "Dan"]
+
+1. d4 d5 *
+`;
+		await appendGuessHistory(olderPgn, createGuessHistoryEntryPayload(), {
+			guessHistoryRootDir: rootDir,
+		});
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		await appendGuessHistory(SAMPLE_PGN, createGuessHistoryEntryPayload(), {
+			guessHistoryRootDir: rootDir,
+		});
+
+		const games = await listGuessHistoryGames({
+			guessHistoryRootDir: rootDir,
+		});
+
+		assert.equal(games.length, 2);
+		assert.equal(games[0].game.white, "Alice");
+		assert.equal(games[1].game.white, "Carol");
+		assert.equal(games[0].runCount, 1);
+		assert.match(games[0].latestEntry.id, /^guess-history-/);
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("getGuessHistoryGame reloads a saved game including raw PGN", async () => {
+	const rootDir = await createTempGuessHistoryDir();
+
+	try {
+		const savedRecord = await appendGuessHistory(SAMPLE_PGN, createGuessHistoryEntryPayload(), {
+			guessHistoryRootDir: rootDir,
+		});
+		const game = await getGuessHistoryGame(savedRecord.gameKey, {
+			guessHistoryRootDir: rootDir,
+		});
+
+		assert.equal(game.gameKey, savedRecord.gameKey);
+		assert.equal(game.rawPgn, SAMPLE_PGN.trim());
+		assert.deepEqual(game.entries, savedRecord.entries);
 	} finally {
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}

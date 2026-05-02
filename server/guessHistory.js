@@ -20,6 +20,11 @@ function normalizeIsoTimestamp(value, fallback = null) {
 	return Number.isNaN(timestamp.getTime()) ? fallback : timestamp.toISOString();
 }
 
+function normalizeGameKey(value) {
+	const normalized = normalizeString(value);
+	return /^[a-f0-9]{64}$/i.test(normalized) ? normalized.toLowerCase() : "";
+}
+
 function normalizeMove(move) {
 	if (
 		!move ||
@@ -174,9 +179,10 @@ function normalizeGuessHistoryRecord(record) {
 		return null;
 	}
 
-	const gameKey = normalizeString(record.gameKey);
+	const gameKey = normalizeGameKey(record.gameKey);
 	const createdAt = normalizeIsoTimestamp(record.createdAt, new Date().toISOString());
 	const updatedAt = normalizeIsoTimestamp(record.updatedAt, createdAt);
+	const rawPgn = normalizeString(record.rawPgn);
 	const entries = Array.isArray(record.entries)
 		? record.entries.map((entry) => normalizeGuessHistoryEntry(entry)).filter(Boolean)
 		: [];
@@ -189,6 +195,7 @@ function normalizeGuessHistoryRecord(record) {
 		gameKey,
 		createdAt,
 		updatedAt,
+		rawPgn,
 		game: {
 			event: normalizeString(record.game?.event),
 			white: normalizeString(record.game?.white),
@@ -248,6 +255,20 @@ function createGuessHistoryEntryId() {
 	return `guess-history-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function buildGuessHistoryBrowseEntry(record) {
+	if (!record?.gameKey || !record.rawPgn || !record.entries.length) {
+		return null;
+	}
+
+	return {
+		gameKey: record.gameKey,
+		updatedAt: record.updatedAt,
+		game: record.game,
+		runCount: record.entries.length,
+		latestEntry: record.entries[0],
+	};
+}
+
 async function listGuessHistory(rawPgn, options = {}) {
 	const normalizedRawPgn = normalizeString(rawPgn);
 
@@ -286,6 +307,59 @@ async function listGuessHistory(rawPgn, options = {}) {
 	};
 }
 
+async function getGuessHistoryGame(gameKey, options = {}) {
+	const normalizedGameKey = normalizeGameKey(gameKey);
+
+	if (!normalizedGameKey) {
+		throw new HttpError(400, "invalid_guess_history", "gameKey is invalid.");
+	}
+
+	const rootDir = await ensureGuessHistoryDir(
+		getGuessHistoryDir(options.guessHistoryRootDir ?? options.rootDir),
+	);
+	const record = normalizeGuessHistoryRecord(
+		await readStoredGuessHistory(getGuessHistoryFilePath(rootDir, normalizedGameKey)),
+	);
+
+	if (!record?.rawPgn || !record.entries.length) {
+		throw new HttpError(404, "guess_history_not_found", "Guess history game not found.");
+	}
+
+	return {
+		gameKey: record.gameKey,
+		game: record.game,
+		rawPgn: record.rawPgn,
+		entries: record.entries,
+	};
+}
+
+async function listGuessHistoryGames(options = {}) {
+	const rootDir = await ensureGuessHistoryDir(
+		getGuessHistoryDir(options.guessHistoryRootDir ?? options.rootDir),
+	);
+	const entries = await fs.readdir(rootDir, { withFileTypes: true });
+	const games = [];
+
+	for (const entry of entries) {
+		if (!entry.isFile() || !entry.name.endsWith(".json")) {
+			continue;
+		}
+
+		const record = normalizeGuessHistoryRecord(
+			await readStoredGuessHistory(path.join(rootDir, entry.name)),
+		);
+		const browseEntry = buildGuessHistoryBrowseEntry(record);
+
+		if (browseEntry) {
+			games.push(browseEntry);
+		}
+	}
+
+	return games.sort((leftGame, rightGame) =>
+		rightGame.updatedAt.localeCompare(leftGame.updatedAt),
+	);
+}
+
 async function appendGuessHistory(rawPgn, entryPayload, options = {}) {
 	const normalizedRawPgn = normalizeString(rawPgn);
 	const gameKey = getGameKey(normalizedRawPgn);
@@ -309,6 +383,7 @@ async function appendGuessHistory(rawPgn, entryPayload, options = {}) {
 			gameKey,
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString(),
+			rawPgn: normalizedRawPgn,
 			game: createGameSummary(normalizedRawPgn),
 			entries: [],
 		};
@@ -316,6 +391,7 @@ async function appendGuessHistory(rawPgn, entryPayload, options = {}) {
 	const record = {
 		...existingRecord,
 		updatedAt: now,
+		rawPgn: normalizedRawPgn,
 		entries: [
 			{
 				id: createGuessHistoryEntryId(),
@@ -332,12 +408,16 @@ async function appendGuessHistory(rawPgn, entryPayload, options = {}) {
 
 module.exports = {
 	appendGuessHistory,
+	getGuessHistoryGame,
 	getGameKey,
 	listGuessHistory,
+	listGuessHistoryGames,
 	__testing: {
+		buildGuessHistoryBrowseEntry,
 		createGameSummary,
 		normalizeAttempt,
 		normalizeGuessHistoryEntry,
+		normalizeGameKey,
 		normalizeGuessHistoryRecord,
 		normalizeReferenceMove,
 	},

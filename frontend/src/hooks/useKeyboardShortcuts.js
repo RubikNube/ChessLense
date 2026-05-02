@@ -57,6 +57,15 @@ function useKeyboardShortcuts({
         return;
       }
 
+      if (modalState.showGuessHistoryBrowserPopup) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          actions.closeGuessHistoryBrowser();
+        }
+
+        return;
+      }
+
       if (modalState.showLichessSearchPopup) {
         if (event.key === "Escape") {
           event.preventDefault();

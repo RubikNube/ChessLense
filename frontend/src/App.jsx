@@ -6,6 +6,7 @@ import BoardWorkspace from "./components/board/BoardWorkspace.jsx";
 import CommentsPanel from "./components/comments/CommentsPanel.jsx";
 import EnginePanel from "./components/engine/EnginePanel.jsx";
 import CreateCollectionModal from "./components/modals/CreateCollectionModal.jsx";
+import GuessHistoryBrowserModal from "./components/modals/GuessHistoryBrowserModal.jsx";
 import ImportPgnModal from "./components/modals/ImportPgnModal.jsx";
 import LichessSearchModal from "./components/modals/LichessSearchModal.jsx";
 import LichessTokenModal from "./components/modals/LichessTokenModal.jsx";
@@ -110,6 +111,7 @@ import {
   createReplayTrainingState,
   getCurrentGuessTheMove,
   getCurrentReplayMove,
+  normalizeGuessHistoryBrowseEntries,
   normalizeGuessHistoryEntries,
   normalizeTrainingState,
   REPLAY_RESULT_MATCH,
@@ -352,6 +354,7 @@ function App() {
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
   const [showSaveStudyPopup, setShowSaveStudyPopup] = useState(false);
   const [showStudiesPopup, setShowStudiesPopup] = useState(false);
+  const [showGuessHistoryBrowserPopup, setShowGuessHistoryBrowserPopup] = useState(false);
   const [showCreateCollectionPopup, setShowCreateCollectionPopup] = useState(false);
   const [showManageCollectionsPopup, setShowManageCollectionsPopup] = useState(false);
   const [showLichessSearchPopup, setShowLichessSearchPopup] = useState(false);
@@ -430,6 +433,10 @@ function App() {
   const [guessHistoryLoading, setGuessHistoryLoading] = useState(false);
   const [guessHistoryError, setGuessHistoryError] = useState("");
   const [activeGuessHistoryEntryId, setActiveGuessHistoryEntryId] = useState("");
+  const [guessHistoryBrowserGames, setGuessHistoryBrowserGames] = useState([]);
+  const [guessHistoryBrowserLoading, setGuessHistoryBrowserLoading] = useState(false);
+  const [guessHistoryBrowserError, setGuessHistoryBrowserError] = useState("");
+  const [loadingGuessHistoryGameKey, setLoadingGuessHistoryGameKey] = useState("");
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [boardRenderNonce, setBoardRenderNonce] = useState(0);
@@ -441,6 +448,7 @@ function App() {
   const boardRightMouseSelectionRef = useRef(null);
   const guessHistoryRunIdRef = useRef(null);
   const savedGuessHistoryRunIdRef = useRef(null);
+  const pendingGuessHistoryEntryIdRef = useRef("");
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
@@ -791,6 +799,7 @@ function App() {
     trainingRequestIdRef.current += 1;
     guessHistoryRunIdRef.current = null;
     savedGuessHistoryRunIdRef.current = null;
+    pendingGuessHistoryEntryIdRef.current = "";
     setTrainingState(createEmptyTrainingState(normalizedTrainingState.playerSide));
     setActiveGuessHistoryEntryId("");
     hideTrainingPreview();
@@ -1056,12 +1065,20 @@ function App() {
       });
       const nextEntries = normalizeGuessHistoryEntries(data.entries);
       setGuessHistoryEntries(nextEntries);
-      setActiveGuessHistoryEntryId((currentValue) =>
-        nextEntries.some((entry) => entry.id === currentValue) ? currentValue : "",
-      );
+      setActiveGuessHistoryEntryId((currentValue) => {
+        const preferredEntryId = pendingGuessHistoryEntryIdRef.current;
+
+        if (preferredEntryId && nextEntries.some((entry) => entry.id === preferredEntryId)) {
+          pendingGuessHistoryEntryIdRef.current = "";
+          return preferredEntryId;
+        }
+
+        return nextEntries.some((entry) => entry.id === currentValue) ? currentValue : "";
+      });
     } catch (error) {
       setGuessHistoryEntries([]);
       setActiveGuessHistoryEntryId("");
+      pendingGuessHistoryEntryIdRef.current = "";
       setGuessHistoryError(error.message);
     } finally {
       setGuessHistoryLoading(false);
@@ -1464,6 +1481,7 @@ function App() {
       .toString(36)
       .slice(2, 8)}`;
     savedGuessHistoryRunIdRef.current = null;
+    pendingGuessHistoryEntryIdRef.current = "";
     setVariantTree(preparedGuessTree);
     setShowGuessTrainingPanel(true);
     setShowReplayTrainingPanel(false);
@@ -1512,7 +1530,7 @@ function App() {
     setEvaluationResult(null);
   }, [hideTrainingPreview, isGuessTrainingActive, trainingRequestIdRef]);
 
-  function applyImportedPgn(rawPgn) {
+  const applyImportedPgn = useCallback((rawPgn) => {
     const {
       variantTree: importedVariantTree,
       importedPgnData: nextImportedPgnData,
@@ -1530,6 +1548,7 @@ function App() {
     setEvaluationResult(null);
     guessHistoryRunIdRef.current = null;
     savedGuessHistoryRunIdRef.current = null;
+    pendingGuessHistoryEntryIdRef.current = "";
     setActiveGuessHistoryEntryId("");
     setGuessHistoryError("");
     resetTrainingSession();
@@ -1538,7 +1557,42 @@ function App() {
     setEditingCommentId(null);
     setCommentDraft("");
     return "";
-  }
+  }, [resetTrainingSession]);
+
+  const loadGuessHistoryGame = useCallback(async (browseEntry) => {
+    if (!browseEntry?.gameKey) {
+      return;
+    }
+
+    setLoadingGuessHistoryGameKey(browseEntry.gameKey);
+    setGuessHistoryBrowserError("");
+
+    try {
+      const data = await fetchJson(`/api/guess-history/games/${browseEntry.gameKey}`);
+      const nextEntries = normalizeGuessHistoryEntries(data.entries);
+      const error = applyImportedPgn(data.rawPgn);
+
+      if (error) {
+        setGuessHistoryBrowserError(error);
+        return;
+      }
+
+      pendingGuessHistoryEntryIdRef.current =
+        browseEntry.latestEntry?.id ?? nextEntries[0]?.id ?? "";
+      setGuessHistoryEntries(nextEntries);
+      setActiveGuessHistoryEntryId(pendingGuessHistoryEntryIdRef.current);
+      setShowGuessTrainingPanel(true);
+      setShowReplayTrainingPanel(false);
+      setShowGuessHistoryBrowserPopup(false);
+      setGuessHistoryBrowserError("");
+      setCopyNotification(`Loaded Guess history for "${browseEntry.game.white || "saved game"}".`);
+    } catch (error) {
+      setGuessHistoryBrowserError(error.message);
+    } finally {
+      setLoadingGuessHistoryGameKey("");
+    }
+  }, [applyImportedPgn]);
+
   const currentMoveIndex = useMemo(
     () => moveHistoryEntries.findIndex((entry) => entry.isSelected),
     [moveHistoryEntries],
@@ -2325,6 +2379,32 @@ function App() {
     void loadStudies();
     void loadCollections();
   }, [loadCollections, loadStudies]);
+
+  const loadGuessHistoryGames = useCallback(async () => {
+    setGuessHistoryBrowserLoading(true);
+    setGuessHistoryBrowserError("");
+
+    try {
+      const data = await fetchJson("/api/guess-history/games");
+      setGuessHistoryBrowserGames(normalizeGuessHistoryBrowseEntries(data.games));
+    } catch (error) {
+      setGuessHistoryBrowserGames([]);
+      setGuessHistoryBrowserError(error.message);
+    } finally {
+      setGuessHistoryBrowserLoading(false);
+    }
+  }, []);
+
+  const openGuessHistoryBrowser = useCallback(() => {
+    setShowGuessHistoryBrowserPopup(true);
+    void loadGuessHistoryGames();
+  }, [loadGuessHistoryGames]);
+
+  const closeGuessHistoryBrowser = useCallback(() => {
+    setShowGuessHistoryBrowserPopup(false);
+    setGuessHistoryBrowserError("");
+    setLoadingGuessHistoryGameKey("");
+  }, []);
 
   const applyStudyToWorkspace = useCallback((studyValue) => {
     const study = normalizeStudy(studyValue);
@@ -3278,6 +3358,7 @@ function App() {
     openLichessSearchPopup,
     openLichessTokenPopup,
     openOtbSearchPopup,
+    openGuessHistoryBrowser,
     openSaveStudyPopup,
     openStudiesPopup,
     toggleBoardOrientation,
@@ -3296,6 +3377,7 @@ function App() {
     analyzePosition,
     copyFenToClipboard,
     openImportPgnPopup,
+    openGuessHistoryBrowser,
     openLichessSearchPopup,
     openLichessTokenPopup,
     openOtbSearchPopup,
@@ -3325,6 +3407,7 @@ function App() {
     closeCreateCollectionPopup,
     closeManageCollectionsPopup,
     closeStudiesPopup,
+    closeGuessHistoryBrowser,
     closeLichessSearchPopup,
     closeLichessTokenPopup,
     closeOtbSearchPopup,
@@ -3349,6 +3432,7 @@ function App() {
     toggleVariants,
   }), [
     closeCreateCollectionPopup,
+    closeGuessHistoryBrowser,
     closeImportPgnPopup,
     closeLichessSearchPopup,
     closeLichessTokenPopup,
@@ -3382,6 +3466,7 @@ function App() {
     showCreateCollectionPopup,
     showManageCollectionsPopup,
     showStudiesPopup,
+    showGuessHistoryBrowserPopup,
     showLichessSearchPopup,
     showLichessTokenPopup,
     showOtbSearchPopup,
@@ -3389,6 +3474,7 @@ function App() {
   }), [
     showCreateCollectionPopup,
     showImportPgnPopup,
+    showGuessHistoryBrowserPopup,
     showLichessSearchPopup,
     showLichessTokenPopup,
     showManageCollectionsPopup,
@@ -3688,6 +3774,18 @@ function App() {
           loadCollections={loadCollections}
           updatingCollectionId={updatingCollectionId}
           onClose={closeStudiesPopup}
+        />
+      )}
+
+      {showGuessHistoryBrowserPopup && (
+        <GuessHistoryBrowserModal
+          guessHistoryBrowserGames={guessHistoryBrowserGames}
+          guessHistoryBrowserError={guessHistoryBrowserError}
+          guessHistoryBrowserLoading={guessHistoryBrowserLoading}
+          loadingGuessHistoryGameKey={loadingGuessHistoryGameKey}
+          loadGuessHistoryGames={loadGuessHistoryGames}
+          loadGuessHistoryGame={loadGuessHistoryGame}
+          onClose={closeGuessHistoryBrowser}
         />
       )}
 

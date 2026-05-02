@@ -882,6 +882,46 @@ export function normalizeGuessHistoryEntries(entries) {
     : [];
 }
 
+export function normalizeGuessHistoryBrowseEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const gameKey = normalizeString(entry.gameKey);
+  const updatedAt = normalizeIsoTimestamp(entry.updatedAt);
+  const runCount =
+    Number.isInteger(entry.runCount) && entry.runCount > 0 ? entry.runCount : null;
+  const latestEntry = normalizeGuessHistoryEntry(entry.latestEntry);
+
+  if (!gameKey || !updatedAt || !runCount || !latestEntry) {
+    return null;
+  }
+
+  return {
+    gameKey,
+    updatedAt,
+    game: {
+      event: normalizeString(entry.game?.event),
+      white: normalizeString(entry.game?.white),
+      black: normalizeString(entry.game?.black),
+    },
+    runCount,
+    latestEntry,
+    latestSummary: latestEntry.summary,
+  };
+}
+
+export function normalizeGuessHistoryBrowseEntries(entries) {
+  return Array.isArray(entries)
+    ? entries
+        .map(normalizeGuessHistoryBrowseEntry)
+        .filter(Boolean)
+        .sort((leftEntry, rightEntry) =>
+          rightEntry.updatedAt.localeCompare(leftEntry.updatedAt),
+        )
+    : [];
+}
+
 export function createGuessHistoryEntryPayload(trainingState, completedAt = new Date().toISOString()) {
   const normalizedTrainingState = normalizeTrainingState(trainingState);
 

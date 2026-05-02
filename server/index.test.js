@@ -292,3 +292,87 @@ test("POST /api/guess-history saves and reloads guess-the-move runs for a PGN", 
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}
 });
+
+test("GET /api/guess-history/games browses saved guess-history games and loads one by key", async () => {
+	const previousGuessHistoryDir = process.env.GUESS_HISTORY_DIR;
+	const rootDir = await createTempGuessHistoryDir();
+	process.env.GUESS_HISTORY_DIR = rootDir;
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const rawPgn = `
+[Event "Training Match"]
+[White "Alice"]
+[Black "Bob"]
+
+1. e4 e5 2. Nf3 Nc6 *
+`.trim();
+			const entry = {
+				completedAt: "2026-05-02T12:00:00.000Z",
+				playerSide: "white",
+				status: "completed",
+				referenceMoves: [
+					{
+						ply: 1,
+						moveNumber: 1,
+						side: "white",
+						san: "e4",
+						move: { from: "e2", to: "e4" },
+						fenBefore: "start",
+						fenAfter: "after-e4",
+					},
+				],
+				attempts: [
+					{
+						ply: 1,
+						moveNumber: 1,
+						side: "white",
+						expectedSan: "e4",
+						userSan: "e4",
+						expectedMove: { from: "e2", to: "e4" },
+						userMove: { from: "e2", to: "e4" },
+						outcome: "match",
+						classification: null,
+						deltaCp: null,
+						isCritical: false,
+						referenceEvaluation: null,
+						userEvaluation: null,
+						resultingFen: "after-e4",
+					},
+				],
+			};
+			await fetch(`${baseUrl}/api/guess-history`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ rawPgn, entry }),
+			});
+			const listResponse = await fetch(`${baseUrl}/api/guess-history/games`);
+			const listData = await listResponse.json();
+			const gameKey = listData.games[0]?.gameKey;
+			const detailResponse = await fetch(`${baseUrl}/api/guess-history/games/${gameKey}`);
+			const detailData = await detailResponse.json();
+
+			assert.equal(listResponse.status, 200);
+			assert.equal(listData.games.length, 1);
+			assert.equal(listData.games[0].game.white, "Alice");
+			assert.equal(listData.games[0].runCount, 1);
+			assert.equal(detailResponse.status, 200);
+			assert.equal(detailData.rawPgn, rawPgn);
+			assert.equal(detailData.entries.length, 1);
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousGuessHistoryDir === "string") {
+			process.env.GUESS_HISTORY_DIR = previousGuessHistoryDir;
+		} else {
+			delete process.env.GUESS_HISTORY_DIR;
+		}
+
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
