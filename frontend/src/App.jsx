@@ -3386,6 +3386,9 @@ function App() {
             setTrainingPlayerSide={setTrainingPlayerSide}
             isGuessTrainingActive={isGuessTrainingActive}
             isGuessTrainingEnded={isGuessTrainingEnded}
+            activeTrainingPlaySession={activeTrainingPlaySession}
+            isTrainingPlayActive={isTrainingPlayActive}
+            isEngineOpponentUserTurn={isEngineOpponentUserTurn}
             trainingLoading={trainingLoading}
             whiteTrainingLabel={whiteTrainingLabel}
             blackTrainingLabel={blackTrainingLabel}
@@ -3398,6 +3401,8 @@ function App() {
             hideTrainingPreview={hideTrainingPreview}
             lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
             lastCompletedExpectedMove={lastCompletedExpectedMove}
+            startTrainingPlayMode={startTrainingPlayMode}
+            exitTrainingPlayMode={exitTrainingPlayMode}
             startGuessTraining={startGuessTraining}
             endGuessTraining={endGuessTraining}
             resetTrainingSession={resetTrainingSession}

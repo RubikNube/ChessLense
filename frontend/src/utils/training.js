@@ -353,7 +353,8 @@ function normalizeTrainingPlaySession(entry, playerSide = TRAINING_SIDE_WHITE) {
     !sourceAttempt ||
     !startingFen ||
     !resumeVariantTree ||
-    resumeTrainingState.mode !== TRAINING_MODE_REPLAY_GAME
+    (resumeTrainingState.mode !== TRAINING_MODE_REPLAY_GAME &&
+      resumeTrainingState.mode !== TRAINING_MODE_GUESS_THE_MOVE)
   ) {
     return null;
   }
@@ -790,6 +791,7 @@ export function summarizeGuessTheMoveAttempts(
         isCritical: attempt.isCritical,
         resultingFen: attempt.resultingFen,
         points: getGuessTheMovePoints(attempt),
+        sourceAttempt: attempt,
       };
     })
     .filter(Boolean);

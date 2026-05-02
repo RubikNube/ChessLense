@@ -173,6 +173,9 @@ function GuessTheMoveTrainingPanel({
   setTrainingPlayerSide,
   isGuessTrainingActive,
   isGuessTrainingEnded,
+  activeTrainingPlaySession,
+  isTrainingPlayActive,
+  isEngineOpponentUserTurn,
   trainingLoading,
   whiteTrainingLabel,
   blackTrainingLabel,
@@ -185,6 +188,8 @@ function GuessTheMoveTrainingPanel({
   hideTrainingPreview,
   lastCompletedTrainingAttempts,
   lastCompletedExpectedMove,
+  startTrainingPlayMode,
+  exitTrainingPlayMode,
   startGuessTraining,
   endGuessTraining,
   resetTrainingSession,
@@ -260,18 +265,43 @@ function GuessTheMoveTrainingPanel({
                 Start guess mode to score one move at a time against the imported game.
               </p>
             )}
-            {isGuessTrainingActive && currentGuessMove && (
+            {isTrainingPlayActive && activeTrainingPlaySession && (
+              <div className="annotation-item training-feedback">
+                <div className="annotation-item-header">
+                  <span className="annotation-label">Play vs computer</span>
+                  <span className="training-feedback-result">
+                    {isEngineOpponentUserTurn ? "Your move" : "Computer move"}
+                  </span>
+                </div>
+                <p>
+                  Exploring the position after{" "}
+                  <strong>{activeTrainingPlaySession.sourceAttempt.userSan}</strong>. Return
+                  to training to resume Guess The Move exactly where you left it.
+                </p>
+                <div className="annotation-item-actions">
+                  <button
+                    type="button"
+                    className="annotation-secondary-button"
+                    onClick={exitTrainingPlayMode}
+                    disabled={trainingLoading}
+                  >
+                    Return to training
+                  </button>
+                </div>
+              </div>
+            )}
+            {!isTrainingPlayActive && isGuessTrainingActive && currentGuessMove && (
               <p className="annotation-empty">
                 Play the next move on the board. You only get one try; the game move is
                 revealed immediately after your guess. Current position:{" "}
                 <strong>{currentMoveLabel}</strong>.
               </p>
             )}
-            {trainingLoading && (
+            {trainingLoading && !isTrainingPlayActive && (
               <p className="annotation-empty">Comparing your move with the game move...</p>
             )}
             {trainingError && <p className="error">{trainingError}</p>}
-            {!shouldShowSummary && lastAttempt && lastCompletedExpectedMove && (
+            {!isTrainingPlayActive && !shouldShowSummary && lastAttempt && lastCompletedExpectedMove && (
               <div
                 className={`annotation-item training-feedback${lastAttempt.isCritical ? " training-feedback-critical" : ""}`}
               >
@@ -324,9 +354,21 @@ function GuessTheMoveTrainingPanel({
                     </>
                   )}
                 </p>
+                {lastAttempt.outcome !== "match" && lastAttempt.resultingFen && (
+                  <div className="annotation-item-actions">
+                    <button
+                      type="button"
+                      className="annotation-secondary-button"
+                      onClick={() => startTrainingPlayMode(lastAttempt)}
+                      disabled={isTrainingPlayActive || trainingLoading}
+                    >
+                      Play vs computer
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-            {shouldShowSummary && (
+            {!isTrainingPlayActive && shouldShowSummary && (
               <>
                 <div ref={summaryRef} className="annotation-section">
                   <h3>Final evaluation</h3>
@@ -433,10 +475,22 @@ function GuessTheMoveTrainingPanel({
                               Played {moveEntry.userSan} ({formatPoints(moveEntry.points)})
                             </span>
                             {moveEntry.outcome !== "match" && (
-                              <span className="training-feedback-detail">
-                                Delta {formatReplayDelta(moveEntry.deltaCp)}
-                                {moveEntry.isCritical ? " - critical" : ""}
-                              </span>
+                              <>
+                                <span className="training-feedback-detail">
+                                  Delta {formatReplayDelta(moveEntry.deltaCp)}
+                                  {moveEntry.isCritical ? " - critical" : ""}
+                                </span>
+                                {moveEntry.sourceAttempt?.resultingFen && (
+                                  <button
+                                    type="button"
+                                    className="annotation-secondary-button"
+                                    onClick={() => startTrainingPlayMode(moveEntry.sourceAttempt)}
+                                    disabled={isTrainingPlayActive || trainingLoading}
+                                  >
+                                    Play vs computer
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         </li>

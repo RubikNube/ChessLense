@@ -599,6 +599,72 @@ describe("training helpers", () => {
     );
   });
 
+  it("normalizes persisted guess-mode play-session snapshots for temporary engine play", () => {
+    const referenceMove = {
+      ply: 1,
+      moveNumber: 1,
+      side: "white",
+      san: "e4",
+      move: { from: "e2", to: "e4" },
+      fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+    };
+    const betterAttempt = {
+      ply: 1,
+      moveNumber: 1,
+      side: "white",
+      expectedSan: "e4",
+      userSan: "d4",
+      expectedMove: { from: "e2", to: "e4" },
+      userMove: { from: "d2", to: "d4" },
+      outcome: "mismatch",
+      classification: "better",
+      deltaCp: 120,
+      resultingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+    };
+
+    const normalizedState = normalizeTrainingState({
+      mode: TRAINING_MODE_GUESS_THE_MOVE,
+      status: TRAINING_STATUS_ENDED,
+      playerSide: TRAINING_SIDE_WHITE,
+      progressPly: 1,
+      referenceMoves: [referenceMove],
+      attempts: [betterAttempt],
+      playSession: {
+        status: TRAINING_PLAY_STATUS_ACTIVE,
+        sourceAttempt: betterAttempt,
+        startingFen: betterAttempt.resultingFen,
+        resumeTrainingState: {
+          mode: TRAINING_MODE_GUESS_THE_MOVE,
+          status: TRAINING_STATUS_ENDED,
+          playerSide: TRAINING_SIDE_WHITE,
+          progressPly: 1,
+          referenceMoves: [referenceMove],
+          attempts: [betterAttempt],
+          pendingAttempts: [],
+        },
+        resumeVariantTree: createEmptyVariantTree(referenceMove.fenAfter),
+      },
+    });
+
+    expect(normalizedState.playSession).toEqual(
+      expect.objectContaining({
+        status: TRAINING_PLAY_STATUS_ACTIVE,
+        startingFen: betterAttempt.resultingFen,
+        sourceAttempt: expect.objectContaining({
+          userSan: "d4",
+          classification: REPLAY_RESULT_BETTER,
+          resultingFen: betterAttempt.resultingFen,
+        }),
+        resumeTrainingState: expect.objectContaining({
+          mode: TRAINING_MODE_GUESS_THE_MOVE,
+          status: TRAINING_STATUS_ENDED,
+        }),
+        resumeVariantTree: createEmptyVariantTree(referenceMove.fenAfter),
+      }),
+    );
+  });
+
   it("normalizes persisted standalone computer-play sessions", () => {
     const startVariantTree = createEmptyVariantTree(
       "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
@@ -869,11 +935,19 @@ describe("training helpers", () => {
             expectedSan: "e4",
             userSan: "e4",
             points: 3,
+            sourceAttempt: expect.objectContaining({
+              userSan: "e4",
+              outcome: REPLAY_RESULT_MATCH,
+            }),
           }),
           expect.objectContaining({
             expectedSan: "Nf3",
             userSan: "Bc4",
             points: -1,
+            sourceAttempt: expect.objectContaining({
+              userSan: "Bc4",
+              classification: REPLAY_RESULT_WORSE,
+            }),
           }),
         ],
       }),
