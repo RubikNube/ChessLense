@@ -322,6 +322,7 @@ describe("training helpers", () => {
             moveNumber: 1,
             side: "white",
             expectedSan: "e4",
+            expectedResultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
             attempts: [
               expect.objectContaining({
                 index: 1,
@@ -337,6 +338,7 @@ describe("training helpers", () => {
             moveNumber: 2,
             side: "white",
             expectedSan: "Nf3",
+            expectedResultingFen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
             attempts: [
               expect.objectContaining({
                 index: 1,
@@ -403,6 +405,7 @@ describe("training helpers", () => {
         moveHistory: expect.arrayContaining([
           expect.objectContaining({
             ply: 1,
+            expectedResultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
             attempts: expect.arrayContaining([
               expect.objectContaining({
                 userSan: "e4",
@@ -412,6 +415,7 @@ describe("training helpers", () => {
           }),
           expect.objectContaining({
             ply: 3,
+            expectedResultingFen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
             attempts: expect.arrayContaining([
               expect.objectContaining({
                 index: 1,

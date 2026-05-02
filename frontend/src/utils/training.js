@@ -612,6 +612,7 @@ export function summarizeReplayAttempts(
         moveNumber: move.moveNumber,
         side: move.side,
         expectedSan: move.san,
+        expectedResultingFen: move.fenAfter,
         attempts: moveAttempts.map((attempt, index) => ({
           index: index + 1,
           userSan: attempt.userSan,

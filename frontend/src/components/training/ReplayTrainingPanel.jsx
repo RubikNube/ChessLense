@@ -487,7 +487,26 @@ function ReplayTrainingPanel({
                                 san: moveEntry.expectedSan,
                               })}
                             </span>
-                            <strong>{moveEntry.expectedSan}</strong>
+                            <strong
+                              className={moveEntry.expectedResultingFen ? "training-preview-trigger" : undefined}
+                              tabIndex={moveEntry.expectedResultingFen ? 0 : undefined}
+                              onMouseEnter={(event) =>
+                                showTrainingPreview(
+                                  { resultingFen: moveEntry.expectedResultingFen },
+                                  event.currentTarget,
+                                )
+                              }
+                              onMouseLeave={hideTrainingPreview}
+                              onFocus={(event) =>
+                                showTrainingPreview(
+                                  { resultingFen: moveEntry.expectedResultingFen },
+                                  event.currentTarget,
+                                )
+                              }
+                              onBlur={hideTrainingPreview}
+                            >
+                              {moveEntry.expectedSan}
+                            </strong>
                           </div>
                           <div className="training-summary-history-attempts">
                             {moveEntry.attempts.map((attempt) => (

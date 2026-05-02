@@ -48,6 +48,30 @@ function getSquareColor(rowIndex, columnIndex) {
   return (rowIndex + columnIndex) % 2 === 0 ? "#f0d9b5" : "#b58863";
 }
 
+function getPieceStyle(square) {
+  if (!square) {
+    return {
+      color: "transparent",
+      textShadow: "none",
+    };
+  }
+
+  if (square.color === "w") {
+    return {
+      color: "#f9fafb",
+      textShadow:
+        "0 1px 0 rgba(17, 24, 39, 0.95), 0 -1px 0 rgba(17, 24, 39, 0.95), 1px 0 0 rgba(17, 24, 39, 0.95), -1px 0 0 rgba(17, 24, 39, 0.95), 0 0 4px rgba(17, 24, 39, 0.45)",
+      WebkitTextStroke: "0.35px rgba(17, 24, 39, 0.9)",
+    };
+  }
+
+  return {
+    color: "#111827",
+    textShadow:
+      "0 1px 0 rgba(255, 255, 255, 0.55), 0 0 3px rgba(255, 255, 255, 0.2)",
+  };
+}
+
 function PositionPreviewBoard({ fen, orientation = "white" }) {
   const game = new Chess(fen);
   const boardRows = getOrientedBoardRows(game.board(), orientation);
@@ -61,11 +85,7 @@ function PositionPreviewBoard({ fen, orientation = "white" }) {
             style={{
               ...squareStyle,
               backgroundColor: getSquareColor(rowIndex, columnIndex),
-              color: square?.color === "w" ? "#ffffff" : "#111827",
-              textShadow:
-                square?.color === "w"
-                  ? "0 1px 1px rgba(17, 24, 39, 0.45)"
-                  : "0 1px 1px rgba(255, 255, 255, 0.2)",
+              ...getPieceStyle(square),
             }}
           >
             {square ? PIECE_SYMBOLS[`${square.color}${square.type}`] : ""}
