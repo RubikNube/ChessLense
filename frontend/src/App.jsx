@@ -23,6 +23,7 @@ import PlayComputerPanel from "./components/training/PlayComputerPanel.jsx";
 import ReplayTrainingPanel from "./components/training/ReplayTrainingPanel.jsx";
 import VariantsView from "./components/VariantsView.jsx";
 import {
+  DEFAULT_BOARD_SOUNDS_ENABLED,
   createUserPositionComment,
   DEFAULT_ENGINE_SEARCH_DEPTH,
   MAX_ENGINE_SEARCH_DEPTH,
@@ -40,6 +41,7 @@ import {
   seedPositionCommentsFromImportedPgnData,
 } from "./utils/appState.js";
 import { parseAnnotatedPgn } from "./utils/annotatedPgn.js";
+import { getBoardSoundEvent } from "./utils/boardSounds.js";
 import {
   buildLichessSearchQuery,
   DEFAULT_LICHESS_SEARCH_FILTERS,
@@ -133,6 +135,7 @@ import {
 } from "./utils/training.js";
 import { fetchJson } from "./utils/api.js";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts.js";
+import useBoardSounds from "./hooks/useBoardSounds.js";
 import useTrainingController from "./hooks/useTrainingController.js";
 import "./App.css";
 
@@ -303,6 +306,15 @@ function getComputerPlayOutcomeText(game, playerSide) {
   return "Game over.";
 }
 
+function getLastMoveFromGame(game) {
+  if (!(game instanceof Chess)) {
+    return null;
+  }
+
+  const verboseHistory = game.history({ verbose: true });
+  return verboseHistory.length ? verboseHistory[verboseHistory.length - 1] : null;
+}
+
 function App() {
   const persistedAppState = useMemo(() => loadPersistedAppState(), []);
   const [variantTree, setVariantTree] = useState(
@@ -336,6 +348,9 @@ function App() {
   );
   const [showEvaluationBar, setShowEvaluationBar] = useState(
     () => persistedAppState?.showEvaluationBar ?? true,
+  );
+  const [boardSoundsEnabled, setBoardSoundsEnabled] = useState(
+    () => persistedAppState?.boardSoundsEnabled ?? DEFAULT_BOARD_SOUNDS_ENABLED,
   );
   const [showComments, setShowComments] = useState(
     () => persistedAppState?.showComments ?? true,
@@ -807,6 +822,18 @@ function App() {
     setTrainingLoading(false);
     setTrainingPlayAutoReplyPaused(false);
   }, [hideTrainingPreview, normalizedTrainingState.playerSide, trainingRequestIdRef]);
+  const playBoardSound = useBoardSounds(boardSoundsEnabled);
+  const playBoardSoundForVariantTree = useCallback((nextVariantTree) => {
+    const nextGame = buildGameToNode(nextVariantTree);
+    const lastMove = getLastMoveFromGame(nextGame);
+    const soundEvent = getBoardSoundEvent(lastMove, nextGame);
+
+    if (!soundEvent) {
+      return;
+    }
+
+    playBoardSound(soundEvent);
+  }, [playBoardSound]);
 
   const buildReplayVariantTreeForProgress = useCallback((referenceMoves, progressPly) => {
     let nextVariantTree = createEmptyVariantTree(referenceMoves[0]?.fenBefore);
@@ -980,6 +1007,7 @@ function App() {
       setVariantTree(nextVariantTree);
       setEngineResult(data);
       setEvaluationResult(data.evaluation ?? null);
+      playBoardSoundForVariantTree(nextVariantTree);
     } catch (error) {
       if (requestId !== trainingRequestIdRef.current) {
         return;
@@ -1002,6 +1030,7 @@ function App() {
     trainingLoading,
     trainingRequestIdRef,
     variantTree,
+    playBoardSoundForVariantTree,
   ]);
 
   const startTrainingPlayMode = useCallback((attempt) => {
@@ -1355,7 +1384,8 @@ function App() {
     setTrainingState(nextTrainingState);
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [advanceReplayToPlayerTurn, normalizedTrainingState, variantTree]);
+    playBoardSoundForVariantTree(nextVariantTree);
+  }, [advanceReplayToPlayerTurn, normalizedTrainingState, playBoardSoundForVariantTree, variantTree]);
 
   const addPendingReplayAttempt = useCallback((nextAttempt) => {
     if (!nextAttempt) {
@@ -1684,6 +1714,7 @@ function App() {
       setEngineResult(null);
       setEvaluationResult(null);
       setHoveredOpeningTreeMove(null);
+      playBoardSoundForVariantTree(nextVariantTree);
       return true;
     }
 
@@ -1858,6 +1889,7 @@ function App() {
     setEngineResult(null);
     setEvaluationResult(null);
     setHoveredOpeningTreeMove(null);
+    playBoardSoundForVariantTree(nextVariantTree);
 
     return true;
   }
@@ -3021,6 +3053,7 @@ function App() {
         showPlayComputerPanel,
         showEngineWindow: persistedRightSideViews.showEngineWindow,
         showEvaluationBar,
+        boardSoundsEnabled,
         showComments: persistedRightSideViews.showComments,
         showImportedPgn: persistedRightSideViews.showImportedPgn,
         showVariants: persistedRightSideViews.showVariants,
@@ -3045,6 +3078,7 @@ function App() {
     positionComments,
     showEngineWindow,
     showEvaluationBar,
+    boardSoundsEnabled,
     showComments,
     showImportedPgn,
     showMoveHistory,
@@ -3311,6 +3345,10 @@ function App() {
     setShowEvaluationBar((currentValue) => !currentValue);
   }, []);
 
+  const toggleBoardSounds = useCallback(() => {
+    setBoardSoundsEnabled((currentValue) => !currentValue);
+  }, []);
+
   const toggleComments = useCallback(() => {
     setShowComments((currentValue) => !currentValue);
   }, []);
@@ -3369,6 +3407,7 @@ function App() {
     togglePlayComputerPanel,
     toggleEngineWindow,
     toggleEvaluationBar,
+    toggleBoardSounds,
     toggleComments,
     toggleImportedPgn,
     toggleVariants,
@@ -3390,6 +3429,7 @@ function App() {
     toggleComments,
     toggleEngineWindow,
     toggleEvaluationBar,
+    toggleBoardSounds,
     toggleImportedPgn,
     toggleMoveHistory,
     toggleOpeningTreePanel,
@@ -3505,6 +3545,7 @@ function App() {
         showPlayComputerPanel={showPlayComputerPanel}
         showEngineWindow={showEngineWindow}
         showEvaluationBar={showEvaluationBar}
+        boardSoundsEnabled={boardSoundsEnabled}
         showComments={showComments}
         showImportedPgn={showImportedPgn}
         showVariants={showVariants}

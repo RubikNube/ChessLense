@@ -1,3 +1,38 @@
+const menuIconStyle = {
+  width: 18,
+  height: 18,
+  display: "block",
+};
+
+function BoardSoundIcon({ muted }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      style={menuIconStyle}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 9v6h4l5 4V5l-5 4H5Z" />
+      {muted ? (
+        <>
+          <path d="m17 9 4 6" />
+          <path d="m21 9-4 6" />
+        </>
+      ) : (
+        <>
+          <path d="M18 9.5a4 4 0 0 1 0 5" />
+          <path d="M20.5 7a7.5 7.5 0 0 1 0 10" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 function AppMenuBar({
   openMenu,
   onToggleMenu,
@@ -12,6 +47,7 @@ function AppMenuBar({
   showPlayComputerPanel,
   showEngineWindow,
   showEvaluationBar,
+  boardSoundsEnabled,
   showComments,
   showImportedPgn,
   showVariants,
@@ -265,6 +301,13 @@ function AppMenuBar({
             <button
               type="button"
               className="menu-entry"
+              onClick={() => onMenuAction(actions.toggleBoardSounds)}
+            >
+              {boardSoundsEnabled ? "Disable Board Sounds" : "Enable Board Sounds"}
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
               onClick={() => onMenuAction(actions.toggleComments)}
             >
               {showComments ? "Hide Comments" : "Show Comments"}
@@ -328,6 +371,19 @@ function AppMenuBar({
             </button>
           </div>
         )}
+      </div>
+
+      <div className="menu-group">
+        <button
+          type="button"
+          className="menu-trigger menu-trigger-icon"
+          aria-pressed={!boardSoundsEnabled}
+          aria-label={boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"}
+          title={boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"}
+          onClick={() => onMenuAction(actions.toggleBoardSounds)}
+        >
+          <BoardSoundIcon muted={!boardSoundsEnabled} />
+        </button>
       </div>
     </nav>
   );

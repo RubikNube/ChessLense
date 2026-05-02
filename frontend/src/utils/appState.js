@@ -155,6 +155,7 @@ export const FRONTEND_STATE_STORAGE_KEY = "chesslense.frontend-state";
 export const DEFAULT_ENGINE_SEARCH_DEPTH = 12;
 export const MIN_ENGINE_SEARCH_DEPTH = 1;
 export const MAX_ENGINE_SEARCH_DEPTH = 30;
+export const DEFAULT_BOARD_SOUNDS_ENABLED = true;
 const POSITION_COMMENT_SOURCE_IMPORTED = "imported-mainline";
 const POSITION_COMMENT_SOURCE_USER = "user";
 
@@ -577,6 +578,10 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showEvaluationBar === "boolean"
           ? parsedState.showEvaluationBar
           : true,
+      boardSoundsEnabled:
+        typeof parsedState.boardSoundsEnabled === "boolean"
+          ? parsedState.boardSoundsEnabled
+          : DEFAULT_BOARD_SOUNDS_ENABLED,
       showComments:
         typeof parsedState.showComments === "boolean"
           ? parsedState.showComments
@@ -634,6 +639,7 @@ export function serializePersistedAppState({
   showPlayComputerPanel,
   showEngineWindow,
   showEvaluationBar,
+  boardSoundsEnabled,
   showComments,
   showImportedPgn,
   showVariants,
@@ -656,6 +662,7 @@ export function serializePersistedAppState({
     showPlayComputerPanel,
     showEngineWindow,
     showEvaluationBar,
+    boardSoundsEnabled,
     showComments,
     showImportedPgn,
     showVariants,
