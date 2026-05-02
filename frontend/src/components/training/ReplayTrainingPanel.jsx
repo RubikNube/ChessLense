@@ -1,9 +1,12 @@
+import { useEffect, useRef } from "react";
+
 import {
   TRAINING_COMPLETION_REVEALED,
   TRAINING_MODE_REPLAY_GAME,
   TRAINING_SIDE_BLACK,
   TRAINING_SIDE_WHITE,
   TRAINING_STATUS_COMPLETED,
+  TRAINING_STATUS_ENDED,
 } from "../../utils/training.js";
 
 function formatReplayMoveLabel(move) {
@@ -114,6 +117,7 @@ function ReplayTrainingPanel({
   normalizedTrainingState,
   setTrainingPlayerSide,
   isReplayTrainingActive,
+  isReplayTrainingEnded,
   isTrainingPlayActive,
   trainingLoading,
   whiteTrainingLabel,
@@ -135,12 +139,26 @@ function ReplayTrainingPanel({
   lastCompletedExpectedMove,
   lastCompletedIncorrectTrainingAttempts,
   startReplayTraining,
+  endReplayTraining,
   resetTrainingSession,
   exitTrainingPlayMode,
 }) {
   const isReplayMode = normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME;
+  const isReplaySessionFinished =
+    normalizedTrainingState.status === TRAINING_STATUS_COMPLETED || isReplayTrainingEnded;
+  const shouldShowReplaySummary =
+    isReplayMode && !isTrainingPlayActive && isReplaySessionFinished;
   const shouldShowReplayFeedback = isReplayMode || isTrainingPlayActive;
   const sideSelectionDisabled = isReplayTrainingActive || isTrainingPlayActive || trainingLoading;
+  const summaryRef = useRef(null);
+
+  useEffect(() => {
+    if (!shouldShowReplaySummary) {
+      return;
+    }
+
+    summaryRef.current?.scrollIntoView({ block: "start" });
+  }, [shouldShowReplaySummary]);
 
   return (
     <div
@@ -173,6 +191,8 @@ function ReplayTrainingPanel({
                 : isReplayMode &&
                     normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
                   ? "Replay complete"
+                  : isReplayTrainingEnded
+                    ? "Replay ended"
                   : isReplayTrainingActive
                     ? `Replay move ${Math.min(currentReplayMoveNumber, replaySummary.totalMoves)} of ${replaySummary.totalMoves}`
                     : "Replay game mode is ready."}
@@ -371,92 +391,93 @@ function ReplayTrainingPanel({
                   )}
                 </div>
               )}
-            {!isTrainingPlayActive &&
-              isReplayMode &&
-              normalizedTrainingState.status === TRAINING_STATUS_COMPLETED && (
-                <>
-                  <div className="training-summary-grid">
-                    <div className="training-summary-card">
-                      <span className="annotation-label">Moves</span>
-                      <strong>{replaySummary.totalMoves}</strong>
-                    </div>
-                    <div className="training-summary-card">
-                      <span className="annotation-label">Matches</span>
-                      <strong>{replaySummary.matchedMoves}</strong>
-                    </div>
-                    <div className="training-summary-card">
-                      <span className="annotation-label">Better</span>
-                      <strong>{replaySummary.betterMoves}</strong>
-                    </div>
-                    <div className="training-summary-card">
-                      <span className="annotation-label">Equal</span>
-                      <strong>{replaySummary.equalMoves}</strong>
-                    </div>
-                    <div className="training-summary-card">
-                      <span className="annotation-label">Worse</span>
-                      <strong>{replaySummary.worseMoves}</strong>
-                    </div>
-                    <div className="training-summary-card">
-                      <span className="annotation-label">Critical</span>
-                      <strong>{replaySummary.criticalMistakes.length}</strong>
-                    </div>
+            {shouldShowReplaySummary && (
+              <>
+                <div ref={summaryRef} className="annotation-section">
+                  <h3>Training summary</h3>
+                </div>
+                <div className="training-summary-grid">
+                  <div className="training-summary-card">
+                    <span className="annotation-label">Moves</span>
+                    <strong>{replaySummary.totalMoves}</strong>
                   </div>
-                  <div className="annotation-section">
-                    <h3>Critical mistakes</h3>
-                    {replaySummary.criticalMistakes.length > 0 ? (
-                      <ul className="annotation-list training-critical-list">
-                        {replaySummary.criticalMistakes.map((attempt) => (
-                          <li
-                            key={`${attempt.ply}-${attempt.userSan}-${attempt.expectedSan}`}
-                            className={`annotation-item${attempt.resultingFen ? " training-preview-trigger" : ""}`}
-                            tabIndex={attempt.resultingFen ? 0 : undefined}
-                            onMouseEnter={(event) =>
-                              showTrainingPreview(attempt, event.currentTarget)
-                            }
-                            onMouseLeave={hideTrainingPreview}
-                            onFocus={(event) =>
-                              showTrainingPreview(attempt, event.currentTarget)
-                            }
-                            onBlur={hideTrainingPreview}
-                          >
-                            <div className="annotation-item-header">
-                              <span className="annotation-label">
-                                {formatReplayMoveLabel({
-                                  moveNumber: attempt.moveNumber,
-                                  side: attempt.side,
-                                  san: attempt.expectedSan,
-                                })}
-                              </span>
-                              <span className="training-feedback-result">Critical</span>
-                            </div>
-                            <p>
-                              Played {attempt.userSan} instead of {attempt.expectedSan}.
-                            </p>
-                            <p className="training-feedback-detail">
-                              <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
-                              {" "}vs the game move.
-                            </p>
-                            <div className="annotation-item-actions">
-                              <button
-                                type="button"
-                                className="annotation-secondary-button"
-                                onClick={() => startTrainingPlayMode(attempt)}
-                                disabled={isTrainingPlayActive || trainingLoading}
-                              >
-                                Play vs computer
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="annotation-empty">
-                        No critical mistakes in this replay.
-                      </p>
-                    )}
+                  <div className="training-summary-card">
+                    <span className="annotation-label">Matches</span>
+                    <strong>{replaySummary.matchedMoves}</strong>
                   </div>
-                </>
-              )}
+                  <div className="training-summary-card">
+                    <span className="annotation-label">Better</span>
+                    <strong>{replaySummary.betterMoves}</strong>
+                  </div>
+                  <div className="training-summary-card">
+                    <span className="annotation-label">Equal</span>
+                    <strong>{replaySummary.equalMoves}</strong>
+                  </div>
+                  <div className="training-summary-card">
+                    <span className="annotation-label">Worse</span>
+                    <strong>{replaySummary.worseMoves}</strong>
+                  </div>
+                  <div className="training-summary-card">
+                    <span className="annotation-label">Critical</span>
+                    <strong>{replaySummary.criticalMistakes.length}</strong>
+                  </div>
+                </div>
+                <div className="annotation-section">
+                  <h3>Critical mistakes</h3>
+                  {replaySummary.criticalMistakes.length > 0 ? (
+                    <ul className="annotation-list training-critical-list">
+                      {replaySummary.criticalMistakes.map((attempt) => (
+                        <li
+                          key={`${attempt.ply}-${attempt.userSan}-${attempt.expectedSan}`}
+                          className={`annotation-item${attempt.resultingFen ? " training-preview-trigger" : ""}`}
+                          tabIndex={attempt.resultingFen ? 0 : undefined}
+                          onMouseEnter={(event) =>
+                            showTrainingPreview(attempt, event.currentTarget)
+                          }
+                          onMouseLeave={hideTrainingPreview}
+                          onFocus={(event) =>
+                            showTrainingPreview(attempt, event.currentTarget)
+                          }
+                          onBlur={hideTrainingPreview}
+                        >
+                          <div className="annotation-item-header">
+                            <span className="annotation-label">
+                              {formatReplayMoveLabel({
+                                moveNumber: attempt.moveNumber,
+                                side: attempt.side,
+                                san: attempt.expectedSan,
+                              })}
+                            </span>
+                            <span className="training-feedback-result">Critical</span>
+                          </div>
+                          <p>
+                            Played {attempt.userSan} instead of {attempt.expectedSan}.
+                          </p>
+                          <p className="training-feedback-detail">
+                            <strong>Delta:</strong> {formatReplayDelta(attempt.deltaCp)} pawns
+                            {" "}vs the game move.
+                          </p>
+                          <div className="annotation-item-actions">
+                            <button
+                              type="button"
+                              className="annotation-secondary-button"
+                              onClick={() => startTrainingPlayMode(attempt)}
+                              disabled={isTrainingPlayActive || trainingLoading}
+                            >
+                              Play vs computer
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="annotation-empty">
+                      No critical mistakes in this replay.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
             <div className="annotation-editor-actions">
               <button
                 type="button"
@@ -465,7 +486,7 @@ function ReplayTrainingPanel({
                 disabled={trainingLoading}
               >
                 {isReplayMode
-                  ? normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
+                  ? isReplaySessionFinished
                     ? "Replay again"
                     : "Restart replay"
                   : "Start replay game"}
@@ -474,10 +495,10 @@ function ReplayTrainingPanel({
                 <button
                   type="button"
                   className="annotation-secondary-button"
-                  onClick={resetTrainingSession}
+                  onClick={isReplayTrainingActive ? endReplayTraining : resetTrainingSession}
                   disabled={trainingLoading}
                 >
-                  Exit training
+                  {isReplayTrainingActive ? "End Training" : "Clear training"}
                 </button>
               )}
             </div>

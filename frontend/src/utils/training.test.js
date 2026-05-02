@@ -19,6 +19,7 @@ import {
   TRAINING_MODE_OFF,
   TRAINING_PLAY_STATUS_ACTIVE,
   TRAINING_STATUS_ACTIVE,
+  TRAINING_STATUS_ENDED,
   TRAINING_STATUS_IDLE,
   REPLAY_RESULT_BETTER,
   REPLAY_RESULT_EQUAL,
@@ -146,6 +147,50 @@ describe("training helpers", () => {
         san: "e5",
       }),
     );
+  });
+
+  it("keeps an explicitly ended replay session ended before the final move", () => {
+    const trainingState = normalizeTrainingState({
+      mode: TRAINING_MODE_REPLAY_GAME,
+      status: TRAINING_STATUS_ENDED,
+      playerSide: TRAINING_SIDE_WHITE,
+      progressPly: 1,
+      referenceMoves: [
+        {
+          ply: 1,
+          moveNumber: 1,
+          side: "white",
+          san: "e4",
+          move: { from: "e2", to: "e4" },
+          fenBefore: "before-1",
+          fenAfter: "after-1",
+        },
+        {
+          ply: 2,
+          moveNumber: 1,
+          side: "black",
+          san: "e5",
+          move: { from: "e7", to: "e5" },
+          fenBefore: "before-2",
+          fenAfter: "after-2",
+        },
+      ],
+      attempts: [
+        {
+          ply: 1,
+          moveNumber: 1,
+          side: "white",
+          expectedSan: "e4",
+          userSan: "e4",
+          expectedMove: { from: "e2", to: "e4" },
+          userMove: { from: "e2", to: "e4" },
+          outcome: REPLAY_RESULT_MATCH,
+        },
+      ],
+    });
+
+    expect(trainingState.status).toBe(TRAINING_STATUS_ENDED);
+    expect(getCurrentReplayMove(trainingState)).toBeNull();
   });
 
   it("classifies evaluation deltas with the configured thresholds", () => {

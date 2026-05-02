@@ -10,6 +10,7 @@ export const TRAINING_MODE_PLAY_COMPUTER = "play-computer";
 export const TRAINING_STATUS_IDLE = "idle";
 export const TRAINING_STATUS_ACTIVE = "active";
 export const TRAINING_STATUS_COMPLETED = "completed";
+export const TRAINING_STATUS_ENDED = "ended";
 export const TRAINING_SIDE_WHITE = "white";
 export const TRAINING_SIDE_BLACK = "black";
 export const TRAINING_COMPLETION_MATCH = "match";
@@ -268,7 +269,9 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
   const normalizedPlayerSide =
     entry.playerSide === TRAINING_SIDE_BLACK ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
   const status =
-    entry.status === TRAINING_STATUS_ACTIVE || entry.status === TRAINING_STATUS_COMPLETED
+    entry.status === TRAINING_STATUS_ACTIVE ||
+    entry.status === TRAINING_STATUS_COMPLETED ||
+    entry.status === TRAINING_STATUS_ENDED
       ? entry.status
       : TRAINING_STATUS_IDLE;
   const referenceMoves = Array.isArray(entry.referenceMoves)

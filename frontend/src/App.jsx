@@ -120,6 +120,7 @@ import {
   TRAINING_SIDE_WHITE,
   TRAINING_STATUS_ACTIVE,
   TRAINING_STATUS_COMPLETED,
+  TRAINING_STATUS_ENDED,
 } from "./utils/training.js";
 import { fetchJson } from "./utils/api.js";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts.js";
@@ -598,6 +599,9 @@ function App() {
   const isReplayTrainingActive =
     normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
     normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
+  const isReplayTrainingEnded =
+    normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
+    normalizedTrainingState.status === TRAINING_STATUS_ENDED;
   const isTrainingFocusMode =
     showReplayTrainingPanel && normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME;
   const {
@@ -1221,6 +1225,39 @@ function App() {
     normalizedTrainingState.playerSide,
     trainingRequestIdRef,
   ]);
+
+  const endReplayTraining = useCallback(() => {
+    if (!isReplayTrainingActive) {
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    hideTrainingPreview();
+    setTrainingState((currentValue) => {
+      const currentTrainingState = normalizeTrainingState(currentValue);
+
+      if (
+        currentTrainingState.mode !== TRAINING_MODE_REPLAY_GAME ||
+        currentTrainingState.status !== TRAINING_STATUS_ACTIVE
+      ) {
+        return currentTrainingState;
+      }
+
+      return normalizeTrainingState({
+        ...currentTrainingState,
+        status: TRAINING_STATUS_ENDED,
+        pendingAttempts: [],
+        lastCompletedAttempts: [],
+        lastCompletedExpectedMove: null,
+        lastCompletionMode: null,
+      });
+    });
+    setTrainingError("");
+    setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [hideTrainingPreview, isReplayTrainingActive, trainingRequestIdRef]);
 
   function applyImportedPgn(rawPgn) {
     const {
@@ -3047,6 +3084,7 @@ function App() {
               normalizedTrainingState={normalizedTrainingState}
               setTrainingPlayerSide={setTrainingPlayerSide}
               isReplayTrainingActive={isReplayTrainingActive}
+              isReplayTrainingEnded={isReplayTrainingEnded}
               isTrainingPlayActive={isTrainingPlayActive}
               isEngineOpponentUserTurn={isEngineOpponentUserTurn}
               isStandaloneComputerPlayActive={isStandaloneComputerPlayActive}
@@ -3076,6 +3114,7 @@ function App() {
               normalizedTrainingState={normalizedTrainingState}
               setTrainingPlayerSide={setTrainingPlayerSide}
               isReplayTrainingActive={isReplayTrainingActive}
+              isReplayTrainingEnded={isReplayTrainingEnded}
               isTrainingPlayActive={isTrainingPlayActive}
               trainingLoading={trainingLoading}
               whiteTrainingLabel={whiteTrainingLabel}
@@ -3098,6 +3137,7 @@ function App() {
               lastCompletedExpectedMove={lastCompletedExpectedMove}
               lastCompletedIncorrectTrainingAttempts={lastCompletedIncorrectTrainingAttempts}
               startReplayTraining={startReplayTraining}
+              endReplayTraining={endReplayTraining}
               resetTrainingSession={resetTrainingSession}
             />
           </>
