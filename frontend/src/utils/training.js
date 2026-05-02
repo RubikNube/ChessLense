@@ -584,10 +584,46 @@ export function summarizeReplayAttempts(
   const normalizedAttempts = Array.isArray(attempts)
     ? attempts.map(normalizeAttempt).filter(Boolean)
     : [];
-  const targetMoveCount = normalizedReferenceMoves.filter(
+  const playerReferenceMoves = normalizedReferenceMoves.filter(
     (move) => move.side === playerSide,
-  ).length;
+  );
+  const targetMoveCount = playerReferenceMoves.length;
   const criticalMistakes = normalizedAttempts.filter((attempt) => attempt.isCritical);
+  const attemptsByPly = normalizedAttempts.reduce((result, attempt) => {
+    if (!Number.isInteger(attempt.ply)) {
+      return result;
+    }
+
+    const nextAttempts = result.get(attempt.ply) ?? [];
+    nextAttempts.push(attempt);
+    result.set(attempt.ply, nextAttempts);
+    return result;
+  }, new Map());
+  const moveHistory = playerReferenceMoves
+    .map((move) => {
+      const moveAttempts = attemptsByPly.get(move.ply) ?? [];
+
+      if (!moveAttempts.length) {
+        return null;
+      }
+
+      return {
+        ply: move.ply,
+        moveNumber: move.moveNumber,
+        side: move.side,
+        expectedSan: move.san,
+        attempts: moveAttempts.map((attempt, index) => ({
+          index: index + 1,
+          userSan: attempt.userSan,
+          outcome: attempt.outcome,
+          classification: attempt.classification,
+          deltaCp: attempt.deltaCp,
+          isCritical: attempt.isCritical,
+          resultingFen: attempt.resultingFen,
+        })),
+      };
+    })
+    .filter(Boolean);
 
   return {
     totalMoves: targetMoveCount,
@@ -605,5 +641,6 @@ export function summarizeReplayAttempts(
       (attempt) => attempt.classification === REPLAY_RESULT_WORSE,
     ).length,
     criticalMistakes,
+    moveHistory,
   };
 }

@@ -316,11 +316,118 @@ describe("training helpers", () => {
         betterMoves: 0,
         equalMoves: 1,
         worseMoves: 1,
+        moveHistory: [
+          {
+            ply: 1,
+            moveNumber: 1,
+            side: "white",
+            expectedSan: "e4",
+            attempts: [
+              expect.objectContaining({
+                index: 1,
+                userSan: "e4",
+                outcome: REPLAY_RESULT_MATCH,
+                classification: null,
+                resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+              }),
+            ],
+          },
+          {
+            ply: 3,
+            moveNumber: 2,
+            side: "white",
+            expectedSan: "Nf3",
+            attempts: [
+              expect.objectContaining({
+                index: 1,
+                userSan: "Bc4",
+                outcome: "mismatch",
+                classification: REPLAY_RESULT_EQUAL,
+                resultingFen: "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
+              }),
+            ],
+          },
+        ],
       }),
     );
     expect(
       summarizeReplayAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE).criticalMistakes,
     ).toHaveLength(1);
+  });
+
+  it("keeps grouped replay history attempts in move order", () => {
+    const referenceMoves = [
+      {
+        ply: 1,
+        moveNumber: 1,
+        side: "white",
+        san: "e4",
+        move: { from: "e2", to: "e4" },
+        fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      },
+      {
+        ply: 3,
+        moveNumber: 2,
+        side: "white",
+        san: "Nf3",
+        move: { from: "g1", to: "f3" },
+        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      },
+    ];
+    const attempts = [
+      buildReplayAttempt({
+        expectedMove: referenceMoves[1],
+        userMove: { from: "f1", to: "c4" },
+        userSan: "Bc4",
+        referenceEvaluation: { type: "cp", value: 25 },
+        userEvaluation: { type: "cp", value: 35 },
+      }),
+      buildReplayAttempt({
+        expectedMove: referenceMoves[1],
+        userMove: { from: "b1", to: "c3" },
+        userSan: "Nc3",
+        referenceEvaluation: { type: "cp", value: 25 },
+        userEvaluation: { type: "cp", value: -120 },
+      }),
+      buildReplayAttempt({
+        expectedMove: referenceMoves[0],
+        userMove: { from: "e2", to: "e4" },
+        userSan: "e4",
+      }),
+    ];
+
+    expect(summarizeReplayAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE)).toEqual(
+      expect.objectContaining({
+        moveHistory: expect.arrayContaining([
+          expect.objectContaining({
+            ply: 1,
+            attempts: expect.arrayContaining([
+              expect.objectContaining({
+                userSan: "e4",
+                resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+              }),
+            ]),
+          }),
+          expect.objectContaining({
+            ply: 3,
+            attempts: expect.arrayContaining([
+              expect.objectContaining({
+                index: 1,
+                userSan: "Bc4",
+                resultingFen: "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
+              }),
+              expect.objectContaining({
+                index: 2,
+                userSan: "Nc3",
+                resultingFen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq - 1 2",
+              }),
+            ]),
+          }),
+        ]),
+      }),
+    );
   });
 
   it("stores the selected player side when starting replay mode", () => {

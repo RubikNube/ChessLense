@@ -384,6 +384,80 @@ code {
   font-size: 1.1rem;
 }
 
+.training-summary-history {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.training-summary-history-entry {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #111827;
+}
+
+.training-summary-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.training-summary-history-attempts {
+  display: grid;
+  gap: 6px;
+}
+
+.training-summary-history-attempt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.training-result-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.training-result-badge-match {
+  background: rgba(37, 99, 235, 0.18);
+  color: #93c5fd;
+}
+
+.training-result-badge-better {
+  background: rgba(22, 163, 74, 0.18);
+  color: #86efac;
+}
+
+.training-result-badge-equal {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+
+.training-result-badge-worse {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+}
+
+.training-result-badge-neutral {
+  background: rgba(107, 114, 128, 0.18);
+  color: #d1d5db;
+}
+
 .training-critical-list {
   max-height: none;
 }

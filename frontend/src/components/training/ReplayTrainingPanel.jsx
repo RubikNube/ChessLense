@@ -53,6 +53,54 @@ function formatReplayDelta(deltaCp) {
   return pawns > 0 ? `+${pawns.toFixed(2)}` : pawns.toFixed(2);
 }
 
+function getReplayAttemptResultLabel(attempt) {
+  if (!attempt || typeof attempt !== "object") {
+    return "n/a";
+  }
+
+  if (attempt.outcome === "match") {
+    return "Match";
+  }
+
+  if (attempt.classification === "better") {
+    return "Better";
+  }
+
+  if (attempt.classification === "equal") {
+    return "Equal";
+  }
+
+  if (attempt.classification === "worse") {
+    return "Worse";
+  }
+
+  return "n/a";
+}
+
+function getReplayAttemptResultClassName(attempt) {
+  if (!attempt || typeof attempt !== "object") {
+    return "training-result-badge training-result-badge-neutral";
+  }
+
+  if (attempt.outcome === "match") {
+    return "training-result-badge training-result-badge-match";
+  }
+
+  if (attempt.classification === "better") {
+    return "training-result-badge training-result-badge-better";
+  }
+
+  if (attempt.classification === "equal") {
+    return "training-result-badge training-result-badge-equal";
+  }
+
+  if (attempt.classification === "worse") {
+    return "training-result-badge training-result-badge-worse";
+  }
+
+  return "training-result-badge training-result-badge-neutral";
+}
+
 function TrainingPanelHeader({ title, onClose, closeLabel }) {
   return (
     <div className="card-header">
@@ -421,6 +469,64 @@ function ReplayTrainingPanel({
                     <span className="annotation-label">Critical</span>
                     <strong>{replaySummary.criticalMistakes.length}</strong>
                   </div>
+                </div>
+                <div className="annotation-section">
+                  <h3>Move history</h3>
+                  {replaySummary.moveHistory.length > 0 ? (
+                    <ol className="training-summary-history">
+                      {replaySummary.moveHistory.map((moveEntry) => (
+                        <li
+                          key={`${moveEntry.ply}-${moveEntry.expectedSan}`}
+                          className="training-summary-history-entry"
+                        >
+                          <div className="training-summary-history-header">
+                            <span className="annotation-label">
+                              {formatReplayMoveLabel({
+                                moveNumber: moveEntry.moveNumber,
+                                side: moveEntry.side,
+                                san: moveEntry.expectedSan,
+                              })}
+                            </span>
+                            <strong>{moveEntry.expectedSan}</strong>
+                          </div>
+                          <div className="training-summary-history-attempts">
+                            {moveEntry.attempts.map((attempt) => (
+                              <div
+                                key={`${moveEntry.ply}-${attempt.index}-${attempt.userSan}`}
+                                className={`training-summary-history-attempt${attempt.resultingFen ? " training-preview-trigger" : ""}`}
+                                tabIndex={attempt.resultingFen ? 0 : undefined}
+                                onMouseEnter={(event) =>
+                                  showTrainingPreview(attempt, event.currentTarget)
+                                }
+                                onMouseLeave={hideTrainingPreview}
+                                onFocus={(event) =>
+                                  showTrainingPreview(attempt, event.currentTarget)
+                                }
+                                onBlur={hideTrainingPreview}
+                              >
+                                <span className={getReplayAttemptResultClassName(attempt)}>
+                                  {getReplayAttemptResultLabel(attempt)}
+                                </span>
+                                <span>
+                                  Try {attempt.index}: {attempt.userSan}
+                                </span>
+                                {attempt.outcome !== "match" && (
+                                  <span className="training-feedback-detail">
+                                    Delta {formatReplayDelta(attempt.deltaCp)}
+                                    {attempt.isCritical ? " - critical" : ""}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p className="annotation-empty">
+                      No completed replay moves to list yet.
+                    </p>
+                  )}
                 </div>
                 <div className="annotation-section">
                   <h3>Critical mistakes</h3>
