@@ -285,7 +285,7 @@ function splitGames(rawContent) {
 	}
 
 	return normalized
-		.split(/\n{2,}(?=\[Event\s)/g)
+		.split(/\n(?:\s*\n)+(?=\s*\[Event\s)/g)
 		.map((game) => game.trim())
 		.filter(Boolean);
 }

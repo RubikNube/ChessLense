@@ -13,6 +13,7 @@ const {
 	normalizeEcoCode,
 	normalizeGameId,
 	normalizeSearchQuery,
+	splitGames,
 } = __testing;
 
 function createGame(eco) {
@@ -69,6 +70,29 @@ const SECOND_PGN = `
 [Opening "Ruy Lopez, Berlin Defense"]
 
 1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 1/2-1/2
+`;
+
+const SMALL_WHITESPACE_SEPARATED_PGN = `
+[Event "Training Match One"]
+[Site "Local Club"]
+[Date "2026.01.10"]
+[Round "1"]
+[White "Alpha Tester"]
+[Black "Beta Runner"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 1-0
+  
+   
+[Event "Training Match Two"]
+[Site "Local Club"]
+[Date "2026.01.10"]
+[Round "2"]
+[White "Gamma Builder"]
+[Black "Delta Coder"]
+[Result "0-1"]
+
+1. d4 Nf6 2. c4 e6 3. Nc3 Bb4 0-1
 `;
 
 async function createTempOtbWorkspace() {
@@ -148,6 +172,10 @@ test("buildImportedGameRecord creates a stable database id", () => {
 
 	assert.match(game.id, /^otb-[a-f0-9]{64}$/);
 	assert.equal(normalizeGameId(game.id), game.id);
+});
+
+test("splitGames handles whitespace-only separators between games", () => {
+	assert.equal(splitGames(SMALL_WHITESPACE_SEPARATED_PGN).length, 2);
 });
 
 test("importPgnDirectory loads PGN archives into SQLite and skips duplicates", async () => {
