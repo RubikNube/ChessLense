@@ -6,8 +6,10 @@ import {
   createEmptyTrainingState,
   createGuessHistoryEntryPayload,
   createGuessTheMoveTrainingState,
+  createPuzzleTrainingState,
   createReplayTrainingState,
   getCurrentGuessTheMove,
+  getCurrentPuzzleMove,
   getGuessTheMovePoints,
   getCurrentReplayMove,
   normalizeGuessHistoryBrowseEntries,
@@ -26,6 +28,7 @@ import {
   TRAINING_COMPLETION_REVEALED,
   TRAINING_MODE_GUESS_THE_MOVE,
   TRAINING_MODE_PLAY_COMPUTER,
+  TRAINING_MODE_PUZZLE,
   TRAINING_SIDE_BLACK,
   TRAINING_SIDE_WHITE,
   TRAINING_MODE_REPLAY_GAME,
@@ -55,6 +58,7 @@ describe("training helpers", () => {
       lastCompletedAttempts: [],
       lastCompletedExpectedMove: null,
       lastCompletionMode: null,
+      puzzle: null,
       computerPlay: null,
       playSession: null,
     });
@@ -99,6 +103,56 @@ describe("training helpers", () => {
         moveNumber: 1,
         side: "white",
         san: "e4",
+      }),
+    );
+  });
+
+  it("builds a puzzle session from Lichess puzzle data", () => {
+    const { trainingState, variantTree, error } = createPuzzleTrainingState({
+      game: {
+        id: "Had79NbX",
+        url: "https://lichess.org/Had79NbX",
+        rated: true,
+        clock: "3+2",
+        perf: { key: "blitz", name: "Blitz" },
+        players: {
+          white: { color: "white", id: "vit2014", name: "vit2014", rating: 2395 },
+          black: { color: "black", id: "yoda-wins", name: "Yoda-wins", rating: 2511 },
+        },
+        pgn: "e4 e5 Nf3 Nc6 Bc4 Bc5",
+      },
+      puzzle: {
+        id: "puzzle-1",
+        rating: 1567,
+        plays: 6508,
+        solution: ["f3e5", "c6e5", "d1h5"],
+        themes: ["fork", "middlegame"],
+        initialPly: 4,
+      },
+    });
+
+    expect(error).toBeNull();
+    expect(variantTree.currentNodeId).toBe(variantTree.rootId);
+    expect(trainingState).toEqual(
+      expect.objectContaining({
+        mode: TRAINING_MODE_PUZZLE,
+        status: TRAINING_STATUS_ACTIVE,
+        playerSide: TRAINING_SIDE_WHITE,
+        progressPly: 0,
+        puzzle: expect.objectContaining({
+          id: "puzzle-1",
+          rating: 1567,
+          plays: 6508,
+          themes: ["fork", "middlegame"],
+        }),
+      }),
+    );
+    expect(variantTree.initialFen).toBe(trainingState.referenceMoves[0].fenBefore);
+    expect(trainingState.referenceMoves.map((move) => move.san)).toEqual(["Nxe5", "Nxe5", "Qh5"]);
+    expect(getCurrentPuzzleMove(trainingState)).toEqual(
+      expect.objectContaining({
+        san: "Nxe5",
+        side: "white",
       }),
     );
   });

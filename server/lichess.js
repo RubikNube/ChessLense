@@ -8,6 +8,14 @@ const DEFAULT_MAX_RESULTS = 10;
 const MAX_RESULTS_LIMIT = 50;
 const DEFAULT_OPENING_TREE_MOVE_LIMIT = 12;
 const MIN_LICHESS_YEAR = 2013;
+const PUZZLE_DIFFICULTIES = new Set([
+	"easiest",
+	"easier",
+	"normal",
+	"harder",
+	"hardest",
+]);
+const PUZZLE_COLORS = new Set(["white", "black"]);
 const PERF_TYPES = new Set([
 	"ultraBullet",
 	"bullet",
@@ -219,6 +227,7 @@ async function fetchFromRemote(
 
 	try {
 		const response = await fetch(`${baseUrl}${path}`, {
+			cache: "no-store",
 			headers: {
 				"User-Agent": "ChessLense/1.0",
 				...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
@@ -341,6 +350,18 @@ function normalizeOpeningTreeQuery(query) {
 	};
 }
 
+function normalizePuzzleQuery(query) {
+	return {
+		angle: normalizeString(query.angle),
+		difficulty: normalizeOptionalChoice(
+			query.difficulty,
+			PUZZLE_DIFFICULTIES,
+			"difficulty",
+		),
+		color: normalizeOptionalChoice(query.color, PUZZLE_COLORS, "color"),
+	};
+}
+
 async function searchGames(rawQuery) {
 	const search = normalizeSearchQuery(rawQuery);
 	const response = await fetchFromLichess(buildSearchRequest(search), {
@@ -442,6 +463,104 @@ function mapOpeningTreeMove(move) {
 	};
 }
 
+function mapPuzzlePlayer(player) {
+	if (!player || typeof player !== "object") {
+		return null;
+	}
+
+	const color = player.color === "white" || player.color === "black" ? player.color : "";
+	const name = typeof player.name === "string" && player.name.trim() ? player.name.trim() : "";
+
+	if (!color || !name) {
+		return null;
+	}
+
+	return {
+		color,
+		id: typeof player.id === "string" && player.id.trim() ? player.id.trim() : null,
+		name,
+		title: typeof player.title === "string" && player.title.trim() ? player.title.trim() : null,
+		rating: Number.isInteger(player.rating) ? player.rating : null,
+	};
+}
+
+function mapPuzzleGame(game) {
+	if (!game || typeof game !== "object") {
+		return null;
+	}
+
+	const id = typeof game.id === "string" && game.id.trim() ? game.id.trim() : "";
+	const pgn = typeof game.pgn === "string" && game.pgn.trim() ? game.pgn.trim() : "";
+
+	if (!id || !pgn) {
+		return null;
+	}
+
+	const players = Array.isArray(game.players)
+		? game.players.map((player) => mapPuzzlePlayer(player)).filter(Boolean)
+		: [];
+	const white = players.find((player) => player.color === "white") ?? null;
+	const black = players.find((player) => player.color === "black") ?? null;
+
+	return {
+		id,
+		url: `${LICHESS_API_BASE_URL}/${id}`,
+		pgn,
+		rated: game.rated === true,
+		clock: typeof game.clock === "string" && game.clock.trim() ? game.clock.trim() : null,
+		perf:
+			typeof game.perf?.key === "string" && game.perf.key.trim()
+				? {
+						key: game.perf.key.trim(),
+						name:
+							typeof game.perf?.name === "string" && game.perf.name.trim()
+								? game.perf.name.trim()
+								: game.perf.key.trim(),
+					}
+				: null,
+		players: {
+			white,
+			black,
+		},
+	};
+}
+
+function mapPuzzle(puzzle) {
+	if (!puzzle || typeof puzzle !== "object") {
+		return null;
+	}
+
+	const id = typeof puzzle.id === "string" && puzzle.id.trim() ? puzzle.id.trim() : "";
+	const initialPly = Number.isInteger(puzzle.initialPly) && puzzle.initialPly >= 0 ? puzzle.initialPly : null;
+	const rating = Number.isInteger(puzzle.rating) ? puzzle.rating : null;
+	const plays = Number.isInteger(puzzle.plays) && puzzle.plays >= 0 ? puzzle.plays : null;
+	const solution = Array.isArray(puzzle.solution)
+		? puzzle.solution
+				.map((move) => (typeof move === "string" ? move.trim() : ""))
+				.filter(Boolean)
+		: [];
+	const themes = Array.isArray(puzzle.themes)
+		? puzzle.themes
+				.map((theme) => (typeof theme === "string" ? theme.trim() : ""))
+				.filter(Boolean)
+		: [];
+
+	if (!id || initialPly === null || rating === null || plays === null || !solution.length) {
+		return null;
+	}
+
+	return {
+		id,
+		initialPly,
+		rating,
+		plays,
+		solution,
+		themes,
+		initialFen:
+			typeof puzzle.fen === "string" && puzzle.fen.trim() ? puzzle.fen.trim() : null,
+	};
+}
+
 function normalizeOpeningTreeResponse(payload, fen, tokenConfigured = false) {
 	const moves = Array.isArray(payload?.moves)
 		? payload.moves.map((move) => mapOpeningTreeMove(move)).filter(Boolean)
@@ -480,6 +599,38 @@ function createUnavailableOpeningTree(fen, details, tokenConfigured = false) {
 	};
 }
 
+function normalizePuzzleResponse(payload, search, tokenConfigured = false) {
+	const game = mapPuzzleGame(payload?.game);
+	const puzzle = mapPuzzle(payload?.puzzle);
+
+	if (!game || !puzzle) {
+		return null;
+	}
+
+	return {
+		search,
+		environmentTokenConfigured: !!LICHESS_API_TOKEN,
+		tokenConfigured,
+		game,
+		puzzle,
+	};
+}
+
+function createUnavailablePuzzle(search, details, tokenConfigured = false) {
+	return {
+		search,
+		game: null,
+		puzzle: null,
+		unavailable: true,
+		environmentTokenConfigured: !!LICHESS_API_TOKEN,
+		tokenConfigured,
+		details:
+			typeof details === "string" && details.trim()
+				? details.trim()
+				: "Lichess puzzle service is unavailable right now.",
+	};
+}
+
 function buildOpeningTreeRequest(search) {
 	const params = new URLSearchParams({
 		variant: "standard",
@@ -490,6 +641,24 @@ function buildOpeningTreeRequest(search) {
 	});
 
 	return `/lichess?${params.toString()}`;
+}
+
+function buildPuzzleRequest(search) {
+	const params = new URLSearchParams();
+
+	if (search.angle) {
+		params.set("angle", search.angle);
+	}
+
+	if (search.difficulty) {
+		params.set("difficulty", search.difficulty);
+	}
+
+	if (search.color) {
+		params.set("color", search.color);
+	}
+
+	return params.size ? `/api/puzzle/next?${params.toString()}` : "/api/puzzle/next";
 }
 
 async function getOpeningTree(rawQuery, options = {}) {
@@ -535,15 +704,65 @@ async function getOpeningTree(rawQuery, options = {}) {
 	}
 }
 
+async function getPuzzle(rawQuery, options = {}) {
+	const search = normalizePuzzleQuery(rawQuery);
+	const requestToken = normalizeString(options.requestToken);
+	const tokenConfigured = !!resolveLichessApiToken(requestToken);
+
+	try {
+		const response = await fetchFromLichess(buildPuzzleRequest(search), {
+			headers: {
+				Accept: "application/json",
+			},
+			requestToken,
+		});
+
+		let payload;
+
+		try {
+			payload = await response.json();
+		} catch {
+			throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid puzzle data");
+		}
+
+		const normalized = normalizePuzzleResponse(payload, search, tokenConfigured);
+
+		if (!normalized) {
+			throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid puzzle data");
+		}
+
+		return normalized;
+	} catch (error) {
+		if (
+			error instanceof HttpError &&
+			[
+				"lichess_request_rejected",
+				"lichess_request_failed",
+				"lichess_timeout",
+				"lichess_unreachable",
+				"rate_limited",
+			].includes(error.code)
+		) {
+			return createUnavailablePuzzle(search, error.message, tokenConfigured);
+		}
+
+		throw error;
+	}
+}
+
 module.exports = {
 	HttpError,
 	LICHESS_REQUEST_TOKEN_HEADER,
 	getGame,
 	getOpeningTree,
+	getPuzzle,
 	searchGames,
 	__testing: {
+		createUnavailablePuzzle,
 		createUnavailableOpeningTree,
 		mapOpeningTreeMove,
+		normalizePuzzleQuery,
+		normalizePuzzleResponse,
 		normalizeFen,
 		normalizeOpeningTreeQuery,
 		normalizeOpeningTreeResponse,

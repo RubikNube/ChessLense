@@ -20,6 +20,7 @@ import OpeningTreePanel from "./components/opening/OpeningTreePanel.jsx";
 import ImportedPgnPanel from "./components/pgn/ImportedPgnPanel.jsx";
 import GuessTheMoveTrainingPanel from "./components/training/GuessTheMoveTrainingPanel.jsx";
 import PlayComputerPanel from "./components/training/PlayComputerPanel.jsx";
+import PuzzleTrainingPanel from "./components/training/PuzzleTrainingPanel.jsx";
 import ReplayTrainingPanel from "./components/training/ReplayTrainingPanel.jsx";
 import VariantsView from "./components/VariantsView.jsx";
 import {
@@ -42,6 +43,10 @@ import {
 } from "./utils/appState.js";
 import { parseAnnotatedPgn } from "./utils/annotatedPgn.js";
 import { getBoardSoundEvent } from "./utils/boardSounds.js";
+import {
+  buildLichessPuzzleQuery,
+  DEFAULT_LICHESS_PUZZLE_FILTERS,
+} from "./utils/lichessPuzzles.js";
 import {
   buildLichessSearchQuery,
   DEFAULT_LICHESS_SEARCH_FILTERS,
@@ -110,8 +115,10 @@ import {
   createComputerPlayTrainingState,
   createEmptyTrainingState,
   createGuessTheMoveTrainingState,
+  createPuzzleTrainingState,
   createReplayTrainingState,
   getCurrentGuessTheMove,
+  getCurrentPuzzleMove,
   getCurrentReplayMove,
   normalizeGuessHistoryBrowseEntries,
   normalizeGuessHistoryEntries,
@@ -125,6 +132,7 @@ import {
   TRAINING_COMPLETION_REVEALED,
   TRAINING_MODE_GUESS_THE_MOVE,
   TRAINING_MODE_PLAY_COMPUTER,
+  TRAINING_MODE_PUZZLE,
   TRAINING_MODE_REPLAY_GAME,
   TRAINING_PLAY_STATUS_ACTIVE,
   TRAINING_SIDE_BLACK,
@@ -334,6 +342,9 @@ function App() {
   const [showOpeningTreePanel, setShowOpeningTreePanel] = useState(
     () => persistedAppState?.showOpeningTreePanel ?? true,
   );
+  const [showPuzzleTrainingPanel, setShowPuzzleTrainingPanel] = useState(
+    () => persistedAppState?.showPuzzleTrainingPanel ?? true,
+  );
   const [showReplayTrainingPanel, setShowReplayTrainingPanel] = useState(
     () => persistedAppState?.showReplayTrainingPanel ?? true,
   );
@@ -407,6 +418,9 @@ function App() {
   const [deletingCollectionId, setDeletingCollectionId] = useState("");
   const [lichessSearchFilters, setLichessSearchFilters] = useState(
     () => persistedAppState?.lichessSearchFilters ?? DEFAULT_LICHESS_SEARCH_FILTERS,
+  );
+  const [lichessPuzzleFilters, setLichessPuzzleFilters] = useState(
+    () => persistedAppState?.lichessPuzzleFilters ?? DEFAULT_LICHESS_PUZZLE_FILTERS,
   );
   const [lichessSearchResults, setLichessSearchResults] = useState([]);
   const [lichessSearchError, setLichessSearchError] = useState("");
@@ -641,6 +655,9 @@ function App() {
   const isReplayTrainingEnded =
     normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME &&
     normalizedTrainingState.status === TRAINING_STATUS_ENDED;
+  const isPuzzleTrainingActive =
+    normalizedTrainingState.mode === TRAINING_MODE_PUZZLE &&
+    normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
   const isGuessTrainingActive =
     normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE &&
     normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
@@ -651,6 +668,8 @@ function App() {
     normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME ||
     normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE;
   const isTrainingFocusMode =
+    (showPuzzleTrainingPanel &&
+      normalizedTrainingState.mode === TRAINING_MODE_PUZZLE) ||
     (showReplayTrainingPanel &&
       normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) ||
     (showGuessTrainingPanel &&
@@ -682,10 +701,30 @@ function App() {
     () => getCurrentReplayMove(normalizedTrainingState),
     [normalizedTrainingState],
   );
+  const currentPuzzleMove = useMemo(
+    () => getCurrentPuzzleMove(normalizedTrainingState),
+    [normalizedTrainingState],
+  );
   const currentGuessMove = useMemo(
     () => getCurrentGuessTheMove(normalizedTrainingState),
     [normalizedTrainingState],
   );
+  useEffect(() => {
+    if (
+      normalizedTrainingState.mode !== TRAINING_MODE_PUZZLE ||
+      !normalizedTrainingState.puzzle?.id
+    ) {
+      return;
+    }
+
+    setBoardOrientation(
+      normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK ? "black" : "white",
+    );
+  }, [
+    normalizedTrainingState.mode,
+    normalizedTrainingState.playerSide,
+    normalizedTrainingState.puzzle?.id,
+  ]);
   const trainingNavigationCheckpoints = useMemo(() => {
     if (!isReferenceTrainingMode) {
       return [];
@@ -1433,6 +1472,7 @@ function App() {
 
     trainingRequestIdRef.current += 1;
     setVariantTree(preparedReplayTree);
+    setShowPuzzleTrainingPanel(false);
     setShowReplayTrainingPanel(true);
     setShowGuessTrainingPanel(false);
     setEngineResult(null);
@@ -1513,6 +1553,7 @@ function App() {
     savedGuessHistoryRunIdRef.current = null;
     pendingGuessHistoryEntryIdRef.current = "";
     setVariantTree(preparedGuessTree);
+    setShowPuzzleTrainingPanel(false);
     setShowGuessTrainingPanel(true);
     setShowReplayTrainingPanel(false);
     setActiveGuessHistoryEntryId("");
@@ -1559,6 +1600,123 @@ function App() {
     setEngineResult(null);
     setEvaluationResult(null);
   }, [hideTrainingPreview, isGuessTrainingActive, trainingRequestIdRef]);
+
+  const loadPuzzleTraining = useCallback(async () => {
+    const { query } = buildLichessPuzzleQuery(lichessPuzzleFilters);
+    const requestId = ++trainingRequestIdRef.current;
+    const currentPuzzleId = normalizedTrainingState.puzzle?.id ?? "";
+
+    hideTrainingPreview();
+    setTrainingError("");
+    setTrainingLoading(true);
+    setTrainingPlayAutoReplyPaused(false);
+
+    try {
+      const headers = lichessApiToken
+        ? { "X-Lichess-Api-Token": lichessApiToken }
+        : undefined;
+      let puzzleData = null;
+
+      for (let attemptIndex = 0; attemptIndex < 5; attemptIndex += 1) {
+        const params = new URLSearchParams(query);
+        params.set("_ts", `${Date.now()}-${attemptIndex}`);
+        const data = await fetchJson(`/api/lichess/puzzle/next?${params.toString()}`, {
+          ...(headers ? { headers } : {}),
+          cache: "no-store",
+        });
+
+        if (requestId !== trainingRequestIdRef.current) {
+          return;
+        }
+
+        if (data?.unavailable) {
+          setTrainingError(data.details || "Lichess puzzle service is unavailable right now.");
+          return;
+        }
+
+        if (!currentPuzzleId || data?.puzzle?.id !== currentPuzzleId) {
+          puzzleData = data;
+          break;
+        }
+      }
+
+      if (!puzzleData) {
+        setTrainingError("Lichess kept returning the same puzzle. Try again or change the filters.");
+        return;
+      }
+
+      const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
+        createPuzzleTrainingState(puzzleData);
+
+      if (error || !nextVariantTree) {
+        setTrainingError(error ?? "Unable to start puzzle mode.");
+        return;
+      }
+
+      setVariantTree(nextVariantTree);
+      setShowPuzzleTrainingPanel(true);
+      setShowReplayTrainingPanel(false);
+      setShowGuessTrainingPanel(false);
+      setEngineResult(null);
+      setEvaluationResult(null);
+      setBoardOrientation(
+        nextTrainingState.playerSide === TRAINING_SIDE_BLACK ? "black" : "white",
+      );
+      setTrainingState(nextTrainingState);
+      setTrainingError("");
+    } catch (error) {
+      if (requestId === trainingRequestIdRef.current) {
+        setTrainingError(error.message);
+      }
+    } finally {
+      if (requestId === trainingRequestIdRef.current) {
+        setTrainingLoading(false);
+      }
+    }
+  }, [
+    hideTrainingPreview,
+    lichessApiToken,
+    lichessPuzzleFilters,
+    normalizedTrainingState.puzzle?.id,
+    trainingRequestIdRef,
+  ]);
+
+  const restartPuzzleTraining = useCallback(() => {
+    if (normalizedTrainingState.mode !== TRAINING_MODE_PUZZLE) {
+      return;
+    }
+
+    const initialFen = normalizedTrainingState.referenceMoves[0]?.fenBefore;
+
+    if (!initialFen) {
+      setTrainingError("Unable to restart the current puzzle.");
+      return;
+    }
+
+    trainingRequestIdRef.current += 1;
+    hideTrainingPreview();
+    setVariantTree(createEmptyVariantTree(initialFen));
+    setBoardOrientation(
+      normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK ? "black" : "white",
+    );
+    setTrainingState(
+      normalizeTrainingState({
+        ...normalizedTrainingState,
+        status: TRAINING_STATUS_ACTIVE,
+        progressPly: 0,
+        attempts: [],
+        pendingAttempts: [],
+        lastCompletedAttempts: [],
+        lastCompletedExpectedMove: null,
+        lastCompletionMode: null,
+      }),
+    );
+    setTrainingError("");
+    setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+  }, [hideTrainingPreview, normalizedTrainingState, trainingRequestIdRef]);
 
   const applyImportedPgn = useCallback((rawPgn) => {
     const {
@@ -1668,7 +1826,13 @@ function App() {
           ? { promotion: "q" }
           : {}),
     };
-    const appliedUserMove = previewGame.move(attemptedMove);
+    let appliedUserMove = null;
+
+    try {
+      appliedUserMove = previewGame.move(attemptedMove);
+    } catch {
+      return null;
+    }
 
     if (!appliedUserMove) {
       return null;
@@ -1875,6 +2039,78 @@ function App() {
         });
 
       setHoveredOpeningTreeMove(null);
+      return true;
+    }
+
+    if (isPuzzleTrainingActive && currentPuzzleMove) {
+      setTrainingError("");
+
+      const didMatchExpectedMove =
+        currentPuzzleMove.move.from === normalizedAttemptedMove.from &&
+        currentPuzzleMove.move.to === normalizedAttemptedMove.to &&
+        currentPuzzleMove.move.promotion === normalizedAttemptedMove.promotion;
+
+      if (didMatchExpectedMove) {
+        const matchingAttempt = buildResolvedReplayAttempt(
+          currentPuzzleMove,
+          normalizedAttemptedMove,
+          appliedUserMove.san,
+        );
+
+        if (!matchingAttempt) {
+          setTrainingError("Unable to record the puzzle move.");
+          return false;
+        }
+
+        completeReplayMove(
+          currentPuzzleMove,
+          TRAINING_COMPLETION_MATCH,
+          matchingAttempt,
+        );
+        setHoveredOpeningTreeMove(null);
+        return true;
+      }
+
+      const failedAttempt = buildResolvedReplayAttempt(
+        currentPuzzleMove,
+        normalizedAttemptedMove,
+        appliedUserMove.san,
+      );
+      const failedPuzzleTree = applyMoveToVariantTree(variantTree, normalizedAttemptedMove);
+
+      if (!failedAttempt || !failedPuzzleTree) {
+        setTrainingError("Unable to record the puzzle attempt.");
+        return false;
+      }
+
+      trainingRequestIdRef.current += 1;
+      hideTrainingPreview();
+      setVariantTree(failedPuzzleTree);
+      setTrainingState((currentValue) => {
+        const currentTrainingState = normalizeTrainingState(currentValue);
+
+        if (
+          currentTrainingState.mode !== TRAINING_MODE_PUZZLE ||
+          currentTrainingState.status !== TRAINING_STATUS_ACTIVE
+        ) {
+          return currentTrainingState;
+        }
+
+        return normalizeTrainingState({
+          ...currentTrainingState,
+          status: TRAINING_STATUS_ENDED,
+          attempts: [...currentTrainingState.attempts, failedAttempt],
+          pendingAttempts: [],
+          lastCompletedAttempts: [failedAttempt],
+          lastCompletedExpectedMove: currentPuzzleMove,
+          lastCompletionMode: TRAINING_COMPLETION_REVEALED,
+        });
+      });
+      setTrainingLoading(false);
+      setEngineResult(null);
+      setEvaluationResult(null);
+      setHoveredOpeningTreeMove(null);
+      playBoardSoundForVariantTree(failedPuzzleTree);
       return true;
     }
 
@@ -3041,27 +3277,29 @@ function App() {
         };
 
     try {
-      savePersistedAppState({
-        variantTree,
-        engineSearchDepth,
-        lichessApiToken,
-        boardOrientation,
-        showMoveHistory: persistedRightSideViews.showMoveHistory,
-        showOpeningTreePanel: persistedRightSideViews.showOpeningTreePanel,
-        showReplayTrainingPanel,
-        showGuessTrainingPanel,
-        showPlayComputerPanel,
+        savePersistedAppState({
+          variantTree,
+          engineSearchDepth,
+          lichessApiToken,
+          boardOrientation,
+          showMoveHistory: persistedRightSideViews.showMoveHistory,
+          showOpeningTreePanel: persistedRightSideViews.showOpeningTreePanel,
+          showPuzzleTrainingPanel,
+          showReplayTrainingPanel,
+          showGuessTrainingPanel,
+          showPlayComputerPanel,
         showEngineWindow: persistedRightSideViews.showEngineWindow,
         showEvaluationBar,
         boardSoundsEnabled,
         showComments: persistedRightSideViews.showComments,
         showImportedPgn: persistedRightSideViews.showImportedPgn,
         showVariants: persistedRightSideViews.showVariants,
-        showVariantArrows,
-        lichessSearchFilters,
-        otbSearchFilters,
-        importedPgnData,
-        positionComments,
+          showVariantArrows,
+          lichessSearchFilters,
+          lichessPuzzleFilters,
+          otbSearchFilters,
+          importedPgnData,
+          positionComments,
         trainingState,
       });
     } catch (error) {
@@ -3071,6 +3309,7 @@ function App() {
     boardOrientation,
     engineSearchDepth,
     lichessApiToken,
+    lichessPuzzleFilters,
     lichessSearchFilters,
     importedPgnData,
     isTrainingFocusMode,
@@ -3083,6 +3322,7 @@ function App() {
     showImportedPgn,
     showMoveHistory,
     showOpeningTreePanel,
+    showPuzzleTrainingPanel,
     showReplayTrainingPanel,
     showGuessTrainingPanel,
     showPlayComputerPanel,
@@ -3290,6 +3530,7 @@ function App() {
       const nextValue = !currentValue;
 
       if (nextValue) {
+        setShowPuzzleTrainingPanel(false);
         setShowGuessTrainingPanel(false);
       }
 
@@ -3301,11 +3542,29 @@ function App() {
     setShowReplayTrainingPanel(false);
   }, []);
 
+  const togglePuzzleTrainingPanel = useCallback(() => {
+    setShowPuzzleTrainingPanel((currentValue) => {
+      const nextValue = !currentValue;
+
+      if (nextValue) {
+        setShowReplayTrainingPanel(false);
+        setShowGuessTrainingPanel(false);
+      }
+
+      return nextValue;
+    });
+  }, []);
+
+  const closePuzzleTrainingPanel = useCallback(() => {
+    setShowPuzzleTrainingPanel(false);
+  }, []);
+
   const toggleGuessTrainingPanel = useCallback(() => {
     setShowGuessTrainingPanel((currentValue) => {
       const nextValue = !currentValue;
 
       if (nextValue) {
+        setShowPuzzleTrainingPanel(false);
         setShowReplayTrainingPanel(false);
       }
 
@@ -3402,6 +3661,7 @@ function App() {
     toggleBoardOrientation,
     toggleMoveHistory,
     toggleOpeningTreePanel,
+    togglePuzzleTrainingPanel,
     toggleReplayTrainingPanel,
     toggleGuessTrainingPanel,
     togglePlayComputerPanel,
@@ -3433,6 +3693,7 @@ function App() {
     toggleImportedPgn,
     toggleMoveHistory,
     toggleOpeningTreePanel,
+    togglePuzzleTrainingPanel,
     toggleReplayTrainingPanel,
     toggleGuessTrainingPanel,
     togglePlayComputerPanel,
@@ -3463,6 +3724,7 @@ function App() {
     toggleBoardOrientation,
     toggleMoveHistory,
     toggleOpeningTreePanel,
+    togglePuzzleTrainingPanel,
     toggleReplayTrainingPanel,
     toggleGuessTrainingPanel,
     togglePlayComputerPanel,
@@ -3493,6 +3755,7 @@ function App() {
     toggleImportedPgn,
     toggleMoveHistory,
     toggleOpeningTreePanel,
+    togglePuzzleTrainingPanel,
     toggleReplayTrainingPanel,
     toggleGuessTrainingPanel,
     togglePlayComputerPanel,
@@ -3540,6 +3803,7 @@ function App() {
         canRedo={canRedo}
         showMoveHistory={showMoveHistory}
         showOpeningTreePanel={showOpeningTreePanel}
+        showPuzzleTrainingPanel={showPuzzleTrainingPanel}
         showReplayTrainingPanel={showReplayTrainingPanel}
         showGuessTrainingPanel={showGuessTrainingPanel}
         showPlayComputerPanel={showPlayComputerPanel}
@@ -3610,6 +3874,25 @@ function App() {
               exitStandaloneComputerPlay={exitStandaloneComputerPlay}
             />
           </>
+        )}
+        {showPuzzleTrainingPanel && (
+          <PuzzleTrainingPanel
+            panelHeight={boardPanelHeight}
+            onClose={closePuzzleTrainingPanel}
+            filters={lichessPuzzleFilters}
+            setFilters={setLichessPuzzleFilters}
+            normalizedTrainingState={normalizedTrainingState}
+            currentPuzzleMove={currentPuzzleMove}
+            trainingLoading={trainingLoading}
+            trainingError={trainingError}
+            lastCompletedExpectedMove={lastCompletedExpectedMove}
+            lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
+            onStartPuzzle={loadPuzzleTraining}
+            onNextPuzzle={loadPuzzleTraining}
+            onRetryPuzzle={restartPuzzleTraining}
+            onResetPuzzle={resetTrainingSession}
+            onOpenLichessTokenPopup={openLichessTokenPopup}
+          />
         )}
         {showReplayTrainingPanel && (
           <>

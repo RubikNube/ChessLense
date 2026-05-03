@@ -1,11 +1,13 @@
 import { Chess, DEFAULT_POSITION } from "chess.js";
 import { parseAnnotatedPgn } from "./annotatedPgn.js";
+import { createEmptyVariantTree } from "./variantTree.js";
 import { normalizeVariantTree } from "./variantTree.js";
 import { goToStartInVariantTree } from "./variantTree.js";
 
 export const TRAINING_MODE_OFF = "off";
 export const TRAINING_MODE_REPLAY_GAME = "replay-game";
 export const TRAINING_MODE_GUESS_THE_MOVE = "guess-the-move";
+export const TRAINING_MODE_PUZZLE = "puzzle";
 export const TRAINING_MODE_PLAY_COMPUTER = "play-computer";
 
 export const TRAINING_STATUS_IDLE = "idle";
@@ -51,6 +53,24 @@ function normalizeMove(move) {
       ? { promotion: move.promotion.toLowerCase() }
       : {}),
   };
+}
+
+function parseUciMove(uciMove) {
+  if (typeof uciMove !== "string") {
+    return null;
+  }
+
+  const match = uciMove.trim().match(/^([a-h][1-8])([a-h][1-8])([nbrq])?$/i);
+
+  if (!match) {
+    return null;
+  }
+
+  return normalizeMove({
+    from: match[1].toLowerCase(),
+    to: match[2].toLowerCase(),
+    ...(match[3] ? { promotion: match[3].toLowerCase() } : {}),
+  });
 }
 
 function normalizeString(value) {
@@ -99,6 +119,91 @@ function normalizeIsoTimestamp(value) {
 
   const timestamp = new Date(normalized);
   return Number.isNaN(timestamp.getTime()) ? null : timestamp.toISOString();
+}
+
+function normalizePuzzlePlayer(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const color = entry.color === "white" || entry.color === "black" ? entry.color : null;
+  const name = normalizeString(entry.name);
+
+  if (!color || !name) {
+    return null;
+  }
+
+  return {
+    color,
+    id: normalizeString(entry.id) || null,
+    name,
+    title: normalizeString(entry.title) || null,
+    rating: Number.isInteger(entry.rating) ? entry.rating : null,
+  };
+}
+
+function normalizePuzzleSourceGame(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const id = normalizeString(entry.id);
+
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    url: normalizeString(entry.url) || null,
+    rated: entry.rated === true,
+    clock: normalizeString(entry.clock) || null,
+    perf:
+      typeof entry.perf === "object" &&
+      entry.perf &&
+      normalizeString(entry.perf.key)
+        ? {
+            key: normalizeString(entry.perf.key),
+            name: normalizeString(entry.perf.name) || normalizeString(entry.perf.key),
+          }
+        : null,
+    players: {
+      white: normalizePuzzlePlayer(entry.players?.white),
+      black: normalizePuzzlePlayer(entry.players?.black),
+    },
+  };
+}
+
+function normalizePuzzleMetadata(entry) {
+  if (!entry || typeof entry !== "object") {
+    return null;
+  }
+
+  const id = normalizeString(entry.id);
+  const initialPly = Number.isInteger(entry.initialPly) && entry.initialPly >= 0 ? entry.initialPly : null;
+  const rating = Number.isInteger(entry.rating) ? entry.rating : null;
+  const plays = Number.isInteger(entry.plays) && entry.plays >= 0 ? entry.plays : null;
+  const themes = Array.isArray(entry.themes)
+    ? entry.themes
+        .map((theme) => normalizeString(theme))
+        .filter(Boolean)
+    : [];
+  const initialFen = normalizeFen(entry.initialFen);
+  const sourceGame = normalizePuzzleSourceGame(entry.sourceGame);
+
+  if (!id || initialPly === null || rating === null || plays === null || !sourceGame) {
+    return null;
+  }
+
+  return {
+    id,
+    initialPly,
+    rating,
+    plays,
+    themes,
+    initialFen,
+    sourceGame,
+  };
 }
 
 function normalizeReferenceMove(entry) {
@@ -228,6 +333,7 @@ export function createEmptyTrainingState(playerSide = TRAINING_SIDE_WHITE) {
     lastCompletedAttempts: [],
     lastCompletedExpectedMove: null,
     lastCompletionMode: null,
+    puzzle: null,
     computerPlay: null,
     playSession: null,
   };
@@ -274,6 +380,7 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
       lastCompletedAttempts: fallbackState.lastCompletedAttempts,
       lastCompletedExpectedMove: fallbackState.lastCompletedExpectedMove,
       lastCompletionMode: fallbackState.lastCompletionMode,
+      puzzle: fallbackState.puzzle,
       computerPlay: fallbackState.computerPlay,
     };
   }
@@ -282,7 +389,9 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
     entry.mode === TRAINING_MODE_REPLAY_GAME
       ? TRAINING_MODE_REPLAY_GAME
       : entry.mode === TRAINING_MODE_GUESS_THE_MOVE
-        ? TRAINING_MODE_GUESS_THE_MOVE
+      ? TRAINING_MODE_GUESS_THE_MOVE
+      : entry.mode === TRAINING_MODE_PUZZLE
+        ? TRAINING_MODE_PUZZLE
       : entry.mode === TRAINING_MODE_PLAY_COMPUTER
         ? TRAINING_MODE_PLAY_COMPUTER
         : TRAINING_MODE_OFF;
@@ -313,12 +422,18 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
     entry.lastCompletionMode === TRAINING_COMPLETION_REVEALED
       ? entry.lastCompletionMode
       : null;
+  const puzzle = normalizePuzzleMetadata(entry.puzzle);
   const computerPlay = normalizeComputerPlay(entry.computerPlay);
   const normalizedMode =
-    mode === TRAINING_MODE_PLAY_COMPUTER && !computerPlay ? TRAINING_MODE_OFF : mode;
+    mode === TRAINING_MODE_PLAY_COMPUTER && !computerPlay
+      ? TRAINING_MODE_OFF
+      : mode === TRAINING_MODE_PUZZLE && !puzzle
+        ? TRAINING_MODE_OFF
+        : mode;
   const supportsReferenceTrainingState =
     normalizedMode === TRAINING_MODE_REPLAY_GAME ||
-    normalizedMode === TRAINING_MODE_GUESS_THE_MOVE;
+    normalizedMode === TRAINING_MODE_GUESS_THE_MOVE ||
+    normalizedMode === TRAINING_MODE_PUZZLE;
   const supportsComputerPlay =
     normalizedMode === TRAINING_MODE_PLAY_COMPUTER && computerPlay;
 
@@ -340,6 +455,7 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
     lastCompletedAttempts: supportsReferenceTrainingState ? lastCompletedAttempts : [],
     lastCompletedExpectedMove: supportsReferenceTrainingState ? lastCompletedExpectedMove : null,
     lastCompletionMode: supportsReferenceTrainingState ? lastCompletionMode : null,
+    puzzle: normalizedMode === TRAINING_MODE_PUZZLE ? puzzle : null,
     computerPlay: supportsComputerPlay ? computerPlay : null,
   };
 }
@@ -486,6 +602,176 @@ export function createGuessTheMoveTrainingState(rawPgn, playerSide = TRAINING_SI
   );
 }
 
+export function createPuzzleTrainingState(payload) {
+  const gamePgn =
+    typeof payload?.game?.pgn === "string" && payload.game.pgn.trim() ? payload.game.pgn.trim() : "";
+  const solution = Array.isArray(payload?.puzzle?.solution)
+    ? payload.puzzle.solution
+        .map((move) => (typeof move === "string" ? move.trim() : ""))
+        .filter(Boolean)
+    : [];
+  const puzzle =
+    payload?.puzzle && typeof payload.puzzle === "object"
+      ? {
+          id: payload.puzzle.id,
+          initialPly: payload.puzzle.initialPly,
+          rating: payload.puzzle.rating,
+          plays: payload.puzzle.plays,
+          themes: payload.puzzle.themes,
+          initialFen: payload.puzzle.initialFen,
+          sourceGame: payload.game,
+        }
+      : null;
+  const normalizedPuzzle = normalizePuzzleMetadata(puzzle);
+
+  if (!gamePgn || !normalizedPuzzle || !solution.length) {
+    return {
+      trainingState: createEmptyTrainingState(),
+      variantTree: null,
+      error: "Unable to load the puzzle.",
+    };
+  }
+
+  const game = new Chess();
+
+  try {
+    game.loadPgn(gamePgn);
+  } catch {
+    return {
+      trainingState: createEmptyTrainingState(),
+      variantTree: null,
+      error: "Unable to read the puzzle game.",
+    };
+  }
+
+  const history = game.history({ verbose: true });
+  const candidatePlayedPlyCounts = [
+    normalizedPuzzle.initialPly,
+    normalizedPuzzle.initialPly + 1,
+    normalizedPuzzle.initialPly - 1,
+  ]
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .filter((value) => Number.isInteger(value) && value >= 0 && value <= history.length);
+  const puzzleCandidates = [];
+
+  if (normalizedPuzzle.initialFen) {
+    puzzleCandidates.push({
+      fen: normalizedPuzzle.initialFen,
+      playedPlyCount: normalizedPuzzle.initialPly,
+    });
+  }
+
+  candidatePlayedPlyCounts.forEach((playedPlyCount) => {
+    const replay = new Chess();
+
+    for (let index = 0; index < playedPlyCount; index += 1) {
+      replay.move(history[index]);
+    }
+
+    const fen = replay.fen();
+
+    if (
+      !puzzleCandidates.some(
+        (candidate) =>
+          candidate.fen === fen && candidate.playedPlyCount === playedPlyCount,
+      )
+    ) {
+      puzzleCandidates.push({
+        fen,
+        playedPlyCount,
+      });
+    }
+  });
+
+  let initialFen = null;
+  let referenceMoves = null;
+
+  for (const candidate of puzzleCandidates) {
+    const puzzleGame = new Chess(candidate.fen);
+    const candidateReferenceMoves = [];
+    let isValidCandidate = true;
+
+    for (let index = 0; index < solution.length; index += 1) {
+      const parsedMove = parseUciMove(solution[index]);
+
+      if (!parsedMove) {
+        return {
+          trainingState: createEmptyTrainingState(),
+          variantTree: null,
+          error: "Lichess returned an invalid puzzle solution.",
+        };
+      }
+
+      const fenBefore = puzzleGame.fen();
+      const moveNumber = puzzleGame.moveNumber();
+      const side = puzzleGame.turn() === "w" ? TRAINING_SIDE_WHITE : TRAINING_SIDE_BLACK;
+      let appliedMove = null;
+
+      try {
+        appliedMove = puzzleGame.move(parsedMove);
+      } catch {
+        isValidCandidate = false;
+        break;
+      }
+
+      if (!appliedMove) {
+        isValidCandidate = false;
+        break;
+      }
+
+      candidateReferenceMoves.push({
+        ply: candidate.playedPlyCount + index + 1,
+        moveNumber,
+        side,
+        san: appliedMove.san,
+        move: parsedMove,
+        fenBefore,
+        fenAfter: puzzleGame.fen(),
+      });
+    }
+
+    if (isValidCandidate && candidateReferenceMoves.length) {
+      initialFen = candidate.fen;
+      referenceMoves = candidateReferenceMoves;
+      break;
+    }
+  }
+
+  if (!referenceMoves?.length || !initialFen) {
+    return {
+      trainingState: createEmptyTrainingState(),
+      variantTree: null,
+      error: "Lichess returned a puzzle position that could not be reconstructed.",
+    };
+  }
+
+  const playerSide = referenceMoves[0].side;
+  const selectedPuzzle = {
+    ...normalizedPuzzle,
+    initialFen,
+  };
+
+  return {
+    trainingState: normalizeTrainingState({
+      mode: TRAINING_MODE_PUZZLE,
+      status: TRAINING_STATUS_ACTIVE,
+      playerSide,
+      progressPly: 0,
+      referenceMoves,
+      attempts: [],
+      pendingAttempts: [],
+      lastCompletedAttempts: [],
+      lastCompletedExpectedMove: null,
+      lastCompletionMode: null,
+      puzzle: selectedPuzzle,
+      computerPlay: null,
+      playSession: null,
+    }),
+    variantTree: createEmptyVariantTree(initialFen),
+    error: null,
+  };
+}
+
 export function createComputerPlayTrainingState(
   startVariantTree,
   playerSide = TRAINING_SIDE_WHITE,
@@ -551,6 +837,19 @@ export function getCurrentGuessTheMove(trainingState) {
 
   if (
     normalizedState.mode !== TRAINING_MODE_GUESS_THE_MOVE ||
+    normalizedState.status !== TRAINING_STATUS_ACTIVE
+  ) {
+    return null;
+  }
+
+  return normalizedState.referenceMoves[normalizedState.progressPly] ?? null;
+}
+
+export function getCurrentPuzzleMove(trainingState) {
+  const normalizedState = normalizeTrainingState(trainingState);
+
+  if (
+    normalizedState.mode !== TRAINING_MODE_PUZZLE ||
     normalizedState.status !== TRAINING_STATUS_ACTIVE
   ) {
     return null;

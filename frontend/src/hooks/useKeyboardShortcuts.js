@@ -178,6 +178,12 @@ function useKeyboardShortcuts({
         return;
       }
 
+      if (matchesShortcut(event, shortcutConfig.togglePuzzleTrainingPanel.keys)) {
+        event.preventDefault();
+        actions.togglePuzzleTrainingPanel();
+        return;
+      }
+
       if (matchesShortcut(event, shortcutConfig.toggleReplayTrainingPanel.keys)) {
         event.preventDefault();
         actions.toggleReplayTrainingPanel();

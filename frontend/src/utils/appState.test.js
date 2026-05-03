@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Chess } from "chess.js";
+import { DEFAULT_LICHESS_PUZZLE_FILTERS } from "./lichessPuzzles.js";
 import { DEFAULT_LICHESS_SEARCH_FILTERS } from "./lichessSearch.js";
 import { DEFAULT_OTB_SEARCH_FILTERS } from "./otbSearch.js";
 import {
@@ -175,6 +176,7 @@ describe("persisted app state", () => {
               outcome: "match",
             },
           ],
+          puzzle: null,
         },
       }),
     );
@@ -195,6 +197,7 @@ describe("persisted app state", () => {
       boardOrientation: "black",
       showMoveHistory: false,
       showOpeningTreePanel: true,
+      showPuzzleTrainingPanel: false,
       showReplayTrainingPanel: false,
       showGuessTrainingPanel: false,
       showPlayComputerPanel: false,
@@ -205,6 +208,7 @@ describe("persisted app state", () => {
       showImportedPgn: false,
       showVariants: false,
       showVariantArrows: true,
+      lichessPuzzleFilters: DEFAULT_LICHESS_PUZZLE_FILTERS,
       lichessSearchFilters: {
         player: "MagnusCarlsen",
         opponent: "Hikaru",
@@ -292,6 +296,7 @@ describe("persisted app state", () => {
         lastCompletedAttempts: [],
         lastCompletedExpectedMove: null,
         lastCompletionMode: null,
+        puzzle: null,
         computerPlay: null,
         playSession: null,
       },
@@ -355,6 +360,7 @@ describe("persisted app state", () => {
         boardOrientation: "black",
         showMoveHistory: false,
         showOpeningTreePanel: false,
+        showPuzzleTrainingPanel: true,
         showReplayTrainingPanel: false,
         showGuessTrainingPanel: true,
         showPlayComputerPanel: true,
@@ -416,6 +422,7 @@ describe("persisted app state", () => {
       boardOrientation: "black",
       showMoveHistory: false,
       showOpeningTreePanel: false,
+      showPuzzleTrainingPanel: true,
       showReplayTrainingPanel: false,
       showGuessTrainingPanel: true,
       showPlayComputerPanel: true,
@@ -426,6 +433,7 @@ describe("persisted app state", () => {
       showImportedPgn: false,
       showVariants: false,
       showVariantArrows: true,
+      lichessPuzzleFilters: DEFAULT_LICHESS_PUZZLE_FILTERS,
       lichessSearchFilters: {
         player: "MagnusCarlsen",
         opponent: "Hikaru",
@@ -634,6 +642,7 @@ describe("persisted app state", () => {
       boardOrientation: "white",
       showMoveHistory: true,
       showOpeningTreePanel: true,
+      showPuzzleTrainingPanel: true,
       showReplayTrainingPanel: true,
       showGuessTrainingPanel: true,
       showPlayComputerPanel: true,
@@ -644,6 +653,7 @@ describe("persisted app state", () => {
       showImportedPgn: true,
       showVariants: true,
       showVariantArrows: false,
+      lichessPuzzleFilters: DEFAULT_LICHESS_PUZZLE_FILTERS,
       lichessSearchFilters: DEFAULT_LICHESS_SEARCH_FILTERS,
       otbSearchFilters: DEFAULT_OTB_SEARCH_FILTERS,
       importedPgnData: null,

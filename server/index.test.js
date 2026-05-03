@@ -376,3 +376,71 @@ test("GET /api/guess-history/games browses saved guess-history games and loads o
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}
 });
+
+test("GET /api/lichess/puzzle/next forwards filters and the request token", async (t) => {
+	const realFetch = global.fetch.bind(global);
+	const outboundResponse = {
+		game: {
+			id: "Had79NbX",
+			perf: { key: "blitz", name: "Blitz" },
+			rated: true,
+			players: [
+				{ name: "vit2014", id: "vit2014", color: "white", rating: 2395 },
+				{ name: "Yoda-wins", id: "yoda-wins", color: "black", rating: 2511 },
+			],
+			pgn: "e4 e6 d4 d5",
+			clock: "3+2",
+		},
+		puzzle: {
+			id: "hACdu",
+			rating: 1567,
+			plays: 6508,
+			solution: ["d1d5", "d8d5", "b3d5"],
+			themes: ["middlegame", "fork"],
+			initialPly: 39,
+		},
+	};
+	const fetchMock = t.mock.method(global, "fetch", async (...args) => {
+		const [url, options] = args;
+
+		if (typeof url !== "string" || !url.startsWith("https://lichess.org/api/puzzle/next")) {
+			throw new Error(`Unexpected outbound URL: ${String(url)}`);
+		}
+
+		assert.match(url, /angle=fork/);
+		assert.match(url, /difficulty=harder/);
+		assert.match(url, /color=black/);
+		assert.equal(options?.headers?.Authorization, "Bearer test-token");
+
+		return new Response(JSON.stringify(outboundResponse), {
+			status: 200,
+			headers: {
+				"Content-Type": "application/json",
+			},
+		});
+	});
+
+	const { baseUrl, server } = await startServer();
+
+	try {
+		const response = await realFetch(
+			`${baseUrl}/api/lichess/puzzle/next?angle=fork&difficulty=harder&color=black`,
+			{
+				headers: {
+					"X-Lichess-Api-Token": "test-token",
+				},
+			},
+		);
+		const data = await response.json();
+
+		assert.equal(response.status, 200);
+		assert.equal(data.search.angle, "fork");
+		assert.equal(data.search.difficulty, "harder");
+		assert.equal(data.search.color, "black");
+		assert.equal(data.puzzle.id, "hACdu");
+		assert.equal(data.game.id, "Had79NbX");
+		assert.equal(fetchMock.mock.callCount(), 1);
+	} finally {
+		await closeServer(server);
+	}
+});

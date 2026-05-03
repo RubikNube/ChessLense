@@ -42,6 +42,7 @@ function AppMenuBar({
   canRedo,
   showMoveHistory,
   showOpeningTreePanel,
+  showPuzzleTrainingPanel,
   showReplayTrainingPanel,
   showGuessTrainingPanel,
   showPlayComputerPanel,
@@ -68,9 +69,23 @@ function AppMenuBar({
             <button
               type="button"
               className="menu-entry"
+              onClick={() => onMenuAction(actions.togglePuzzleTrainingPanel)}
+            >
+              {showPuzzleTrainingPanel ? "Hide Puzzle Mode" : "Show Puzzle Mode"}
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
               onClick={() => onMenuAction(actions.togglePlayComputerPanel)}
             >
               {showPlayComputerPanel ? "Hide Play vs Computer" : "Show Play vs Computer"}
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
+              onClick={() => onMenuAction(actions.togglePuzzleTrainingPanel)}
+            >
+              {showPuzzleTrainingPanel ? "Hide Puzzle Mode" : "Show Puzzle Mode"}
             </button>
             <button
               type="button"
@@ -262,6 +277,13 @@ function AppMenuBar({
               onClick={() => onMenuAction(actions.toggleOpeningTreePanel)}
             >
               {showOpeningTreePanel ? "Hide Opening Tree" : "Show Opening Tree"}
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
+              onClick={() => onMenuAction(actions.togglePuzzleTrainingPanel)}
+            >
+              {showPuzzleTrainingPanel ? "Hide Puzzle Mode" : "Show Puzzle Mode"}
             </button>
             <button
               type="button"

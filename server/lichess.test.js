@@ -4,11 +4,14 @@ const { HttpError } = require("./httpError");
 const { __testing } = require("./lichess");
 
 const {
+	createUnavailablePuzzle,
 	createUnavailableOpeningTree,
 	mapOpeningTreeMove,
 	normalizeFen,
 	normalizeOpeningTreeQuery,
 	normalizeOpeningTreeResponse,
+	normalizePuzzleQuery,
+	normalizePuzzleResponse,
 	resolveLichessApiToken,
 } = __testing;
 
@@ -132,4 +135,128 @@ test("createUnavailableOpeningTree returns a soft-failure payload", () => {
 
 test("resolveLichessApiToken uses the request token when no env token is configured", () => {
 	assert.equal(resolveLichessApiToken(" abc123 "), "abc123");
+});
+
+test("normalizePuzzleQuery accepts supported filters", () => {
+	assert.deepEqual(normalizePuzzleQuery({
+		angle: " fork ",
+		difficulty: "harder",
+		color: "black",
+	}), {
+		angle: "fork",
+		difficulty: "harder",
+		color: "black",
+	});
+});
+
+test("normalizePuzzleQuery rejects unsupported difficulty values", () => {
+	assert.throws(
+		() => normalizePuzzleQuery({ difficulty: "legendary" }),
+		(error) =>
+			error instanceof HttpError &&
+			error.code === "invalid_query" &&
+			error.message === "difficulty must be a supported option",
+	);
+});
+
+test("normalizePuzzleResponse keeps puzzle metadata and selected filters", () => {
+	assert.deepEqual(
+		normalizePuzzleResponse(
+			{
+				game: {
+					id: "Had79NbX",
+					perf: {
+						key: "blitz",
+						name: "Blitz",
+					},
+					rated: true,
+					players: [
+						{ color: "white", id: "vit2014", name: "vit2014", rating: 2395 },
+						{ color: "black", id: "yoda-wins", name: "Yoda-wins", rating: 2511 },
+					],
+					pgn: "e4 e5 Nf3 Nc6",
+					clock: "3+2",
+				},
+				puzzle: {
+					id: "hACdu",
+					rating: 1567,
+					plays: 6508,
+					solution: ["d1d5", "d8d5", "b3d5"],
+					themes: ["middlegame", "fork"],
+					initialPly: 39,
+					fen: "fen-value",
+				},
+			},
+			{ angle: "fork", difficulty: "harder", color: "black" },
+			true,
+		),
+		{
+			search: {
+				angle: "fork",
+				difficulty: "harder",
+				color: "black",
+			},
+			environmentTokenConfigured: false,
+			tokenConfigured: true,
+			game: {
+				id: "Had79NbX",
+				url: "https://lichess.org/Had79NbX",
+				pgn: "e4 e5 Nf3 Nc6",
+				rated: true,
+				clock: "3+2",
+				perf: {
+					key: "blitz",
+					name: "Blitz",
+				},
+				players: {
+					white: {
+						color: "white",
+						id: "vit2014",
+						name: "vit2014",
+						title: null,
+						rating: 2395,
+					},
+					black: {
+						color: "black",
+						id: "yoda-wins",
+						name: "Yoda-wins",
+						title: null,
+						rating: 2511,
+					},
+				},
+			},
+			puzzle: {
+				id: "hACdu",
+				initialPly: 39,
+				rating: 1567,
+				plays: 6508,
+				solution: ["d1d5", "d8d5", "b3d5"],
+				themes: ["middlegame", "fork"],
+				initialFen: "fen-value",
+			},
+		},
+	);
+});
+
+test("createUnavailablePuzzle returns a soft-failure payload", () => {
+	assert.deepEqual(
+		createUnavailablePuzzle(
+			{ angle: "fork", difficulty: "normal", color: "white" },
+			"Lichess request was rejected",
+			false,
+		),
+		{
+			search: {
+				angle: "fork",
+				difficulty: "normal",
+				color: "white",
+			},
+			game: null,
+			puzzle: null,
+			unavailable: true,
+			environmentTokenConfigured: false,
+			tokenConfigured: false,
+			details: "Lichess request was rejected",
+		},
+	);
 });

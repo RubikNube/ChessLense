@@ -10,6 +10,7 @@ const { HttpError } = require("./httpError");
 const {
 	getGame: getLichessGame,
 	getOpeningTree: getLichessOpeningTree,
+	getPuzzle: getLichessPuzzle,
 	LICHESS_REQUEST_TOKEN_HEADER,
 	searchGames: searchLichessGames,
 } = require("./lichess");
@@ -172,6 +173,18 @@ function createApp() {
 			});
 
 			return res.json(openingTree);
+		} catch (error) {
+			return sendApiError(res, error);
+		}
+	});
+
+	app.get("/api/lichess/puzzle/next", async (req, res) => {
+		try {
+			const puzzle = await getLichessPuzzle(req.query || {}, {
+				requestToken: req.get(LICHESS_REQUEST_TOKEN_HEADER) ?? "",
+			});
+
+			return res.json(puzzle);
 		} catch (error) {
 			return sendApiError(res, error);
 		}

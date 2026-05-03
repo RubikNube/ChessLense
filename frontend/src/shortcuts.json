@@ -39,6 +39,10 @@
     "label": "Toggle opening tree panel",
     "keys": ["Ctrl+Shift+F9"]
   },
+  "togglePuzzleTrainingPanel": {
+    "label": "Toggle puzzle training panel",
+    "keys": ["Ctrl+Shift+F11"]
+  },
   "toggleEngineWindow": {
     "label": "Toggle engine",
     "keys": ["Ctrl+Shift+F3"]

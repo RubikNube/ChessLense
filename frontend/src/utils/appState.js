@@ -1,6 +1,10 @@
 import { Chess } from "chess.js";
 import { normalizeImportedPgnData } from "./annotatedPgn.js";
 import {
+  DEFAULT_LICHESS_PUZZLE_FILTERS,
+  normalizeLichessPuzzleFilters,
+} from "./lichessPuzzles.js";
+import {
   DEFAULT_LICHESS_SEARCH_FILTERS,
   normalizeLichessSearchFilters,
 } from "./lichessSearch.js";
@@ -26,6 +30,7 @@ export const SHORTCUT_ACTION_ORDER = [
   "flipBoard",
   "toggleMoveHistory",
   "toggleOpeningTreePanel",
+  "togglePuzzleTrainingPanel",
   "toggleReplayTrainingPanel",
   "toggleGuessTrainingPanel",
   "togglePlayComputerPanel",
@@ -39,6 +44,7 @@ export const SHORTCUT_ACTION_ORDER = [
 const VIEW_TOGGLE_SHORTCUT_ACTIONS = new Set([
   "toggleMoveHistory",
   "toggleOpeningTreePanel",
+  "togglePuzzleTrainingPanel",
   "toggleReplayTrainingPanel",
   "toggleGuessTrainingPanel",
   "togglePlayComputerPanel",
@@ -112,6 +118,10 @@ export const DEFAULT_SHORTCUT_CONFIG = {
   toggleOpeningTreePanel: {
     label: "Toggle opening tree panel",
     keys: ["Ctrl+Shift+F9"],
+  },
+  togglePuzzleTrainingPanel: {
+    label: "Toggle puzzle training panel",
+    keys: ["Ctrl+Shift+F11"],
   },
   toggleReplayTrainingPanel: {
     label: "Toggle replay training panel",
@@ -531,6 +541,9 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
     const lichessSearchFilters = parsedState.lichessSearchFilters
       ? normalizeLichessSearchFilters(parsedState.lichessSearchFilters)
       : DEFAULT_LICHESS_SEARCH_FILTERS;
+    const lichessPuzzleFilters = parsedState.lichessPuzzleFilters
+      ? normalizeLichessPuzzleFilters(parsedState.lichessPuzzleFilters)
+      : DEFAULT_LICHESS_PUZZLE_FILTERS;
     const otbSearchFilters = parsedState.otbSearchFilters
       ? normalizeOtbSearchFilters(parsedState.otbSearchFilters)
       : DEFAULT_OTB_SEARCH_FILTERS;
@@ -555,6 +568,11 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showOpeningTreePanel === "boolean"
           ? parsedState.showOpeningTreePanel
           : true,
+      showPuzzleTrainingPanel: resolvePersistedPanelVisibility(
+        parsedState,
+        "showPuzzleTrainingPanel",
+        "showTrainingWindow",
+      ),
       showReplayTrainingPanel: resolvePersistedPanelVisibility(
         parsedState,
         "showReplayTrainingPanel",
@@ -599,6 +617,7 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
           ? parsedState.showVariantArrows
           : false,
       lichessSearchFilters,
+      lichessPuzzleFilters,
       otbSearchFilters,
       importedPgnData,
       positionComments,
@@ -634,6 +653,7 @@ export function serializePersistedAppState({
   boardOrientation,
   showMoveHistory,
   showOpeningTreePanel,
+  showPuzzleTrainingPanel,
   showReplayTrainingPanel,
   showGuessTrainingPanel,
   showPlayComputerPanel,
@@ -645,6 +665,7 @@ export function serializePersistedAppState({
   showVariants,
   showVariantArrows,
   lichessSearchFilters,
+  lichessPuzzleFilters,
   otbSearchFilters,
   importedPgnData,
   positionComments,
@@ -657,6 +678,7 @@ export function serializePersistedAppState({
     boardOrientation,
     showMoveHistory,
     showOpeningTreePanel,
+    showPuzzleTrainingPanel,
     showReplayTrainingPanel,
     showGuessTrainingPanel,
     showPlayComputerPanel,
@@ -669,6 +691,9 @@ export function serializePersistedAppState({
     showVariantArrows,
     lichessSearchFilters: normalizeLichessSearchFilters(
       lichessSearchFilters ?? DEFAULT_LICHESS_SEARCH_FILTERS,
+    ),
+    lichessPuzzleFilters: normalizeLichessPuzzleFilters(
+      lichessPuzzleFilters ?? DEFAULT_LICHESS_PUZZLE_FILTERS,
     ),
     otbSearchFilters: normalizeOtbSearchFilters(
       otbSearchFilters ?? DEFAULT_OTB_SEARCH_FILTERS,
