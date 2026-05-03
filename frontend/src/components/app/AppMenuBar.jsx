@@ -69,13 +69,6 @@ function AppMenuBar({
             <button
               type="button"
               className="menu-entry"
-              onClick={() => onMenuAction(actions.togglePuzzleTrainingPanel)}
-            >
-              {showPuzzleTrainingPanel ? "Hide Puzzle Mode" : "Show Puzzle Mode"}
-            </button>
-            <button
-              type="button"
-              className="menu-entry"
               onClick={() => onMenuAction(actions.togglePlayComputerPanel)}
             >
               {showPlayComputerPanel ? "Hide Play vs Computer" : "Show Play vs Computer"}
