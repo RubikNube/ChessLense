@@ -1,4 +1,4 @@
-import { Chess } from "chess.js";
+import { Chess, DEFAULT_POSITION } from "chess.js";
 import { parse } from "chess.js/src/pgn.js";
 import { createEmptyVariantTree, createVariantTreeFromParsedPgn } from "./variantTree.js";
 
@@ -107,9 +107,29 @@ function scanPgnText(rawPgn) {
   };
 }
 
+function getInitialFenFromGame(game) {
+  if (!(game instanceof Chess)) {
+    return DEFAULT_POSITION;
+  }
+
+  if (!game.history().length) {
+    return game.fen();
+  }
+
+  const replay = new Chess();
+
+  replay.loadPgn(game.pgn());
+
+  while (replay.undo()) {
+    // Walk back to the imported starting position, including custom FEN setups.
+  }
+
+  return replay.fen();
+}
+
 function buildCommentContextMap(game) {
   const contextMap = new Map();
-  const replay = new Chess();
+  const replay = new Chess(getInitialFenFromGame(game));
   contextMap.set(replay.fen(), {
     ply: 0,
     moveNumber: 0,

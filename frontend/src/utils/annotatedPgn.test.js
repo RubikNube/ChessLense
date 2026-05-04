@@ -87,6 +87,73 @@ describe("parseAnnotatedPgn", () => {
     expect(result.variantTree).toBeNull();
     expect(result.error).toBe("Invalid PGN. Please check the notation and try again.");
   });
+
+  it("supports annotated PGNs that start from a custom FEN", () => {
+    const annotatedPgn = `
+[Event "Knight Odds"]
+[Site "New Orleans USA"]
+[Date "1869.??.??"]
+[Result "1/2-1/2"]
+[White "Paul Morphy"]
+[Black "Charles Maurian"]
+[SetUp "1"]
+[FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R1BQKBNR w KQkq - 0 1"]
+
+{ Odds game from a custom starting position. }
+1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 Bg7 5. O-O h6 6. c3 d6
+7. Qb3 Qd7 8. d4 Nc6 9. Bd3 Nge7 10. Bd2 O-O 11. Rae1 { Critical rook lift. } *
+`.trim();
+
+    const { game, importedPgnData, variantTree, error } = parseAnnotatedPgn(annotatedPgn, {
+      allowEmpty: false,
+    });
+
+    expect(error).toBeNull();
+    expect(game.history()).toEqual([
+      "e4",
+      "e5",
+      "f4",
+      "exf4",
+      "Nf3",
+      "g5",
+      "Bc4",
+      "Bg7",
+      "O-O",
+      "h6",
+      "c3",
+      "d6",
+      "Qb3",
+      "Qd7",
+      "d4",
+      "Nc6",
+      "Bd3",
+      "Nge7",
+      "Bd2",
+      "O-O",
+      "Rae1",
+    ]);
+    expect(variantTree.initialFen).toBe(
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R1BQKBNR w KQkq - 0 1",
+    );
+    expect(importedPgnData.mainlineComments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          comment: "Odds game from a custom starting position.",
+          ply: 0,
+          moveNumber: 0,
+          side: null,
+          san: null,
+        }),
+        expect.objectContaining({
+          comment: "Critical rook lift.",
+          ply: 21,
+          moveNumber: 11,
+          side: "white",
+          san: "Rae1",
+        }),
+      ]),
+    );
+  });
 });
 
 describe("normalizeImportedPgnData", () => {
