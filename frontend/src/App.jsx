@@ -44,6 +44,8 @@ import {
 import { parseAnnotatedPgn } from "./utils/annotatedPgn.js";
 import { getBoardSoundEvent } from "./utils/boardSounds.js";
 import {
+  buildLichessPuzzleAdvanceRequest,
+  createLichessPuzzleFilterKey,
   buildLichessPuzzleQuery,
   DEFAULT_LICHESS_PUZZLE_FILTERS,
 } from "./utils/lichessPuzzles.js";
@@ -120,6 +122,7 @@ import {
   getCurrentGuessTheMove,
   getCurrentPuzzleMove,
   getCurrentReplayMove,
+  getPuzzleTerminalOutcome,
   normalizeGuessHistoryBrowseEntries,
   normalizeGuessHistoryEntries,
   normalizeTrainingState,
@@ -146,6 +149,16 @@ import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts.js";
 import useBoardSounds from "./hooks/useBoardSounds.js";
 import useTrainingController from "./hooks/useTrainingController.js";
 import "./App.css";
+
+const PUZZLE_FETCH_RETRY_ATTEMPTS = 5;
+const PUZZLE_FETCH_RETRY_DELAY_MS = 500;
+const MAX_RECENT_LICHESS_PUZZLE_IDS = 25;
+
+function wait(delayMs) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, delayMs);
+  });
+}
 
 function getPgnHeaderValue(importedPgnData, headerName) {
   if (!importedPgnData?.headers?.length || typeof headerName !== "string") {
@@ -478,6 +491,8 @@ function App() {
   const guessHistoryRunIdRef = useRef(null);
   const savedGuessHistoryRunIdRef = useRef(null);
   const pendingGuessHistoryEntryIdRef = useRef("");
+  const lastAdvancedPuzzleKeyRef = useRef("");
+  const recentLichessPuzzleIdsRef = useRef(new Map());
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
@@ -640,6 +655,9 @@ function App() {
     () => normalizeTrainingState(trainingState),
     [trainingState],
   );
+  useEffect(() => {
+    lastAdvancedPuzzleKeyRef.current = "";
+  }, [normalizedTrainingState.puzzle?.id]);
   const selectedCollection = useMemo(
     () =>
       collections.find((collection) => collection.id === selectedCollectionId) ?? null,
@@ -1601,10 +1619,61 @@ function App() {
     setEvaluationResult(null);
   }, [hideTrainingPreview, isGuessTrainingActive, trainingRequestIdRef]);
 
+  const rememberRecentLichessPuzzleId = useCallback((filterKey, puzzleId) => {
+    if (!filterKey || typeof puzzleId !== "string" || !puzzleId.trim()) {
+      return;
+    }
+
+    const currentIds = recentLichessPuzzleIdsRef.current.get(filterKey) ?? [];
+    const nextIds = [...currentIds.filter((id) => id !== puzzleId), puzzleId].slice(
+      -MAX_RECENT_LICHESS_PUZZLE_IDS,
+    );
+
+    recentLichessPuzzleIdsRef.current.set(filterKey, nextIds);
+  }, []);
+
+  const getBlockedLichessPuzzleIds = useCallback((filterKey, currentPuzzleId = "") => {
+    const blockedIds = new Set(recentLichessPuzzleIdsRef.current.get(filterKey) ?? []);
+
+    if (typeof currentPuzzleId === "string" && currentPuzzleId.trim()) {
+      blockedIds.add(currentPuzzleId.trim());
+    }
+
+    return blockedIds;
+  }, []);
+
+  const applyPuzzleTrainingPayload = useCallback((puzzleData, filterKey) => {
+    const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
+      createPuzzleTrainingState(puzzleData);
+
+    if (error || !nextVariantTree) {
+      setTrainingError(error ?? "Unable to start puzzle mode.");
+      return false;
+    }
+
+    setVariantTree(nextVariantTree);
+    setShowPuzzleTrainingPanel(true);
+    setShowReplayTrainingPanel(false);
+    setShowGuessTrainingPanel(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+    setBoardOrientation(
+      nextTrainingState.playerSide === TRAINING_SIDE_BLACK ? "black" : "white",
+    );
+    setTrainingState(nextTrainingState);
+    setTrainingError("");
+    rememberRecentLichessPuzzleId(filterKey, nextTrainingState.puzzle?.id ?? "");
+
+    return true;
+  }, [rememberRecentLichessPuzzleId]);
+
   const loadPuzzleTraining = useCallback(async () => {
     const { query } = buildLichessPuzzleQuery(lichessPuzzleFilters);
+    const filterKey = createLichessPuzzleFilterKey(lichessPuzzleFilters);
     const requestId = ++trainingRequestIdRef.current;
     const currentPuzzleId = normalizedTrainingState.puzzle?.id ?? "";
+    const currentPuzzleOutcome = getPuzzleTerminalOutcome(normalizedTrainingState);
+    const blockedPuzzleIds = getBlockedLichessPuzzleIds(filterKey, currentPuzzleId);
 
     hideTrainingPreview();
     setTrainingError("");
@@ -1612,16 +1681,58 @@ function App() {
     setTrainingPlayAutoReplyPaused(false);
 
     try {
-      const headers = lichessApiToken
-        ? { "X-Lichess-Api-Token": lichessApiToken }
-        : undefined;
+      const tokenHeaders = lichessApiToken ? { "X-Lichess-Api-Token": lichessApiToken } : {};
       let puzzleData = null;
 
-      for (let attemptIndex = 0; attemptIndex < 5; attemptIndex += 1) {
+      if (currentPuzzleOutcome) {
+        const advanceRequest = buildLichessPuzzleAdvanceRequest(
+          lichessPuzzleFilters,
+          currentPuzzleOutcome.puzzleId,
+          currentPuzzleOutcome.win,
+        );
+        const advanceKey = advanceRequest
+          ? `${advanceRequest.puzzleId}:${advanceRequest.win}`
+          : "";
+
+        if (advanceRequest && advanceKey !== lastAdvancedPuzzleKeyRef.current) {
+          try {
+            const data = await fetchJson("/api/lichess/puzzle/advance", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...tokenHeaders,
+              },
+              body: JSON.stringify(advanceRequest),
+            });
+
+            if (requestId !== trainingRequestIdRef.current) {
+              return;
+            }
+
+            if (!data?.unavailable) {
+              lastAdvancedPuzzleKeyRef.current = advanceKey;
+
+              if (data?.puzzle?.id && !blockedPuzzleIds.has(data.puzzle.id)) {
+                puzzleData = data;
+              }
+            }
+          } catch {
+            if (requestId !== trainingRequestIdRef.current) {
+              return;
+            }
+          }
+        }
+      }
+
+      for (let attemptIndex = 0; attemptIndex < PUZZLE_FETCH_RETRY_ATTEMPTS; attemptIndex += 1) {
+        if (puzzleData) {
+          break;
+        }
+
         const params = new URLSearchParams(query);
         params.set("_ts", `${Date.now()}-${attemptIndex}`);
         const data = await fetchJson(`/api/lichess/puzzle/next?${params.toString()}`, {
-          ...(headers ? { headers } : {}),
+          ...(Object.keys(tokenHeaders).length ? { headers: tokenHeaders } : {}),
           cache: "no-store",
         });
 
@@ -1636,9 +1747,17 @@ function App() {
           return;
         }
 
-        if (!currentPuzzleId || data?.puzzle?.id !== currentPuzzleId) {
+        if (data?.puzzle?.id && !blockedPuzzleIds.has(data.puzzle.id)) {
           puzzleData = data;
           break;
+        }
+
+        if (attemptIndex < PUZZLE_FETCH_RETRY_ATTEMPTS - 1) {
+          await wait(PUZZLE_FETCH_RETRY_DELAY_MS);
+
+          if (requestId !== trainingRequestIdRef.current) {
+            return;
+          }
         }
       }
 
@@ -1647,25 +1766,9 @@ function App() {
         return;
       }
 
-      const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
-        createPuzzleTrainingState(puzzleData);
-
-      if (error || !nextVariantTree) {
-        setTrainingError(error ?? "Unable to start puzzle mode.");
+      if (!applyPuzzleTrainingPayload(puzzleData, filterKey)) {
         return;
       }
-
-      setVariantTree(nextVariantTree);
-      setShowPuzzleTrainingPanel(true);
-      setShowReplayTrainingPanel(false);
-      setShowGuessTrainingPanel(false);
-      setEngineResult(null);
-      setEvaluationResult(null);
-      setBoardOrientation(
-        nextTrainingState.playerSide === TRAINING_SIDE_BLACK ? "black" : "white",
-      );
-      setTrainingState(nextTrainingState);
-      setTrainingError("");
     } catch (error) {
       if (requestId === trainingRequestIdRef.current) {
         setTrainingError(error.message);
@@ -1676,10 +1779,12 @@ function App() {
       }
     }
   }, [
+    applyPuzzleTrainingPayload,
+    getBlockedLichessPuzzleIds,
     hideTrainingPreview,
     lichessApiToken,
     lichessPuzzleFilters,
-    normalizedTrainingState.puzzle?.id,
+    normalizedTrainingState,
     trainingRequestIdRef,
   ]);
 

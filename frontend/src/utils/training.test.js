@@ -10,6 +10,7 @@ import {
   createReplayTrainingState,
   getCurrentGuessTheMove,
   getCurrentPuzzleMove,
+  getPuzzleTerminalOutcome,
   getGuessTheMovePoints,
   getCurrentReplayMove,
   normalizeGuessHistoryBrowseEntries,
@@ -178,6 +179,66 @@ describe("training helpers", () => {
         },
       }),
     );
+  });
+
+  it("derives puzzle terminal outcomes for progression reporting", () => {
+    expect(
+      getPuzzleTerminalOutcome({
+        mode: TRAINING_MODE_PUZZLE,
+        status: TRAINING_STATUS_COMPLETED,
+        puzzle: {
+          id: "puzzle-1",
+          initialPly: 0,
+          rating: 1500,
+          plays: 1,
+          themes: [],
+          sourceGame: {
+            id: "game-1",
+            url: "https://lichess.org/game-1",
+            pgn: "1. e4",
+            rated: true,
+            clock: "3+2",
+            perf: { key: "blitz", name: "Blitz" },
+            players: {
+              white: { color: "white", id: "w", name: "White", rating: 2000 },
+              black: { color: "black", id: "b", name: "Black", rating: 2000 },
+            },
+          },
+        },
+      }),
+    ).toEqual({
+      puzzleId: "puzzle-1",
+      win: true,
+    });
+
+    expect(
+      getPuzzleTerminalOutcome({
+        mode: TRAINING_MODE_PUZZLE,
+        status: TRAINING_STATUS_ENDED,
+        puzzle: {
+          id: "puzzle-2",
+          initialPly: 0,
+          rating: 1500,
+          plays: 1,
+          themes: [],
+          sourceGame: {
+            id: "game-1",
+            url: "https://lichess.org/game-1",
+            pgn: "1. e4",
+            rated: true,
+            clock: "3+2",
+            perf: { key: "blitz", name: "Blitz" },
+            players: {
+              white: { color: "white", id: "w", name: "White", rating: 2000 },
+              black: { color: "black", id: "b", name: "Black", rating: 2000 },
+            },
+          },
+        },
+      }),
+    ).toEqual({
+      puzzleId: "puzzle-2",
+      win: false,
+    });
   });
 
   it("returns the current replay target move", () => {

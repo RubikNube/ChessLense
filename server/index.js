@@ -8,6 +8,7 @@ const {
 } = require("./engine");
 const { HttpError } = require("./httpError");
 const {
+	advancePuzzle: advanceLichessPuzzle,
 	getGame: getLichessGame,
 	getOpeningTree: getLichessOpeningTree,
 	getPuzzle: getLichessPuzzle,
@@ -181,6 +182,18 @@ function createApp() {
 	app.get("/api/lichess/puzzle/next", async (req, res) => {
 		try {
 			const puzzle = await getLichessPuzzle(req.query || {}, {
+				requestToken: req.get(LICHESS_REQUEST_TOKEN_HEADER) ?? "",
+			});
+
+			return res.json(puzzle);
+		} catch (error) {
+			return sendApiError(res, error);
+		}
+	});
+
+	app.post("/api/lichess/puzzle/advance", async (req, res) => {
+		try {
+			const puzzle = await advanceLichessPuzzle(req.body || {}, {
 				requestToken: req.get(LICHESS_REQUEST_TOKEN_HEADER) ?? "",
 			});
 

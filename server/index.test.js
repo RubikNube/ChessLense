@@ -444,3 +444,87 @@ test("GET /api/lichess/puzzle/next forwards filters and the request token", asyn
 		await closeServer(server);
 	}
 });
+
+test("POST /api/lichess/puzzle/advance submits the puzzle result and returns the next puzzle", async (t) => {
+	const realFetch = global.fetch.bind(global);
+	const outboundResponse = {
+		puzzles: [
+			{
+				game: {
+					id: "Had79NbX",
+					perf: { key: "blitz", name: "Blitz" },
+					rated: true,
+					players: [
+						{ name: "vit2014", id: "vit2014", color: "white", rating: 2395 },
+						{ name: "Yoda-wins", id: "yoda-wins", color: "black", rating: 2511 },
+					],
+					pgn: "e4 e6 d4 d5",
+					clock: "3+2",
+				},
+				puzzle: {
+					id: "next1",
+					rating: 1567,
+					plays: 6508,
+					solution: ["d1d5", "d8d5", "b3d5"],
+					themes: ["middlegame", "fork"],
+					initialPly: 39,
+				},
+			},
+		],
+		rounds: [{ id: "prev1", win: true, ratingDiff: 0 }],
+	};
+	const fetchMock = t.mock.method(global, "fetch", async (...args) => {
+		const [url, options] = args;
+
+		if (typeof url !== "string" || !url.startsWith("https://lichess.org/api/puzzle/batch/fork")) {
+			throw new Error(`Unexpected outbound URL: ${String(url)}`);
+		}
+
+		assert.match(url, /nb=1/);
+		assert.match(url, /difficulty=harder/);
+		assert.match(url, /color=black/);
+		assert.equal(options?.method, "POST");
+		assert.equal(options?.headers?.Authorization, "Bearer test-token");
+		assert.equal(options?.headers?.["Content-Type"], "application/json");
+		assert.deepEqual(JSON.parse(options?.body), {
+			solutions: [{ id: "prev1", win: true, rated: false }],
+		});
+
+		return new Response(JSON.stringify(outboundResponse), {
+			status: 200,
+			headers: {
+				"Content-Type": "application/json",
+			},
+		});
+	});
+
+	const { baseUrl, server } = await startServer();
+
+	try {
+		const response = await realFetch(`${baseUrl}/api/lichess/puzzle/advance`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Lichess-Api-Token": "test-token",
+			},
+			body: JSON.stringify({
+				angle: "fork",
+				difficulty: "harder",
+				color: "black",
+				puzzleId: "prev1",
+				win: true,
+			}),
+		});
+		const data = await response.json();
+
+		assert.equal(response.status, 200);
+		assert.equal(data.search.angle, "fork");
+		assert.equal(data.search.difficulty, "harder");
+		assert.equal(data.search.color, "black");
+		assert.equal(data.puzzle.id, "next1");
+		assert.equal(data.game.id, "Had79NbX");
+		assert.equal(fetchMock.mock.callCount(), 1);
+	} finally {
+		await closeServer(server);
+	}
+});

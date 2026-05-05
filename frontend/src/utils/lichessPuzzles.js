@@ -22,6 +22,8 @@ export const LICHESS_PUZZLE_COLOR_OPTIONS = [
   { value: "black", label: "Black" },
 ];
 
+export const DEFAULT_LICHESS_PUZZLE_FILTER_KEY = "default";
+
 const LICHESS_PUZZLE_THEME_OPTION_MAP = new Map(
   LICHESS_PUZZLE_THEME_OPTIONS.map((option) => [option.value, option]),
 );
@@ -100,4 +102,27 @@ export function buildLichessPuzzleQuery(filters) {
     query: params.toString(),
     error: "",
   };
+}
+
+export function buildLichessPuzzleAdvanceRequest(filters, puzzleId, win) {
+  const normalizedPuzzleId = normalizeString(puzzleId);
+
+  if (!normalizedPuzzleId || typeof win !== "boolean") {
+    return null;
+  }
+
+  const normalized = normalizeLichessPuzzleFilters(filters);
+
+  return {
+    angle: normalized.theme || normalized.opening,
+    difficulty: normalized.difficulty,
+    color: normalized.color,
+    puzzleId: normalizedPuzzleId,
+    win,
+  };
+}
+
+export function createLichessPuzzleFilterKey(filters) {
+  const { query } = buildLichessPuzzleQuery(filters);
+  return query || DEFAULT_LICHESS_PUZZLE_FILTER_KEY;
 }

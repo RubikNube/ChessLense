@@ -507,6 +507,30 @@ export function normalizeTrainingState(trainingState) {
   };
 }
 
+export function getPuzzleTerminalOutcome(trainingState) {
+  const normalizedState = normalizeTrainingState(trainingState);
+
+  if (normalizedState.mode !== TRAINING_MODE_PUZZLE || !normalizedState.puzzle?.id) {
+    return null;
+  }
+
+  if (normalizedState.status === TRAINING_STATUS_COMPLETED) {
+    return {
+      puzzleId: normalizedState.puzzle.id,
+      win: true,
+    };
+  }
+
+  if (normalizedState.status === TRAINING_STATUS_ENDED) {
+    return {
+      puzzleId: normalizedState.puzzle.id,
+      win: false,
+    };
+  }
+
+  return null;
+}
+
 export function getReplayReferenceMoves(rawPgn) {
   const { game, variantTree, error } = parseAnnotatedPgn(rawPgn, { allowEmpty: false });
 

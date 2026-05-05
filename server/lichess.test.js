@@ -4,11 +4,14 @@ const { HttpError } = require("./httpError");
 const { __testing } = require("./lichess");
 
 const {
+	buildPuzzleAdvanceRequest,
 	createUnavailablePuzzle,
 	createUnavailableOpeningTree,
 	mapOpeningTreeMove,
 	normalizeFen,
 	normalizeOpeningTreeQuery,
+	normalizePuzzleAdvancePayload,
+	normalizePuzzleBatchResponse,
 	normalizeOpeningTreeResponse,
 	normalizePuzzleQuery,
 	normalizePuzzleResponse,
@@ -149,6 +152,33 @@ test("normalizePuzzleQuery accepts supported filters", () => {
 	});
 });
 
+test("normalizePuzzleAdvancePayload requires a puzzle id and boolean win", () => {
+	assert.deepEqual(
+		normalizePuzzleAdvancePayload({
+			angle: "fork",
+			difficulty: "harder",
+			color: "black",
+			puzzleId: "hACdu",
+			win: true,
+		}),
+		{
+			angle: "fork",
+			difficulty: "harder",
+			color: "black",
+			puzzleId: "hACdu",
+			win: true,
+		},
+	);
+
+	assert.throws(
+		() => normalizePuzzleAdvancePayload({ puzzleId: "", win: true }),
+		(error) =>
+			error instanceof HttpError &&
+			error.code === "invalid_puzzle" &&
+			error.message === "puzzleId is required",
+	);
+});
+
 test("normalizePuzzleQuery rejects unsupported difficulty values", () => {
 	assert.throws(
 		() => normalizePuzzleQuery({ difficulty: "legendary" }),
@@ -234,6 +264,64 @@ test("normalizePuzzleResponse keeps puzzle metadata and selected filters", () =>
 				themes: ["middlegame", "fork"],
 				initialFen: "fen-value",
 			},
+		},
+	);
+});
+
+test("normalizePuzzleBatchResponse reads the first returned batch puzzle", () => {
+	const normalized = normalizePuzzleBatchResponse(
+		{
+			puzzles: [
+				{
+					game: {
+						id: "Had79NbX",
+						perf: { key: "blitz", name: "Blitz" },
+						rated: true,
+						players: [
+							{ color: "white", id: "vit2014", name: "vit2014", rating: 2395 },
+							{ color: "black", id: "yoda-wins", name: "Yoda-wins", rating: 2511 },
+						],
+						pgn: "e4 e5 Nf3 Nc6",
+						clock: "3+2",
+					},
+					puzzle: {
+						id: "hACdu",
+						rating: 1567,
+						plays: 6508,
+						solution: ["d1d5", "d8d5", "b3d5"],
+						themes: ["middlegame", "fork"],
+						initialPly: 39,
+						fen: "fen-value",
+					},
+				},
+			],
+		},
+		{ angle: "fork", difficulty: "harder", color: "black" },
+		true,
+	);
+
+	assert.equal(normalized.search.angle, "fork");
+	assert.equal(normalized.search.difficulty, "harder");
+	assert.equal(normalized.search.color, "black");
+	assert.equal(normalized.tokenConfigured, true);
+	assert.equal(normalized.puzzle.id, "hACdu");
+	assert.equal(normalized.game.id, "Had79NbX");
+});
+
+test("buildPuzzleAdvanceRequest targets the batch solve endpoint", () => {
+	assert.deepEqual(
+		buildPuzzleAdvanceRequest({
+			angle: "",
+			difficulty: "normal",
+			color: "white",
+			puzzleId: "hACdu",
+			win: false,
+		}),
+		{
+			path: "/api/puzzle/batch/mix?nb=1&difficulty=normal&color=white",
+			body: JSON.stringify({
+				solutions: [{ id: "hACdu", win: false, rated: false }],
+			}),
 		},
 	);
 });

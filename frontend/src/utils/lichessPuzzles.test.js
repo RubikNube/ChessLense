@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildLichessPuzzleAdvanceRequest,
   buildLichessPuzzleQuery,
+  createLichessPuzzleFilterKey,
   DEFAULT_LICHESS_PUZZLE_FILTERS,
   filterLichessPuzzleThemeOptions,
   getLichessPuzzleThemeOption,
@@ -90,6 +92,41 @@ describe("buildLichessPuzzleQuery", () => {
       query: "",
       error: "",
     });
+  });
+});
+
+describe("puzzle progression helpers", () => {
+  it("builds a solve payload from the current filters", () => {
+    expect(
+      buildLichessPuzzleAdvanceRequest(
+        {
+          theme: "fork",
+          opening: "",
+          difficulty: "harder",
+          color: "black",
+        },
+        " hACdu ",
+        true,
+      ),
+    ).toEqual({
+      angle: "fork",
+      difficulty: "harder",
+      color: "black",
+      puzzleId: "hACdu",
+      win: true,
+    });
+  });
+
+  it("builds a stable filter key for local anti-repeat tracking", () => {
+    expect(
+      createLichessPuzzleFilterKey({
+        theme: "fork",
+        opening: "",
+        difficulty: "harder",
+        color: "black",
+      }),
+    ).toBe("angle=fork&difficulty=harder&color=black");
+    expect(createLichessPuzzleFilterKey(DEFAULT_LICHESS_PUZZLE_FILTERS)).toBe("default");
   });
 });
 

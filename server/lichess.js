@@ -219,7 +219,7 @@ function resolveLichessApiToken(requestToken) {
 async function fetchFromRemote(
 	baseUrl,
 	path,
-	{ headers = {}, responseLabel = "Lichess", requestToken = "" } = {},
+	{ body, headers = {}, method = "GET", responseLabel = "Lichess", requestToken = "" } = {},
 ) {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 10000);
@@ -228,11 +228,13 @@ async function fetchFromRemote(
 	try {
 		const response = await fetch(`${baseUrl}${path}`, {
 			cache: "no-store",
+			body,
 			headers: {
 				"User-Agent": "ChessLense/1.0",
 				...(apiToken ? { Authorization: `Bearer ${apiToken}` } : {}),
 				...headers,
 			},
+			method,
 			signal: controller.signal,
 		});
 
@@ -359,6 +361,25 @@ function normalizePuzzleQuery(query) {
 			"difficulty",
 		),
 		color: normalizeOptionalChoice(query.color, PUZZLE_COLORS, "color"),
+	};
+}
+
+function normalizePuzzleAdvancePayload(payload) {
+	const search = normalizePuzzleQuery(payload);
+	const puzzleId = normalizeString(payload?.puzzleId);
+
+	if (!puzzleId) {
+		throw new HttpError(400, "invalid_puzzle", "puzzleId is required");
+	}
+
+	if (typeof payload?.win !== "boolean") {
+		throw new HttpError(400, "invalid_puzzle", "win must be true or false");
+	}
+
+	return {
+		...search,
+		puzzleId,
+		win: payload.win,
 	};
 }
 
@@ -616,6 +637,11 @@ function normalizePuzzleResponse(payload, search, tokenConfigured = false) {
 	};
 }
 
+function normalizePuzzleBatchResponse(payload, search, tokenConfigured = false) {
+	const nextPuzzleEntry = Array.isArray(payload?.puzzles) ? payload.puzzles.find(Boolean) : null;
+	return normalizePuzzleResponse(nextPuzzleEntry, search, tokenConfigured);
+}
+
 function createUnavailablePuzzle(search, details, tokenConfigured = false) {
 	return {
 		search,
@@ -659,6 +685,32 @@ function buildPuzzleRequest(search) {
 	}
 
 	return params.size ? `/api/puzzle/next?${params.toString()}` : "/api/puzzle/next";
+}
+
+function buildPuzzleAdvanceRequest({ angle, color, difficulty, puzzleId, win }) {
+	const normalizedAngle = angle || "mix";
+	const params = new URLSearchParams({ nb: "1" });
+
+	if (difficulty) {
+		params.set("difficulty", difficulty);
+	}
+
+	if (color) {
+		params.set("color", color);
+	}
+
+	return {
+		path: `/api/puzzle/batch/${encodeURIComponent(normalizedAngle)}?${params.toString()}`,
+		body: JSON.stringify({
+			solutions: [
+				{
+					id: puzzleId,
+					win,
+					rated: false,
+				},
+			],
+		}),
+	};
 }
 
 async function getOpeningTree(rawQuery, options = {}) {
@@ -750,17 +802,76 @@ async function getPuzzle(rawQuery, options = {}) {
 	}
 }
 
+async function advancePuzzle(rawPayload, options = {}) {
+	const payload = normalizePuzzleAdvancePayload(rawPayload);
+	const search = {
+		angle: payload.angle,
+		difficulty: payload.difficulty,
+		color: payload.color,
+	};
+	const requestToken = normalizeString(options.requestToken);
+	const tokenConfigured = !!resolveLichessApiToken(requestToken);
+	const request = buildPuzzleAdvanceRequest(payload);
+
+	try {
+		const response = await fetchFromLichess(request.path, {
+			method: "POST",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+			body: request.body,
+			requestToken,
+		});
+
+		let payloadJson;
+
+		try {
+			payloadJson = await response.json();
+		} catch {
+			throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid puzzle data");
+		}
+
+		const normalized = normalizePuzzleBatchResponse(payloadJson, search, tokenConfigured);
+
+		if (!normalized) {
+			throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid puzzle data");
+		}
+
+		return normalized;
+	} catch (error) {
+		if (
+			error instanceof HttpError &&
+			[
+				"lichess_request_rejected",
+				"lichess_request_failed",
+				"lichess_timeout",
+				"lichess_unreachable",
+				"rate_limited",
+			].includes(error.code)
+		) {
+			return createUnavailablePuzzle(search, error.message, tokenConfigured);
+		}
+
+		throw error;
+	}
+}
+
 module.exports = {
 	HttpError,
 	LICHESS_REQUEST_TOKEN_HEADER,
+	advancePuzzle,
 	getGame,
 	getOpeningTree,
 	getPuzzle,
 	searchGames,
 	__testing: {
+		buildPuzzleAdvanceRequest,
 		createUnavailablePuzzle,
 		createUnavailableOpeningTree,
 		mapOpeningTreeMove,
+		normalizePuzzleAdvancePayload,
+		normalizePuzzleBatchResponse,
 		normalizePuzzleQuery,
 		normalizePuzzleResponse,
 		normalizeFen,
