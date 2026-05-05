@@ -1625,6 +1625,8 @@ function App() {
           cache: "no-store",
         });
 
+        console.log("Lichess puzzle fetch attempt", attemptIndex + 1, { query, data });
+
         if (requestId !== trainingRequestIdRef.current) {
           return;
         }
@@ -3202,28 +3204,28 @@ function App() {
             ? data.pagination
             : data?.search && typeof data.search === "object"
               ? {
-                  page:
-                    Number.isInteger(data.search.page) && data.search.page > 0
-                      ? data.search.page
-                      : otbSearchPage,
-                  pageSize:
-                    Number.isInteger(data.search.pageSize) && data.search.pageSize > 0
-                      ? data.search.pageSize
-                      : Number(appliedOtbSearchFiltersRef.current.pageSize) || 25,
-                  totalResults: Number.isInteger(data.search.totalResults)
-                    ? data.search.totalResults
-                    : nextResults.length,
-                  totalPages: Number.isInteger(data.search.totalPages)
-                    ? data.search.totalPages
-                    : 1,
-                  hasPreviousPage:
-                    Number.isInteger(data.search.page) && data.search.page > 1,
-                  hasNextPage:
-                    Number.isInteger(data.search.page) &&
-                    Number.isInteger(data.search.totalPages) &&
-                    data.search.page < data.search.totalPages,
-                }
-            : {
+                page:
+                  Number.isInteger(data.search.page) && data.search.page > 0
+                    ? data.search.page
+                    : otbSearchPage,
+                pageSize:
+                  Number.isInteger(data.search.pageSize) && data.search.pageSize > 0
+                    ? data.search.pageSize
+                    : Number(appliedOtbSearchFiltersRef.current.pageSize) || 25,
+                totalResults: Number.isInteger(data.search.totalResults)
+                  ? data.search.totalResults
+                  : nextResults.length,
+                totalPages: Number.isInteger(data.search.totalPages)
+                  ? data.search.totalPages
+                  : 1,
+                hasPreviousPage:
+                  Number.isInteger(data.search.page) && data.search.page > 1,
+                hasNextPage:
+                  Number.isInteger(data.search.page) &&
+                  Number.isInteger(data.search.totalPages) &&
+                  data.search.page < data.search.totalPages,
+              }
+              : {
                 page: otbSearchPage,
                 pageSize: Number(appliedOtbSearchFiltersRef.current.pageSize) || 25,
                 totalResults: nextResults.length,
@@ -3277,29 +3279,29 @@ function App() {
         };
 
     try {
-        savePersistedAppState({
-          variantTree,
-          engineSearchDepth,
-          lichessApiToken,
-          boardOrientation,
-          showMoveHistory: persistedRightSideViews.showMoveHistory,
-          showOpeningTreePanel: persistedRightSideViews.showOpeningTreePanel,
-          showPuzzleTrainingPanel,
-          showReplayTrainingPanel,
-          showGuessTrainingPanel,
-          showPlayComputerPanel,
+      savePersistedAppState({
+        variantTree,
+        engineSearchDepth,
+        lichessApiToken,
+        boardOrientation,
+        showMoveHistory: persistedRightSideViews.showMoveHistory,
+        showOpeningTreePanel: persistedRightSideViews.showOpeningTreePanel,
+        showPuzzleTrainingPanel,
+        showReplayTrainingPanel,
+        showGuessTrainingPanel,
+        showPlayComputerPanel,
         showEngineWindow: persistedRightSideViews.showEngineWindow,
         showEvaluationBar,
         boardSoundsEnabled,
         showComments: persistedRightSideViews.showComments,
         showImportedPgn: persistedRightSideViews.showImportedPgn,
         showVariants: persistedRightSideViews.showVariants,
-          showVariantArrows,
-          lichessSearchFilters,
-          lichessPuzzleFilters,
-          otbSearchFilters,
-          importedPgnData,
-          positionComments,
+        showVariantArrows,
+        lichessSearchFilters,
+        lichessPuzzleFilters,
+        otbSearchFilters,
+        importedPgnData,
+        positionComments,
         trainingState,
       });
     } catch (error) {

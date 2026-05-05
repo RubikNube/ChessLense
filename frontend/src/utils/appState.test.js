@@ -371,6 +371,12 @@ describe("persisted app state", () => {
         showImportedPgn: false,
         showVariants: false,
         showVariantArrows: true,
+        lichessPuzzleFilters: {
+          theme: "fork",
+          opening: " italianGame ",
+          difficulty: "harder",
+          color: "black",
+        },
         lichessSearchFilters: {
           player: " MagnusCarlsen ",
           opponent: " Hikaru ",
@@ -433,7 +439,12 @@ describe("persisted app state", () => {
       showImportedPgn: false,
       showVariants: false,
       showVariantArrows: true,
-      lichessPuzzleFilters: DEFAULT_LICHESS_PUZZLE_FILTERS,
+      lichessPuzzleFilters: {
+        theme: "fork",
+        opening: "",
+        difficulty: "harder",
+        color: "black",
+      },
       lichessSearchFilters: {
         player: "MagnusCarlsen",
         opponent: "Hikaru",
@@ -484,6 +495,44 @@ describe("persisted app state", () => {
         },
       ],
       trainingState: createEmptyTrainingState(),
+    });
+  });
+
+  it("migrates legacy puzzle angle filters into theme-aware persisted state", () => {
+    const storage = createStorage(
+      JSON.stringify({
+        lichessPuzzleFilters: {
+          angle: "fork",
+          difficulty: "harder",
+          color: "black",
+        },
+      }),
+    );
+
+    expect(loadPersistedAppState(storage)?.lichessPuzzleFilters).toEqual({
+      theme: "fork",
+      opening: "",
+      difficulty: "harder",
+      color: "black",
+    });
+  });
+
+  it("keeps legacy opening angles as opening filters", () => {
+    const storage = createStorage(
+      JSON.stringify({
+        lichessPuzzleFilters: {
+          angle: "italianGame",
+          difficulty: "normal",
+          color: "white",
+        },
+      }),
+    );
+
+    expect(loadPersistedAppState(storage)?.lichessPuzzleFilters).toEqual({
+      theme: "",
+      opening: "italianGame",
+      difficulty: "normal",
+      color: "white",
     });
   });
 

@@ -2,6 +2,7 @@ import {
   LICHESS_PUZZLE_COLOR_OPTIONS,
   LICHESS_PUZZLE_DIFFICULTY_OPTIONS,
 } from "../../utils/lichessPuzzles.js";
+import PuzzleThemeSelect from "./PuzzleThemeSelect.jsx";
 import {
   TRAINING_MODE_PUZZLE,
   TRAINING_STATUS_ACTIVE,
@@ -30,6 +31,13 @@ const puzzleTextInputStyle = {
   color: "#e2e8f0",
   padding: "0.65rem 0.75rem",
   font: "inherit",
+};
+
+const puzzleFilterHintStyle = {
+  margin: "0.5rem 0 0",
+  color: "#94a3b8",
+  fontSize: "0.9rem",
+  lineHeight: 1.4,
 };
 
 function formatPlayer(player) {
@@ -122,19 +130,35 @@ function PuzzleTrainingPanel({
           <h3>Lichess filters</h3>
         </div>
         <div style={puzzleFilterGridStyle}>
+          <div>
+            <PuzzleThemeSelect
+              value={filters.theme}
+              onChange={(nextTheme) =>
+                setFilters((currentValue) => ({
+                  ...currentValue,
+                  theme: nextTheme,
+                  opening: nextTheme ? "" : currentValue.opening,
+                }))
+              }
+            />
+            <p style={puzzleFilterHintStyle}>
+              Theme and opening filters are exclusive. Picking one clears the other.
+            </p>
+          </div>
           <label>
-            <span className="annotation-label">Theme or opening</span>
+            <span className="annotation-label">Opening</span>
             <input
               type="text"
               style={puzzleTextInputStyle}
-              value={filters.angle}
+              value={filters.opening}
               onChange={(event) =>
                 setFilters((currentValue) => ({
                   ...currentValue,
-                  angle: event.target.value,
+                  theme: "",
+                  opening: event.target.value,
                 }))
               }
-              placeholder="fork, mateIn2, italianGame..."
+              placeholder="italianGame..."
               spellCheck={false}
             />
           </label>
