@@ -277,6 +277,7 @@ function PuzzleThemeSelect({ value, onChange }) {
           title="Puzzle Theme Glossary"
           titleId="puzzle-theme-glossary-title"
           onClose={() => setIsGlossaryOpen(false)}
+          showCloseButton
           wide
         >
           <ul style={glossaryListStyle}>

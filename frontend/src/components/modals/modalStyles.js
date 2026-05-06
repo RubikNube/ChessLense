@@ -25,6 +25,36 @@ export const wideModalStyle = {
   overflowY: "auto",
 };
 
+export const modalHeaderStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "1rem",
+  marginBottom: "1rem",
+};
+
+export const modalTitleStyle = {
+  margin: 0,
+};
+
+export const modalIconCloseButtonStyle = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "2.25rem",
+  minWidth: "2.25rem",
+  height: "2.25rem",
+  border: "1px solid #d1d5db",
+  borderRadius: "999px",
+  backgroundColor: "#f9fafb",
+  color: "#111827",
+  cursor: "pointer",
+  fontSize: "1.35rem",
+  lineHeight: 1,
+  fontWeight: 700,
+  padding: 0,
+};
+
 export const shortcutListStyle = {
   listStyle: "none",
   padding: 0,
