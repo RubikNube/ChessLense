@@ -2725,6 +2725,18 @@ function App() {
     setPositionSetupError("");
   }, []);
 
+  const selectPositionSetupActiveColor = useCallback((activeColor) => {
+    setPositionSetupState((currentValue) =>
+      currentValue
+        ? {
+          ...currentValue,
+          activeColor: activeColor === "black" ? "black" : "white",
+        }
+        : currentValue,
+    );
+    setPositionSetupError("");
+  }, []);
+
   const resetPositionSetupFromFen = useCallback((nextFen) => {
     setPositionSetupState((currentValue) => {
       if (!currentValue) {
@@ -4223,6 +4235,7 @@ function App() {
             castlingRights={positionSetupState.castlingRights}
             error={positionSetupError}
             onSelectTool={selectPositionSetupTool}
+            onSelectActiveColor={selectPositionSetupActiveColor}
             onToggleCastlingRight={togglePositionSetupCastlingRight}
             onClearBoard={clearPositionSetupBoard}
             onResetPosition={resetPositionSetup}

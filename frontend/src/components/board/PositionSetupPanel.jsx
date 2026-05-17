@@ -100,6 +100,7 @@ function PositionSetupPanel({
   castlingRights,
   error,
   onSelectTool,
+  onSelectActiveColor,
   onToggleCastlingRight,
   onClearBoard,
   onResetPosition,
@@ -201,6 +202,34 @@ function PositionSetupPanel({
                 <span style={pieceButtonContentStyle}>
                   <MoveIcon />
                 </span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <span className="annotation-label">Side to move</span>
+            <div className="annotation-item-actions">
+              <button
+                type="button"
+                className={
+                  activeColor === "white"
+                    ? "annotation-primary-button"
+                    : "annotation-secondary-button"
+                }
+                onClick={() => onSelectActiveColor("white")}
+              >
+                White
+              </button>
+              <button
+                type="button"
+                className={
+                  activeColor === "black"
+                    ? "annotation-primary-button"
+                    : "annotation-secondary-button"
+                }
+                onClick={() => onSelectActiveColor("black")}
+              >
+                Black
               </button>
             </div>
           </div>
