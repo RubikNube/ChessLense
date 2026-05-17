@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { createPortal } from "react-dom";
 import AppMenuBar from "./components/app/AppMenuBar.jsx";
 import BoardWorkspace from "./components/board/BoardWorkspace.jsx";
+import PositionSetupPanel from "./components/board/PositionSetupPanel.jsx";
 import CommentsPanel from "./components/comments/CommentsPanel.jsx";
 import EnginePanel from "./components/engine/EnginePanel.jsx";
 import CreateCollectionModal from "./components/modals/CreateCollectionModal.jsx";
@@ -145,6 +146,15 @@ import {
   TRAINING_STATUS_ENDED,
 } from "./utils/training.js";
 import { fetchJson } from "./utils/api.js";
+import {
+  applyPositionSetupTool,
+  buildPositionSetupFen,
+  createPositionSetupDraft,
+  DEFAULT_POSITION_SETUP_CASTLING_RIGHTS,
+  movePositionSetupPiece,
+  POSITION_SETUP_CLEAR_TOOL,
+  POSITION_SETUP_MOVE_TOOL,
+} from "./utils/positionSetup.js";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts.js";
 import useBoardSounds from "./hooks/useBoardSounds.js";
 import useTrainingController from "./hooks/useTrainingController.js";
@@ -482,6 +492,8 @@ function App() {
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [boardRenderNonce, setBoardRenderNonce] = useState(0);
+  const [positionSetupState, setPositionSetupState] = useState(null);
+  const [positionSetupError, setPositionSetupError] = useState("");
   const shortcutConfigSignatureRef = useRef(
     DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
   );
@@ -496,6 +508,11 @@ function App() {
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
+  const isPositionSetupMode = positionSetupState !== null;
+  const boardPosition = useMemo(
+    () => positionSetupState?.position ?? fen,
+    [fen, positionSetupState],
+  );
 
   useEffect(() => {
     setHoveredOpeningTreeMove(null);
@@ -562,8 +579,8 @@ function App() {
     [currentNodeBoardAnnotations.highlights],
   );
   const boardRenderKey = useMemo(
-    () => `${variantTree.currentNodeId}:${boardRenderNonce}`,
-    [boardRenderNonce, variantTree.currentNodeId],
+    () => `${isPositionSetupMode ? "setup" : variantTree.currentNodeId}:${boardRenderNonce}`,
+    [boardRenderNonce, isPositionSetupMode, variantTree.currentNodeId],
   );
   const shortcutEntries = useMemo(
     () =>
@@ -692,6 +709,8 @@ function App() {
       normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) ||
     (showGuessTrainingPanel &&
       normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE);
+  const effectiveTrainingFocusMode = isTrainingFocusMode && !isPositionSetupMode;
+  const boardWorkspaceFocusMode = effectiveTrainingFocusMode || isPositionSetupMode;
   const {
     trainingPreview,
     trainingRequestIdRef,
@@ -1851,6 +1870,8 @@ function App() {
     setPositionComments(seedPositionCommentsFromImportedPgnData(nextImportedPgnData));
     setEditingCommentId(null);
     setCommentDraft("");
+    setPositionSetupState(null);
+    setPositionSetupError("");
     return "";
   }, [resetTrainingSession]);
 
@@ -2238,6 +2259,10 @@ function App() {
   }
 
   function handleOpeningTreeSelectMove(move) {
+    if (isPositionSetupMode) {
+      return false;
+    }
+
     const parsedMove = parseUciMove(move?.uci);
 
     if (!parsedMove) {
@@ -2261,6 +2286,23 @@ function App() {
       return false;
     }
 
+    if (isPositionSetupMode) {
+      if (positionSetupState?.selectedTool !== POSITION_SETUP_MOVE_TOOL) {
+        return false;
+      }
+
+      setPositionSetupState((currentValue) =>
+        currentValue
+          ? {
+            ...currentValue,
+            position: movePositionSetupPiece(currentValue.position, sourceSquare, targetSquare),
+          }
+          : currentValue,
+      );
+      setPositionSetupError("");
+      return true;
+    }
+
     return tryExecuteMove(
       {
         from: sourceSquare,
@@ -2271,6 +2313,10 @@ function App() {
   }
 
   const undoMove = useCallback(() => {
+    if (isPositionSetupMode) {
+      return;
+    }
+
     if (!canUndo) {
       return;
     }
@@ -2318,9 +2364,14 @@ function App() {
     trainingNavigationCheckpoints,
     resetTrainingSession,
     trainingRequestIdRef,
+    isPositionSetupMode,
   ]);
 
   const redoMove = useCallback(() => {
+    if (isPositionSetupMode) {
+      return;
+    }
+
     if (!canRedo) {
       return;
     }
@@ -2369,9 +2420,14 @@ function App() {
     trainingNavigationCheckpoints,
     resetTrainingSession,
     trainingRequestIdRef,
+    isPositionSetupMode,
   ]);
 
   const goToStart = useCallback(() => {
+    if (isPositionSetupMode) {
+      return;
+    }
+
     if (!canUndo) {
       return;
     }
@@ -2406,9 +2462,14 @@ function App() {
     trainingNavigationCheckpoints,
     resetTrainingSession,
     trainingRequestIdRef,
+    isPositionSetupMode,
   ]);
 
   const goToEnd = useCallback(() => {
+    if (isPositionSetupMode) {
+      return;
+    }
+
     if (!canRedo) {
       return;
     }
@@ -2445,10 +2506,11 @@ function App() {
     trainingNavigationCheckpoints,
     resetTrainingSession,
     trainingRequestIdRef,
+    isPositionSetupMode,
   ]);
 
   const jumpToMainVariant = useCallback(() => {
-    if (!canJumpToMainVariant) {
+    if (isPositionSetupMode || !canJumpToMainVariant) {
       return;
     }
 
@@ -2456,10 +2518,10 @@ function App() {
     setVariantTree((currentValue) => jumpToMainVariantInTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canJumpToMainVariant, resetTrainingSession]);
+  }, [canJumpToMainVariant, resetTrainingSession, isPositionSetupMode]);
 
   const jumpBackToSideline = useCallback(() => {
-    if (!canJumpBackToSideline) {
+    if (isPositionSetupMode || !canJumpBackToSideline) {
       return;
     }
 
@@ -2467,7 +2529,7 @@ function App() {
     setVariantTree((currentValue) => jumpBackToSidelineInTree(currentValue));
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [canJumpBackToSideline, resetTrainingSession]);
+  }, [canJumpBackToSideline, resetTrainingSession, isPositionSetupMode]);
 
   const goToMoveHistoryNode = useCallback((nodeId) => {
     resetTrainingSession();
@@ -2549,15 +2611,44 @@ function App() {
   }, [editingCommentId]);
 
   const handleBoardSquareMouseDown = useCallback(({ square }, event) => {
+    if (isPositionSetupMode) {
+      boardRightMouseSelectionRef.current = null;
+      if (event.button === 2) {
+        event.preventDefault();
+      }
+      return;
+    }
+
     if (event.button === 2) {
       boardRightMouseSelectionRef.current = { startSquare: square };
       return;
     }
 
     boardRightMouseSelectionRef.current = null;
-  }, []);
+  }, [isPositionSetupMode]);
 
   const handleBoardSquareMouseUp = useCallback(({ square }, event) => {
+    if (isPositionSetupMode) {
+      boardRightMouseSelectionRef.current = null;
+      if (event.button === 2) {
+        event.preventDefault();
+        setPositionSetupState((currentValue) =>
+          currentValue
+            ? {
+              ...currentValue,
+              position: applyPositionSetupTool(
+                currentValue.position,
+                square,
+                POSITION_SETUP_CLEAR_TOOL,
+              ),
+            }
+            : currentValue,
+        );
+        setPositionSetupError("");
+      }
+      return;
+    }
+
     if (event.button !== 2) {
       boardRightMouseSelectionRef.current = null;
       return;
@@ -2595,7 +2686,135 @@ function App() {
         color,
       }),
     );
+  }, [isPositionSetupMode]);
+
+  const openPositionSetup = useCallback(() => {
+    setPositionSetupState(createPositionSetupDraft(fen));
+    setPositionSetupError("");
+  }, [fen]);
+
+  const cancelPositionSetup = useCallback(() => {
+    setPositionSetupState(null);
+    setPositionSetupError("");
   }, []);
+
+  const selectPositionSetupTool = useCallback((selectedTool) => {
+    setPositionSetupState((currentValue) =>
+      currentValue
+        ? {
+          ...currentValue,
+          selectedTool,
+        }
+        : currentValue,
+    );
+    setPositionSetupError("");
+  }, []);
+
+  const togglePositionSetupCastlingRight = useCallback((castlingRightKey) => {
+    setPositionSetupState((currentValue) =>
+      currentValue
+        ? {
+          ...currentValue,
+          castlingRights: {
+            ...currentValue.castlingRights,
+            [castlingRightKey]: !currentValue.castlingRights?.[castlingRightKey],
+          },
+        }
+        : currentValue,
+    );
+    setPositionSetupError("");
+  }, []);
+
+  const resetPositionSetupFromFen = useCallback((nextFen) => {
+    setPositionSetupState((currentValue) => {
+      if (!currentValue) {
+        return currentValue;
+      }
+
+      const nextDraft = createPositionSetupDraft(nextFen);
+      return {
+        ...nextDraft,
+        initialFen: currentValue.initialFen,
+        selectedTool: currentValue.selectedTool,
+      };
+    });
+    setPositionSetupError("");
+  }, []);
+
+  const resetPositionSetup = useCallback(() => {
+    if (!positionSetupState?.initialFen) {
+      return;
+    }
+
+    resetPositionSetupFromFen(positionSetupState.initialFen);
+  }, [positionSetupState?.initialFen, resetPositionSetupFromFen]);
+
+  const resetPositionSetupToStartPosition = useCallback(() => {
+    resetPositionSetupFromFen(new Chess().fen());
+  }, [resetPositionSetupFromFen]);
+
+  const clearPositionSetupBoard = useCallback(() => {
+    setPositionSetupState((currentValue) =>
+      currentValue
+        ? {
+          ...currentValue,
+          castlingRights: { ...DEFAULT_POSITION_SETUP_CASTLING_RIGHTS },
+          position: {},
+        }
+        : currentValue,
+    );
+    setPositionSetupError("");
+  }, []);
+
+  const handlePositionSetupSquareClick = useCallback(({ square }) => {
+    if (!square) {
+      return;
+    }
+
+    setPositionSetupState((currentValue) =>
+      currentValue
+        ? {
+          ...currentValue,
+          position: applyPositionSetupTool(
+            currentValue.position,
+            square,
+            currentValue.selectedTool,
+          ),
+        }
+        : currentValue,
+    );
+    setPositionSetupError("");
+  }, []);
+
+  const finishPositionSetup = useCallback(() => {
+    if (!positionSetupState) {
+      return;
+    }
+
+    const { fen: nextFen, error } = buildPositionSetupFen(
+      positionSetupState.position,
+      positionSetupState.activeColor,
+      positionSetupState.castlingRights,
+    );
+
+    if (error) {
+      setPositionSetupError(error);
+      return;
+    }
+
+    resetTrainingSession();
+    setVariantTree(createEmptyVariantTree(nextFen));
+    setEngineResult(null);
+    setEvaluationResult(null);
+    setImportedPgnData(null);
+    setPositionComments([]);
+    setGuessHistoryEntries([]);
+    setGuessHistoryError("");
+    setEditingCommentId(null);
+    setCommentDraft("");
+    setPositionSetupState(null);
+    setPositionSetupError("");
+  }, [positionSetupState, resetTrainingSession]);
 
   const saveComment = useCallback(() => {
     const trimmedDraft = commentDraft.trim();
@@ -2796,6 +3015,8 @@ function App() {
     setPositionComments(study.positionComments);
     setEditingCommentId(null);
     setCommentDraft("");
+    setPositionSetupState(null);
+    setPositionSetupError("");
     setShowMoveHistory(true);
     setShowComments(true);
     setShowVariants(true);
@@ -3228,12 +3449,35 @@ function App() {
   }
 
   const copyFenToClipboard = useCallback(async () => {
+    const fenToCopy = (() => {
+      if (!positionSetupState) {
+        return fen;
+      }
+
+      const { fen: setupFen, error } = buildPositionSetupFen(
+        positionSetupState.position,
+        positionSetupState.activeColor,
+        positionSetupState.castlingRights,
+      );
+
+      if (error) {
+        setPositionSetupError(error);
+        return "";
+      }
+
+      return setupFen;
+    })();
+
+    if (!fenToCopy) {
+      return;
+    }
+
     try {
       if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(fen);
+        await navigator.clipboard.writeText(fenToCopy);
       } else {
         const textArea = document.createElement("textarea");
-        textArea.value = fen;
+        textArea.value = fenToCopy;
         textArea.setAttribute("readonly", "");
         textArea.style.position = "absolute";
         textArea.style.left = "-9999px";
@@ -3252,7 +3496,7 @@ function App() {
     } catch (error) {
       console.error("Failed to copy FEN to clipboard:", error);
     }
-  }, [fen]);
+  }, [fen, positionSetupState]);
 
   useEffect(() => {
     if (!copyNotification) {
@@ -3514,6 +3758,11 @@ function App() {
   }, [showEvaluationBar]);
 
   useEffect(() => {
+    if (isPositionSetupMode) {
+      setEvaluationResult(null);
+      return undefined;
+    }
+
     let ignore = false;
     setEvaluationResult(null);
 
@@ -3546,9 +3795,14 @@ function App() {
       ignore = true;
       window.clearTimeout(timeoutId);
     };
-  }, [engineSearchDepth, fen]);
+  }, [engineSearchDepth, fen, isPositionSetupMode]);
 
   const analyzePosition = useCallback(async () => {
+    if (isPositionSetupMode) {
+      setPositionSetupError("Finish setup before analyzing this position.");
+      return;
+    }
+
     setShowEngineWindow(true);
     setLoading(true);
     setEngineResult(null);
@@ -3573,10 +3827,10 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [engineSearchDepth, fen]);
+  }, [engineSearchDepth, fen, isPositionSetupMode]);
 
   const addSelectedEngineVariantToTree = useCallback(() => {
-    if (!selectedEngineVariant?.moveObjects?.length) {
+    if (isPositionSetupMode || !selectedEngineVariant?.moveObjects?.length) {
       return;
     }
 
@@ -3603,7 +3857,7 @@ function App() {
     setShowVariants(true);
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [resetTrainingSession, selectedEngineVariant, variantTree]);
+  }, [resetTrainingSession, selectedEngineVariant, variantTree, isPositionSetupMode]);
 
   const resetGame = useCallback(() => {
     resetTrainingSession();
@@ -3614,6 +3868,8 @@ function App() {
     setPositionComments([]);
     setEditingCommentId(null);
     setCommentDraft("");
+    setPositionSetupState(null);
+    setPositionSetupError("");
   }, [resetTrainingSession]);
 
   const toggleMoveHistory = useCallback(() => {
@@ -3757,6 +4013,7 @@ function App() {
     undoMove,
     redoMove,
     openImportPgnPopup,
+    openPositionSetup,
     copyFenToClipboard,
     resetGame,
     openLichessSearchPopup,
@@ -3783,6 +4040,7 @@ function App() {
     analyzePosition,
     copyFenToClipboard,
     openImportPgnPopup,
+    openPositionSetup,
     openGuessHistoryBrowser,
     openLichessSearchPopup,
     openLichessTokenPopup,
@@ -3925,19 +4183,23 @@ function App() {
 
       <BoardWorkspace
         boardRenderKey={boardRenderKey}
-        isTrainingFocusMode={isTrainingFocusMode}
+        isTrainingFocusMode={boardWorkspaceFocusMode}
         boardPanelRef={boardPanelRef}
-        fen={fen}
+        position={boardPosition}
         onPieceDrop={handlePieceDrop}
+        onSquareClick={isPositionSetupMode ? handlePositionSetupSquareClick : undefined}
+        allowDragging={
+          !isPositionSetupMode || positionSetupState?.selectedTool === POSITION_SETUP_MOVE_TOOL
+        }
         boardOrientation={boardOrientation}
-        boardArrows={boardArrows}
-        boardSquareStyles={boardSquareStyles}
+        boardArrows={isPositionSetupMode ? [] : boardArrows}
+        boardSquareStyles={isPositionSetupMode ? {} : boardSquareStyles}
         onSquareMouseDown={handleBoardSquareMouseDown}
         onSquareMouseUp={handleBoardSquareMouseUp}
-        showEvaluationBar={showEvaluationBar}
+        showEvaluationBar={showEvaluationBar && !isPositionSetupMode}
         evaluation={evaluationResult?.evaluation}
         turn={game.turn()}
-        showMoveHistory={showMoveHistory}
+        showMoveHistory={showMoveHistory && !isPositionSetupMode}
         moveHistoryItems={moveHistoryItems}
         currentMoveIndex={currentMoveIndex}
         boardPanelHeight={boardPanelHeight}
@@ -3953,7 +4215,24 @@ function App() {
         getVariantOptionsForMove={getMoveHistoryVariantOptions}
         onSelectVariant={selectVariant}
       >
-        {showPlayComputerPanel && !isTrainingFocusMode && (
+        {isPositionSetupMode ? (
+          <PositionSetupPanel
+            panelHeight={boardPanelHeight}
+            selectedTool={positionSetupState.selectedTool}
+            activeColor={positionSetupState.activeColor}
+            castlingRights={positionSetupState.castlingRights}
+            error={positionSetupError}
+            onSelectTool={selectPositionSetupTool}
+            onToggleCastlingRight={togglePositionSetupCastlingRight}
+            onClearBoard={clearPositionSetupBoard}
+            onResetPosition={resetPositionSetup}
+            onResetToStartPosition={resetPositionSetupToStartPosition}
+            onFinish={finishPositionSetup}
+            onCancel={cancelPositionSetup}
+          />
+        ) : (
+          <>
+        {showPlayComputerPanel && !effectiveTrainingFocusMode && (
           <>
             <PlayComputerPanel
               panelHeight={boardPanelHeight}
@@ -4076,7 +4355,7 @@ function App() {
           />
         )}
 
-        {!isTrainingFocusMode && showOpeningTreePanel && (
+        {!effectiveTrainingFocusMode && showOpeningTreePanel && (
           <OpeningTreePanel
             fen={fen}
             currentMoveLabel={currentMoveLabel}
@@ -4088,7 +4367,7 @@ function App() {
           />
         )}
 
-        {!isTrainingFocusMode && showEngineWindow && (
+        {!effectiveTrainingFocusMode && showEngineWindow && (
           <EnginePanel
             onClose={closeEngineWindow}
             engineSearchDepth={engineSearchDepth}
@@ -4109,7 +4388,7 @@ function App() {
           />
         )}
 
-        {!isTrainingFocusMode && showComments && (
+        {!effectiveTrainingFocusMode && showComments && (
           <CommentsPanel
             onClose={closeComments}
             currentMoveLabel={currentMoveLabel}
@@ -4125,7 +4404,7 @@ function App() {
           />
         )}
 
-        {!isTrainingFocusMode && showVariants && (
+        {!effectiveTrainingFocusMode && showVariants && (
           <VariantsView
             variantLines={variantLines}
             canUndo={canUndo}
@@ -4144,12 +4423,14 @@ function App() {
           />
         )}
 
-        {!isTrainingFocusMode && showImportedPgn && hasImportedPgnDetails && (
+        {!effectiveTrainingFocusMode && showImportedPgn && hasImportedPgnDetails && (
           <ImportedPgnPanel
             onClose={closeImportedPgn}
             importedPgnData={importedPgnData}
             importedMainlineComments={importedMainlineComments}
           />
+        )}
+          </>
         )}
       </BoardWorkspace>
 

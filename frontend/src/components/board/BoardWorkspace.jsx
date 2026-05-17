@@ -6,8 +6,10 @@ function BoardWorkspace({
   boardRenderKey,
   isTrainingFocusMode,
   boardPanelRef,
-  fen,
+  position,
   onPieceDrop,
+  onSquareClick,
+  allowDragging,
   boardOrientation,
   boardArrows,
   boardSquareStyles,
@@ -40,14 +42,16 @@ function BoardWorkspace({
           <div className="chessboard-wrapper">
             <Chessboard
               key={boardRenderKey}
-              position={fen}
+              position={position}
               onPieceDrop={onPieceDrop}
               boardOrientation={boardOrientation}
               arrows={boardArrows}
               squareStyles={boardSquareStyles}
               options={{
-                position: fen,
+                position,
                 onPieceDrop,
+                onSquareClick,
+                allowDragging,
                 boardOrientation,
                 arrows: boardArrows,
                 squareStyles: boardSquareStyles,

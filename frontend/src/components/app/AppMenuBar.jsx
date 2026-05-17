@@ -169,6 +169,13 @@ function AppMenuBar({
             <button
               type="button"
               className="menu-entry"
+              onClick={() => onMenuAction(actions.openPositionSetup)}
+            >
+              Set Up Position
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
               onClick={() => onMenuAction(actions.copyFenToClipboard)}
             >
               Copy FEN
