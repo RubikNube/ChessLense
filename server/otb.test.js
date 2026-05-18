@@ -4,7 +4,12 @@ const fs = require("fs/promises");
 const os = require("os");
 const path = require("path");
 const { HttpError } = require("./httpError");
-const { getGame, importPgnDirectory, searchGames, __testing } = require("./otb");
+const {
+	getGame,
+	importPgnDirectory,
+	searchGames,
+	__testing,
+} = require("./otb");
 
 const {
 	buildImportedGameRecord,
@@ -101,8 +106,16 @@ async function createTempOtbWorkspace() {
 	const dbPath = path.join(rootDir, "otb.sqlite");
 
 	await fs.mkdir(path.join(archiveDir, "nested"), { recursive: true });
-	await fs.writeFile(path.join(archiveDir, "masters.pgn"), SAMPLE_PGN.trim(), "utf8");
-	await fs.writeFile(path.join(archiveDir, "nested", "championship.pgn"), SECOND_PGN.trim(), "utf8");
+	await fs.writeFile(
+		path.join(archiveDir, "masters.pgn"),
+		SAMPLE_PGN.trim(),
+		"utf8",
+	);
+	await fs.writeFile(
+		path.join(archiveDir, "nested", "championship.pgn"),
+		SECOND_PGN.trim(),
+		"utf8",
+	);
 
 	return {
 		archiveDir,
@@ -168,7 +181,10 @@ test("matchesSearch applies the ECO range against PGN headers", () => {
 });
 
 test("buildImportedGameRecord creates a stable database id", () => {
-	const game = buildImportedGameRecord(SAMPLE_PGN.split(/\n\s*\n(?=\[Event)/)[0], "masters.pgn");
+	const game = buildImportedGameRecord(
+		SAMPLE_PGN.split(/\n\s*\n(?=\[Event)/)[0],
+		"masters.pgn",
+	);
 
 	assert.match(game.id, /^otb-[a-f0-9]{64}$/);
 	assert.equal(normalizeGameId(game.id), game.id);
@@ -274,7 +290,10 @@ test("searchGames filters SQLite-backed OTB results by ECO, year, event, opening
 		assert.equal(filtered.games[0].event, "World Championship");
 		assert.equal(filtered.games[0].eco, "C65");
 		assert.equal(filtered.games[0].source, "sqlite");
-		assert.equal(filtered.games[0].sourceFile, path.join("nested", "championship.pgn"));
+		assert.equal(
+			filtered.games[0].sourceFile,
+			path.join("nested", "championship.pgn"),
+		);
 	} finally {
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}

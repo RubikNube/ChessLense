@@ -18,7 +18,11 @@ function SaveStudyModal({
   onClose,
 }) {
   return (
-    <ModalShell title="Save to Studies" titleId="save-study-title" onClose={onClose}>
+    <ModalShell
+      title="Save to Studies"
+      titleId="save-study-title"
+      onClose={onClose}
+    >
       <p>Store current game, variants, and comments on server.</p>
       <form
         onSubmit={(event) => {

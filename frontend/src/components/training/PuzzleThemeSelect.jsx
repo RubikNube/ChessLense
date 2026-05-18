@@ -148,7 +148,10 @@ function PuzzleThemeSelect({ value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isGlossaryOpen, setIsGlossaryOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const selectedOption = useMemo(() => getLichessPuzzleThemeOption(value), [value]);
+  const selectedOption = useMemo(
+    () => getLichessPuzzleThemeOption(value),
+    [value],
+  );
   const filteredOptions = useMemo(
     () => filterLichessPuzzleThemeOptions(searchValue),
     [searchValue],
@@ -245,7 +248,11 @@ function PuzzleThemeSelect({ value, onChange }) {
             placeholder="Filter themes..."
             spellCheck={false}
           />
-          <div style={dropdownOptionsStyle} role="listbox" aria-label="Puzzle themes">
+          <div
+            style={dropdownOptionsStyle}
+            role="listbox"
+            aria-label="Puzzle themes"
+          >
             <button
               type="button"
               style={optionButtonStyle}
@@ -281,12 +288,16 @@ function PuzzleThemeSelect({ value, onChange }) {
           wide
         >
           <ul style={glossaryListStyle}>
-            {[ANY_THEME_OPTION, ...LICHESS_PUZZLE_THEME_OPTIONS].map((option) => (
-              <li key={option.value || "any-theme"} style={glossaryItemStyle}>
-                <h3 style={glossaryItemTitleStyle}>{option.label}</h3>
-                <p style={glossaryItemDescriptionStyle}>{option.description}</p>
-              </li>
-            ))}
+            {[ANY_THEME_OPTION, ...LICHESS_PUZZLE_THEME_OPTIONS].map(
+              (option) => (
+                <li key={option.value || "any-theme"} style={glossaryItemStyle}>
+                  <h3 style={glossaryItemTitleStyle}>{option.label}</h3>
+                  <p style={glossaryItemDescriptionStyle}>
+                    {option.description}
+                  </p>
+                </li>
+              ),
+            )}
           </ul>
           <button
             type="button"

@@ -30,7 +30,11 @@ function normalizeOptionalYear(value, fieldName) {
 	}
 
 	if (!/^\d{4}$/.test(normalized)) {
-		throw new HttpError(400, "invalid_query", `${fieldName} must be a 4-digit year`);
+		throw new HttpError(
+			400,
+			"invalid_query",
+			`${fieldName} must be a 4-digit year`,
+		);
 	}
 
 	return Number(normalized);
@@ -44,7 +48,11 @@ function normalizePositiveInteger(value, fieldName) {
 	}
 
 	if (!/^\d+$/.test(normalized)) {
-		throw new HttpError(400, "invalid_query", `${fieldName} must be a whole number`);
+		throw new HttpError(
+			400,
+			"invalid_query",
+			`${fieldName} must be a whole number`,
+		);
 	}
 
 	return Number(normalized);
@@ -122,7 +130,11 @@ function normalizeEcoCode(value, fieldName) {
 	}
 
 	if (!ECO_CODE_PATTERN.test(normalized)) {
-		throw new HttpError(400, "invalid_query", `${fieldName} must be an ECO code like C50`);
+		throw new HttpError(
+			400,
+			"invalid_query",
+			`${fieldName} must be an ECO code like C50`,
+		);
 	}
 
 	return normalized;
@@ -138,7 +150,11 @@ function normalizeEcoRange(query) {
 	const ecoTo = normalizeEcoCode(query.ecoTo, "ecoTo");
 
 	if (ecoFrom && ecoTo && ecoFrom > ecoTo) {
-		throw new HttpError(400, "invalid_query", "ecoFrom cannot be greater than ecoTo");
+		throw new HttpError(
+			400,
+			"invalid_query",
+			"ecoFrom cannot be greater than ecoTo",
+		);
 	}
 
 	return {
@@ -217,7 +233,11 @@ function normalizeSearchQuery(query) {
 	};
 
 	if (search.yearFrom && search.yearTo && search.yearFrom > search.yearTo) {
-		throw new HttpError(400, "invalid_query", "yearFrom cannot be greater than yearTo");
+		throw new HttpError(
+			400,
+			"invalid_query",
+			"yearFrom cannot be greater than yearTo",
+		);
 	}
 
 	if (
@@ -274,7 +294,9 @@ async function listPgnFiles(rootDir) {
 		}
 	}
 
-	return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+	return files.sort((left, right) =>
+		left.relativePath.localeCompare(right.relativePath),
+	);
 }
 
 function splitGames(rawContent) {
@@ -393,7 +415,9 @@ function normalizeGameId(gameId) {
 }
 
 function includesIgnoreCase(source, query) {
-	return normalizeString(source).toLowerCase().includes(normalizeString(query).toLowerCase());
+	return normalizeString(source)
+		.toLowerCase()
+		.includes(normalizeString(query).toLowerCase());
 }
 
 function splitNameTokens(value) {
@@ -477,11 +501,17 @@ function matchesSearch(game, search) {
 		: true;
 
 	if (isPairSearch) {
-		if (search.color === "white" && !(matchesWhitePlayer && matchesBlackOpponent)) {
+		if (
+			search.color === "white" &&
+			!(matchesWhitePlayer && matchesBlackOpponent)
+		) {
 			return false;
 		}
 
-		if (search.color === "black" && !(matchesBlackPlayer && matchesWhiteOpponent)) {
+		if (
+			search.color === "black" &&
+			!(matchesBlackPlayer && matchesWhiteOpponent)
+		) {
 			return false;
 		}
 
@@ -619,7 +649,9 @@ function mapGameSummaryRow(row) {
 }
 
 function escapeLikePattern(value) {
-	return normalizeString(value).replace(/[\\%_]/g, "\\$&").toLowerCase();
+	return normalizeString(value)
+		.replace(/[\\%_]/g, "\\$&")
+		.toLowerCase();
 }
 
 function buildContainsClause(column, value) {
@@ -685,9 +717,17 @@ function buildSearchQueryDefinition(search) {
 	} else {
 		if (search.player) {
 			if (search.color === "white") {
-				appendMatchClause(clauses, params, buildContainsClause("pw.name", search.player));
+				appendMatchClause(
+					clauses,
+					params,
+					buildContainsClause("pw.name", search.player),
+				);
 			} else if (search.color === "black") {
-				appendMatchClause(clauses, params, buildContainsClause("pb.name", search.player));
+				appendMatchClause(
+					clauses,
+					params,
+					buildContainsClause("pb.name", search.player),
+				);
 			} else {
 				const whitePlayerMatch = buildContainsClause("pw.name", search.player);
 				const blackPlayerMatch = buildContainsClause("pb.name", search.player);
@@ -699,8 +739,14 @@ function buildSearchQueryDefinition(search) {
 		}
 
 		if (search.opponent) {
-			const whiteOpponentMatch = buildContainsClause("pw.name", search.opponent);
-			const blackOpponentMatch = buildContainsClause("pb.name", search.opponent);
+			const whiteOpponentMatch = buildContainsClause(
+				"pw.name",
+				search.opponent,
+			);
+			const blackOpponentMatch = buildContainsClause(
+				"pb.name",
+				search.opponent,
+			);
 			appendMatchClause(clauses, params, {
 				clause: `(${whiteOpponentMatch.clause} OR ${blackOpponentMatch.clause})`,
 				params: [...whiteOpponentMatch.params, ...blackOpponentMatch.params],
@@ -709,7 +755,11 @@ function buildSearchQueryDefinition(search) {
 	}
 
 	if (search.event) {
-		appendMatchClause(clauses, params, buildContainsClause("g.event", search.event));
+		appendMatchClause(
+			clauses,
+			params,
+			buildContainsClause("g.event", search.event),
+		);
 	}
 
 	if (search.ecoFrom) {
@@ -723,7 +773,11 @@ function buildSearchQueryDefinition(search) {
 	}
 
 	if (search.opening) {
-		appendMatchClause(clauses, params, buildContainsClause("g.opening", search.opening));
+		appendMatchClause(
+			clauses,
+			params,
+			buildContainsClause("g.opening", search.opening),
+		);
 	}
 
 	if (search.result) {
@@ -759,7 +813,10 @@ function buildSearchQueryDefinition(search) {
 }
 
 async function importPgnDirectory(options = {}) {
-	const rootDir = normalizeString(options.rootDir) || normalizeString(process.env.OTB_PGN_DIR) || DEFAULT_OTB_PGN_DIR;
+	const rootDir =
+		normalizeString(options.rootDir) ||
+		normalizeString(process.env.OTB_PGN_DIR) ||
+		DEFAULT_OTB_PGN_DIR;
 
 	if (!(await pathExists(rootDir))) {
 		throw new HttpError(
@@ -816,7 +873,11 @@ async function importPgnFile(options = {}) {
 	);
 
 	if (result.totalGames < 1) {
-		throw new HttpError(400, "invalid_import", "No PGN games were found in the uploaded file.");
+		throw new HttpError(
+			400,
+			"invalid_import",
+			"No PGN games were found in the uploaded file.",
+		);
 	}
 
 	return {
@@ -876,11 +937,20 @@ async function importPgnSourceEntries(sourceEntries, options = {}) {
 		let transactionOpen = false;
 
 		const getOrCreatePlayerId = (player) => {
-			insertPlayerStatement.run(player.displayName, player.normalizedName, player.searchName);
-			const row = selectPlayerStatement.get(player.normalizedName, player.displayName);
+			insertPlayerStatement.run(
+				player.displayName,
+				player.normalizedName,
+				player.searchName,
+			);
+			const row = selectPlayerStatement.get(
+				player.normalizedName,
+				player.displayName,
+			);
 
 			if (!row?.id) {
-				throw new Error(`Unable to resolve player id for ${player.displayName}`);
+				throw new Error(
+					`Unable to resolve player id for ${player.displayName}`,
+				);
 			}
 
 			return row.id;
@@ -969,17 +1039,21 @@ async function searchGames(rawQuery, options = {}) {
 		const queryDefinition = buildSearchQueryDefinition(search);
 		const totalResults =
 			database
-				.prepare(`
+				.prepare(
+					`
 					SELECT COUNT(*) AS totalResults
 					${queryDefinition.fromClause}
 					${queryDefinition.whereClause}
-				`)
+				`,
+				)
 				.get(...queryDefinition.params)?.totalResults ?? 0;
-		const totalPages = totalResults > 0 ? Math.ceil(totalResults / search.pageSize) : 1;
+		const totalPages =
+			totalResults > 0 ? Math.ceil(totalResults / search.pageSize) : 1;
 		const currentPage = Math.min(search.page, totalPages);
 		const offset = (currentPage - 1) * search.pageSize;
 		const games = database
-			.prepare(`
+			.prepare(
+				`
 				SELECT
 					g.id,
 					g.source,
@@ -1002,7 +1076,8 @@ async function searchGames(rawQuery, options = {}) {
 					${queryDefinition.whereClause}
 					ORDER BY COALESCE(g.year, 0) DESC, COALESCE(g.created_at, 0) DESC, g.id ASC
 					LIMIT ? OFFSET ?
-			`)
+			`,
+			)
 			.all(...queryDefinition.params, search.pageSize, offset)
 			.map(mapGameSummaryRow);
 
@@ -1036,7 +1111,8 @@ async function getGame(gameId, options = {}) {
 
 	try {
 		const row = database
-			.prepare(`
+			.prepare(
+				`
 				SELECT
 					g.id,
 					g.raw_pgn AS rawPgn,
@@ -1066,7 +1142,8 @@ async function getGame(gameId, options = {}) {
 				JOIN otb_players pb
 					ON pb.id = gpb.player_id
 				WHERE g.id = ?
-			`)
+			`,
+			)
 			.get(normalizedGameId);
 
 		if (!row) {

@@ -12,33 +12,33 @@ import {
 
 describe("normalizeOtbSearchFilters", () => {
   it("trims filters and applies the default page size", () => {
-      expect(
-        normalizeOtbSearchFilters({
-          player: " Morphy ",
-          opponent: " Anderssen ",
-          color: " white ",
-          event: " London ",
-          yearFrom: " 1851 ",
-          yearTo: "",
-          result: " 1-0 ",
-          ecoFrom: " c20 ",
-          ecoTo: " c99 ",
-          opening: " Italian ",
-          pageSize: "",
-        }),
-      ).toEqual({
-        player: "Morphy",
-        opponent: "Anderssen",
-        color: "white",
-        event: "London",
-        yearFrom: "1851",
+    expect(
+      normalizeOtbSearchFilters({
+        player: " Morphy ",
+        opponent: " Anderssen ",
+        color: " white ",
+        event: " London ",
+        yearFrom: " 1851 ",
         yearTo: "",
-        result: "1-0",
-        ecoFrom: "C20",
-        ecoTo: "C99",
-        opening: "Italian",
-        pageSize: "25",
-      });
+        result: " 1-0 ",
+        ecoFrom: " c20 ",
+        ecoTo: " c99 ",
+        opening: " Italian ",
+        pageSize: "",
+      }),
+    ).toEqual({
+      player: "Morphy",
+      opponent: "Anderssen",
+      color: "white",
+      event: "London",
+      yearFrom: "1851",
+      yearTo: "",
+      result: "1-0",
+      ecoFrom: "C20",
+      ecoTo: "C99",
+      opening: "Italian",
+      pageSize: "25",
+    });
   });
 });
 
@@ -51,14 +51,22 @@ describe("buildOtbSearchQuery", () => {
   });
 
   it("requires a player before filtering by color", () => {
-    expect(buildOtbSearchQuery({ opponent: "Anderssen", color: "white" })).toEqual({
+    expect(
+      buildOtbSearchQuery({ opponent: "Anderssen", color: "white" }),
+    ).toEqual({
       query: "",
       error: "Choose a player before filtering by color.",
     });
   });
 
   it("rejects invalid year ranges", () => {
-    expect(buildOtbSearchQuery({ player: "Morphy", yearFrom: "1852", yearTo: "1851" })).toEqual({
+    expect(
+      buildOtbSearchQuery({
+        player: "Morphy",
+        yearFrom: "1852",
+        yearTo: "1851",
+      }),
+    ).toEqual({
       query: "",
       error: "From year cannot be greater than to year.",
     });
@@ -121,9 +129,12 @@ describe("OTB_COLOR_OPTIONS", () => {
 
 describe("formatOtbGameDate", () => {
   it("prefers the PGN date label", () => {
-    expect(formatOtbGameDate({ dateLabel: "1858.??.??", createdAt: Date.UTC(1858, 0, 1) })).toBe(
-      "1858.??.??",
-    );
+    expect(
+      formatOtbGameDate({
+        dateLabel: "1858.??.??",
+        createdAt: Date.UTC(1858, 0, 1),
+      }),
+    ).toBe("1858.??.??");
   });
 });
 
@@ -163,7 +174,16 @@ describe("getOtbPageWindow", () => {
   });
 
   it("shows a right ellipsis near the start", () => {
-    expect(getOtbPageWindow(2, 20)).toEqual([1, 2, 3, 4, 5, 6, "ellipsis-right", 20]);
+    expect(getOtbPageWindow(2, 20)).toEqual([
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      "ellipsis-right",
+      20,
+    ]);
   });
 
   it("shows both ellipses in the middle", () => {

@@ -57,11 +57,7 @@ function ImportPgnModal({
         />
         {importPgnError && <p style={modalErrorStyle}>{importPgnError}</p>}
         <div style={modalActionRowStyle}>
-          <button
-            type="button"
-            style={modalButtonStyle}
-            onClick={onClose}
-          >
+          <button type="button" style={modalButtonStyle} onClick={onClose}>
             Cancel
           </button>
           <button type="submit" style={modalPrimaryButtonStyle}>
@@ -76,7 +72,10 @@ function ImportPgnModal({
           borderTop: "1px solid #e5e7eb",
         }}
       >
-        <p>Or choose one local .pgn file to import its games into the OTB database.</p>
+        <p>
+          Or choose one local .pgn file to import its games into the OTB
+          database.
+        </p>
         <input
           ref={fileInputRef}
           style={modalInputStyle}
@@ -88,13 +87,19 @@ function ImportPgnModal({
             setOtbFileImportStatus("");
           }}
         />
-        {otbFileImportError && <p style={modalErrorStyle}>{otbFileImportError}</p>}
-        {otbFileImportStatus && <p style={modalSuccessStyle}>{otbFileImportStatus}</p>}
+        {otbFileImportError && (
+          <p style={modalErrorStyle}>{otbFileImportError}</p>
+        )}
+        {otbFileImportStatus && (
+          <p style={modalSuccessStyle}>{otbFileImportStatus}</p>
+        )}
         <div style={modalActionRowStyle}>
           <button
             type="button"
             style={modalPrimaryButtonStyle}
-            onClick={() => onImportOtbFile(fileInputRef.current?.files?.[0] ?? null)}
+            onClick={() =>
+              onImportOtbFile(fileInputRef.current?.files?.[0] ?? null)
+            }
             disabled={importingOtbFile}
           >
             {importingOtbFile ? "Importing..." : "Import File to OTB DB"}

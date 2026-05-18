@@ -125,7 +125,11 @@ export function buildOtbSearchQuery(filters, page = 1) {
     };
   }
 
-  if (normalized.ecoFrom && normalized.ecoTo && normalized.ecoFrom > normalized.ecoTo) {
+  if (
+    normalized.ecoFrom &&
+    normalized.ecoTo &&
+    normalized.ecoFrom > normalized.ecoTo
+  ) {
     return {
       query: "",
       error: "ECO from cannot be greater than ECO to.",
@@ -189,7 +193,8 @@ export function formatOtbMoveCount(game) {
 }
 
 export function getOtbPageWindow(currentPage, totalPages) {
-  const safeTotalPages = Number.isInteger(totalPages) && totalPages > 0 ? totalPages : 1;
+  const safeTotalPages =
+    Number.isInteger(totalPages) && totalPages > 0 ? totalPages : 1;
   const safeCurrentPage =
     Number.isInteger(currentPage) && currentPage > 0
       ? Math.min(currentPage, safeTotalPages)

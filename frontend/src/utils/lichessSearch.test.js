@@ -37,7 +37,9 @@ describe("buildLichessSearchQuery", () => {
   });
 
   it("rejects non-numeric years", () => {
-    expect(buildLichessSearchQuery({ player: "MagnusCarlsen", year: "20A4" })).toEqual({
+    expect(
+      buildLichessSearchQuery({ player: "MagnusCarlsen", year: "20A4" }),
+    ).toEqual({
       query: "",
       error: "Year must use four digits.",
     });

@@ -48,7 +48,13 @@ function formatPlayer(player) {
   return player.rating ? `${player.name} (${player.rating})` : player.name;
 }
 
-function getPuzzleStatusText(isPuzzleMode, status, currentPuzzleMove, solvedMoves, totalMoves) {
+function getPuzzleStatusText(
+  isPuzzleMode,
+  status,
+  currentPuzzleMove,
+  solvedMoves,
+  totalMoves,
+) {
   if (!isPuzzleMode) {
     return "Load a Lichess puzzle to start solving.";
   }
@@ -94,7 +100,9 @@ function PuzzleTrainingPanel({
     (attempt) => attempt.side === normalizedTrainingState.playerSide,
   ).length;
   const totalMoves = playerMoves.length;
-  const lastAttempt = lastCompletedTrainingAttempts[lastCompletedTrainingAttempts.length - 1] ?? null;
+  const lastAttempt =
+    lastCompletedTrainingAttempts[lastCompletedTrainingAttempts.length - 1] ??
+    null;
   const sourceGame = puzzle?.sourceGame ?? null;
   const whitePlayer = sourceGame?.players?.white ?? null;
   const blackPlayer = sourceGame?.players?.black ?? null;
@@ -142,7 +150,8 @@ function PuzzleTrainingPanel({
               }
             />
             <p style={puzzleFilterHintStyle}>
-              Theme and opening filters are exclusive. Picking one clears the other.
+              Theme and opening filters are exclusive. Picking one clears the
+              other.
             </p>
           </div>
           <label>
@@ -237,7 +246,9 @@ function PuzzleTrainingPanel({
         </div>
 
         {trainingLoading && <p>Loading puzzle...</p>}
-        {!trainingLoading && trainingError && <p className="error">{trainingError}</p>}
+        {!trainingLoading && trainingError && (
+          <p className="error">{trainingError}</p>
+        )}
 
         {puzzle && (
           <>
@@ -265,7 +276,8 @@ function PuzzleTrainingPanel({
 
             {(whitePlayer || blackPlayer) && (
               <p>
-                <strong>Game:</strong> {formatPlayer(whitePlayer)} vs {formatPlayer(blackPlayer)}
+                <strong>Game:</strong> {formatPlayer(whitePlayer)} vs{" "}
+                {formatPlayer(blackPlayer)}
               </p>
             )}
             {sourceGame?.clock && (
@@ -290,16 +302,16 @@ function PuzzleTrainingPanel({
           </>
         )}
 
-        {isPuzzleMode && currentPuzzleMove && normalizedTrainingState.status === TRAINING_STATUS_ACTIVE && (
-          <>
-            <div className="annotation-section">
-              <h3>Current task</h3>
-            </div>
-            <p>
-              Find the best move in the current position.
-            </p>
-          </>
-        )}
+        {isPuzzleMode &&
+          currentPuzzleMove &&
+          normalizedTrainingState.status === TRAINING_STATUS_ACTIVE && (
+            <>
+              <div className="annotation-section">
+                <h3>Current task</h3>
+              </div>
+              <p>Find the best move in the current position.</p>
+            </>
+          )}
 
         {isPuzzleMode && lastCompletedExpectedMove && lastAttempt && (
           <div className="annotation-item training-feedback">
@@ -310,7 +322,8 @@ function PuzzleTrainingPanel({
               </span>
             </div>
             <p className="training-feedback-detail">
-              Expected {lastCompletedExpectedMove.san}. You played {lastAttempt.userSan}.
+              Expected {lastCompletedExpectedMove.san}. You played{" "}
+              {lastAttempt.userSan}.
             </p>
           </div>
         )}

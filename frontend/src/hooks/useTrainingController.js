@@ -8,22 +8,25 @@ const TRAINING_PREVIEW_TOOLTIP_MARGIN_PX = 16;
 function getTrainingPreviewPosition(targetRect) {
   const centeredTop = targetRect.top + targetRect.height / 2;
   const fitsRight =
-    targetRect.right + TRAINING_PREVIEW_TOOLTIP_GAP_PX + TRAINING_PREVIEW_TOOLTIP_WIDTH_PX <=
+    targetRect.right +
+      TRAINING_PREVIEW_TOOLTIP_GAP_PX +
+      TRAINING_PREVIEW_TOOLTIP_WIDTH_PX <=
     window.innerWidth - TRAINING_PREVIEW_TOOLTIP_MARGIN_PX;
 
   return {
     left: fitsRight
       ? targetRect.right + TRAINING_PREVIEW_TOOLTIP_GAP_PX
       : Math.max(
-        TRAINING_PREVIEW_TOOLTIP_MARGIN_PX,
-        targetRect.left -
-        TRAINING_PREVIEW_TOOLTIP_GAP_PX -
-        TRAINING_PREVIEW_TOOLTIP_WIDTH_PX,
-      ),
+          TRAINING_PREVIEW_TOOLTIP_MARGIN_PX,
+          targetRect.left -
+            TRAINING_PREVIEW_TOOLTIP_GAP_PX -
+            TRAINING_PREVIEW_TOOLTIP_WIDTH_PX,
+        ),
     top: Math.min(
       window.innerHeight - TRAINING_PREVIEW_TOOLTIP_MARGIN_PX,
       Math.max(
-        TRAINING_PREVIEW_TOOLTIP_MARGIN_PX + TRAINING_PREVIEW_TOOLTIP_HEIGHT_PX / 2,
+        TRAINING_PREVIEW_TOOLTIP_MARGIN_PX +
+          TRAINING_PREVIEW_TOOLTIP_HEIGHT_PX / 2,
         centeredTop,
       ),
     ),

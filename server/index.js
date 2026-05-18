@@ -128,7 +128,9 @@ function createApp() {
 					searchMoves: [userMove.trim()],
 				}),
 			]);
-			const referenceScore = getComparableEvaluationScore(referenceAnalysis.evaluation);
+			const referenceScore = getComparableEvaluationScore(
+				referenceAnalysis.evaluation,
+			);
 			const userScore = getComparableEvaluationScore(userAnalysis.evaluation);
 			const deltaCp =
 				Number.isFinite(referenceScore) && Number.isFinite(userScore)
@@ -223,7 +225,11 @@ function createApp() {
 			}
 
 			if (!pgn.trim()) {
-				throw new HttpError(400, "invalid_import", "PGN file content is required.");
+				throw new HttpError(
+					400,
+					"invalid_import",
+					"PGN file content is required.",
+				);
 			}
 
 			const summary = await importOtbPgnFile({
@@ -239,7 +245,9 @@ function createApp() {
 
 	app.get("/api/otb/games", async (req, res) => {
 		try {
-			const { search, games, pagination } = await searchOtbGames(req.query || {});
+			const { search, games, pagination } = await searchOtbGames(
+				req.query || {},
+			);
 
 			return res.json({
 				search,
@@ -315,7 +323,10 @@ function createApp() {
 
 	app.post("/api/guess-history", async (req, res) => {
 		try {
-			const history = await appendGuessHistory(req.body?.rawPgn, req.body?.entry);
+			const history = await appendGuessHistory(
+				req.body?.rawPgn,
+				req.body?.entry,
+			);
 
 			return res.status(201).json(history);
 		} catch (error) {
@@ -399,18 +410,21 @@ function createApp() {
 		}
 	});
 
-	app.delete("/api/collections/:collectionId/studies/:studyId", async (req, res) => {
-		try {
-			const collection = await removeStudyFromCollection(
-				req.params.collectionId,
-				req.params.studyId,
-			);
+	app.delete(
+		"/api/collections/:collectionId/studies/:studyId",
+		async (req, res) => {
+			try {
+				const collection = await removeStudyFromCollection(
+					req.params.collectionId,
+					req.params.studyId,
+				);
 
-			return res.json(collection);
-		} catch (error) {
-			return sendApiError(res, error);
-		}
-	});
+				return res.json(collection);
+			} catch (error) {
+				return sendApiError(res, error);
+			}
+		},
+	);
 
 	app.use((error, _req, res, next) => {
 		if (res.headersSent) {

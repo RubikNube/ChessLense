@@ -45,7 +45,13 @@ function ModalShell({
       >
         {title || showCloseButton ? (
           <div style={modalHeaderStyle}>
-            {title ? <h2 id={titleId} style={modalTitleStyle}>{title}</h2> : <span />}
+            {title ? (
+              <h2 id={titleId} style={modalTitleStyle}>
+                {title}
+              </h2>
+            ) : (
+              <span />
+            )}
             {showCloseButton ? (
               <button
                 type="button"

@@ -63,7 +63,11 @@ function normalizeOptionalChoice(value, allowedValues, fieldName) {
 	}
 
 	if (!allowedValues.has(normalized)) {
-		throw new HttpError(400, "invalid_query", `${fieldName} must be a supported option`);
+		throw new HttpError(
+			400,
+			"invalid_query",
+			`${fieldName} must be a supported option`,
+		);
 	}
 
 	return normalized;
@@ -219,7 +223,13 @@ function resolveLichessApiToken(requestToken) {
 async function fetchFromRemote(
 	baseUrl,
 	path,
-	{ body, headers = {}, method = "GET", responseLabel = "Lichess", requestToken = "" } = {},
+	{
+		body,
+		headers = {},
+		method = "GET",
+		responseLabel = "Lichess",
+		requestToken = "",
+	} = {},
 ) {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 10000);
@@ -239,11 +249,19 @@ async function fetchFromRemote(
 		});
 
 		if (response.status === 404) {
-			throw new HttpError(404, "not_found", `${responseLabel} resource not found`);
+			throw new HttpError(
+				404,
+				"not_found",
+				`${responseLabel} resource not found`,
+			);
 		}
 
 		if (response.status === 429) {
-			throw new HttpError(429, "rate_limited", `${responseLabel} rate limit exceeded`);
+			throw new HttpError(
+				429,
+				"rate_limited",
+				`${responseLabel} rate limit exceeded`,
+			);
 		}
 
 		if (response.status === 401 || response.status === 403) {
@@ -269,10 +287,18 @@ async function fetchFromRemote(
 		}
 
 		if (error?.name === "AbortError") {
-			throw new HttpError(504, "lichess_timeout", `${responseLabel} request timed out`);
+			throw new HttpError(
+				504,
+				"lichess_timeout",
+				`${responseLabel} request timed out`,
+			);
 		}
 
-		throw new HttpError(502, "lichess_unreachable", `Failed to reach ${responseLabel}`);
+		throw new HttpError(
+			502,
+			"lichess_unreachable",
+			`Failed to reach ${responseLabel}`,
+		);
 	} finally {
 		clearTimeout(timeout);
 	}
@@ -301,7 +327,11 @@ function parseNdjson(text) {
 			try {
 				return JSON.parse(line);
 			} catch {
-				throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid game data");
+				throw new HttpError(
+					502,
+					"invalid_lichess_response",
+					"Lichess returned invalid game data",
+				);
 			}
 		});
 }
@@ -340,7 +370,11 @@ function normalizeSearchQuery(query) {
 		player: normalizePlayerName(query.player, "player"),
 		opponent: normalizeString(query.opponent),
 		year: normalizeYear(query.year),
-		color: normalizeOptionalChoice(query.color, new Set(["white", "black"]), "color"),
+		color: normalizeOptionalChoice(
+			query.color,
+			new Set(["white", "black"]),
+			"color",
+		),
 		perfType: normalizeOptionalChoice(query.perfType, PERF_TYPES, "perfType"),
 		max: normalizeMaxResults(query.max),
 	};
@@ -392,7 +426,8 @@ async function searchGames(rawQuery) {
 	});
 	const payload = await response.text();
 	const games = parseNdjson(payload).filter(
-		(game) => matchesOpponent(game, search.opponent) && matchesYear(game, search.year),
+		(game) =>
+			matchesOpponent(game, search.opponent) && matchesYear(game, search.year),
 	);
 
 	return {
@@ -405,7 +440,11 @@ function normalizeGameId(gameId) {
 	const normalized = normalizeString(gameId);
 
 	if (!/^[A-Za-z0-9]{8}$/.test(normalized)) {
-		throw new HttpError(400, "invalid_query", "gameId must be an 8-character Lichess id");
+		throw new HttpError(
+			400,
+			"invalid_query",
+			"gameId must be an 8-character Lichess id",
+		);
 	}
 
 	return normalized;
@@ -420,22 +459,33 @@ async function getGame(gameId) {
 		opening: "true",
 		literate: "false",
 	});
-	const response = await fetchFromLichess(`/game/export/${normalizedGameId}?${params.toString()}`, {
-		headers: {
-			Accept: "application/json",
+	const response = await fetchFromLichess(
+		`/game/export/${normalizedGameId}?${params.toString()}`,
+		{
+			headers: {
+				Accept: "application/json",
+			},
 		},
-	});
+	);
 
 	let payload;
 
 	try {
 		payload = await response.json();
 	} catch {
-		throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid game data");
+		throw new HttpError(
+			502,
+			"invalid_lichess_response",
+			"Lichess returned invalid game data",
+		);
 	}
 
 	if (typeof payload?.pgn !== "string" || !payload.pgn.trim()) {
-		throw new HttpError(502, "missing_pgn", "Lichess did not provide PGN for this game");
+		throw new HttpError(
+			502,
+			"missing_pgn",
+			"Lichess did not provide PGN for this game",
+		);
 	}
 
 	return {
@@ -461,8 +511,10 @@ function mapOpeningTreeMove(move) {
 		return null;
 	}
 
-	const san = typeof move.san === "string" && move.san.trim() ? move.san.trim() : "";
-	const uci = typeof move.uci === "string" && move.uci.trim() ? move.uci.trim() : "";
+	const san =
+		typeof move.san === "string" && move.san.trim() ? move.san.trim() : "";
+	const uci =
+		typeof move.uci === "string" && move.uci.trim() ? move.uci.trim() : "";
 
 	if (!san || !uci) {
 		return null;
@@ -476,7 +528,9 @@ function mapOpeningTreeMove(move) {
 	return {
 		san,
 		uci,
-		averageRating: Number.isFinite(move.averageRating) ? move.averageRating : null,
+		averageRating: Number.isFinite(move.averageRating)
+			? move.averageRating
+			: null,
 		gameCount,
 		whitePercent: formatPercentage(white, gameCount),
 		drawPercent: formatPercentage(draws, gameCount),
@@ -489,8 +543,12 @@ function mapPuzzlePlayer(player) {
 		return null;
 	}
 
-	const color = player.color === "white" || player.color === "black" ? player.color : "";
-	const name = typeof player.name === "string" && player.name.trim() ? player.name.trim() : "";
+	const color =
+		player.color === "white" || player.color === "black" ? player.color : "";
+	const name =
+		typeof player.name === "string" && player.name.trim()
+			? player.name.trim()
+			: "";
 
 	if (!color || !name) {
 		return null;
@@ -498,9 +556,15 @@ function mapPuzzlePlayer(player) {
 
 	return {
 		color,
-		id: typeof player.id === "string" && player.id.trim() ? player.id.trim() : null,
+		id:
+			typeof player.id === "string" && player.id.trim()
+				? player.id.trim()
+				: null,
 		name,
-		title: typeof player.title === "string" && player.title.trim() ? player.title.trim() : null,
+		title:
+			typeof player.title === "string" && player.title.trim()
+				? player.title.trim()
+				: null,
 		rating: Number.isInteger(player.rating) ? player.rating : null,
 	};
 }
@@ -510,8 +574,10 @@ function mapPuzzleGame(game) {
 		return null;
 	}
 
-	const id = typeof game.id === "string" && game.id.trim() ? game.id.trim() : "";
-	const pgn = typeof game.pgn === "string" && game.pgn.trim() ? game.pgn.trim() : "";
+	const id =
+		typeof game.id === "string" && game.id.trim() ? game.id.trim() : "";
+	const pgn =
+		typeof game.pgn === "string" && game.pgn.trim() ? game.pgn.trim() : "";
 
 	if (!id || !pgn) {
 		return null;
@@ -528,7 +594,10 @@ function mapPuzzleGame(game) {
 		url: `${LICHESS_API_BASE_URL}/${id}`,
 		pgn,
 		rated: game.rated === true,
-		clock: typeof game.clock === "string" && game.clock.trim() ? game.clock.trim() : null,
+		clock:
+			typeof game.clock === "string" && game.clock.trim()
+				? game.clock.trim()
+				: null,
 		perf:
 			typeof game.perf?.key === "string" && game.perf.key.trim()
 				? {
@@ -551,10 +620,15 @@ function mapPuzzle(puzzle) {
 		return null;
 	}
 
-	const id = typeof puzzle.id === "string" && puzzle.id.trim() ? puzzle.id.trim() : "";
-	const initialPly = Number.isInteger(puzzle.initialPly) && puzzle.initialPly >= 0 ? puzzle.initialPly : null;
+	const id =
+		typeof puzzle.id === "string" && puzzle.id.trim() ? puzzle.id.trim() : "";
+	const initialPly =
+		Number.isInteger(puzzle.initialPly) && puzzle.initialPly >= 0
+			? puzzle.initialPly
+			: null;
 	const rating = Number.isInteger(puzzle.rating) ? puzzle.rating : null;
-	const plays = Number.isInteger(puzzle.plays) && puzzle.plays >= 0 ? puzzle.plays : null;
+	const plays =
+		Number.isInteger(puzzle.plays) && puzzle.plays >= 0 ? puzzle.plays : null;
 	const solution = Array.isArray(puzzle.solution)
 		? puzzle.solution
 				.map((move) => (typeof move === "string" ? move.trim() : ""))
@@ -566,7 +640,13 @@ function mapPuzzle(puzzle) {
 				.filter(Boolean)
 		: [];
 
-	if (!id || initialPly === null || rating === null || plays === null || !solution.length) {
+	if (
+		!id ||
+		initialPly === null ||
+		rating === null ||
+		plays === null ||
+		!solution.length
+	) {
 		return null;
 	}
 
@@ -578,7 +658,9 @@ function mapPuzzle(puzzle) {
 		solution,
 		themes,
 		initialFen:
-			typeof puzzle.fen === "string" && puzzle.fen.trim() ? puzzle.fen.trim() : null,
+			typeof puzzle.fen === "string" && puzzle.fen.trim()
+				? puzzle.fen.trim()
+				: null,
 	};
 }
 
@@ -595,7 +677,8 @@ function normalizeOpeningTreeResponse(payload, fen, tokenConfigured = false) {
 			typeof payload?.opening?.name === "string" && payload.opening.name.trim()
 				? {
 						eco:
-							typeof payload.opening.eco === "string" && payload.opening.eco.trim()
+							typeof payload.opening.eco === "string" &&
+							payload.opening.eco.trim()
 								? payload.opening.eco.trim()
 								: null,
 						name: payload.opening.name.trim(),
@@ -637,8 +720,14 @@ function normalizePuzzleResponse(payload, search, tokenConfigured = false) {
 	};
 }
 
-function normalizePuzzleBatchResponse(payload, search, tokenConfigured = false) {
-	const nextPuzzleEntry = Array.isArray(payload?.puzzles) ? payload.puzzles.find(Boolean) : null;
+function normalizePuzzleBatchResponse(
+	payload,
+	search,
+	tokenConfigured = false,
+) {
+	const nextPuzzleEntry = Array.isArray(payload?.puzzles)
+		? payload.puzzles.find(Boolean)
+		: null;
 	return normalizePuzzleResponse(nextPuzzleEntry, search, tokenConfigured);
 }
 
@@ -684,10 +773,18 @@ function buildPuzzleRequest(search) {
 		params.set("color", search.color);
 	}
 
-	return params.size ? `/api/puzzle/next?${params.toString()}` : "/api/puzzle/next";
+	return params.size
+		? `/api/puzzle/next?${params.toString()}`
+		: "/api/puzzle/next";
 }
 
-function buildPuzzleAdvanceRequest({ angle, color, difficulty, puzzleId, win }) {
+function buildPuzzleAdvanceRequest({
+	angle,
+	color,
+	difficulty,
+	puzzleId,
+	win,
+}) {
 	const normalizedAngle = angle || "mix";
 	const params = new URLSearchParams({ nb: "1" });
 
@@ -718,12 +815,15 @@ async function getOpeningTree(rawQuery, options = {}) {
 	const requestToken = normalizeString(options.requestToken);
 	const tokenConfigured = !!resolveLichessApiToken(requestToken);
 	try {
-		const response = await fetchFromLichessExplorer(buildOpeningTreeRequest(search), {
-			headers: {
-				Accept: "application/json",
+		const response = await fetchFromLichessExplorer(
+			buildOpeningTreeRequest(search),
+			{
+				headers: {
+					Accept: "application/json",
+				},
+				requestToken,
 			},
-			requestToken,
-		});
+		);
 
 		let payload;
 
@@ -749,7 +849,11 @@ async function getOpeningTree(rawQuery, options = {}) {
 				"rate_limited",
 			].includes(error.code)
 		) {
-			return createUnavailableOpeningTree(search.fen, error.message, tokenConfigured);
+			return createUnavailableOpeningTree(
+				search.fen,
+				error.message,
+				tokenConfigured,
+			);
 		}
 
 		throw error;
@@ -774,13 +878,25 @@ async function getPuzzle(rawQuery, options = {}) {
 		try {
 			payload = await response.json();
 		} catch {
-			throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid puzzle data");
+			throw new HttpError(
+				502,
+				"invalid_lichess_response",
+				"Lichess returned invalid puzzle data",
+			);
 		}
 
-		const normalized = normalizePuzzleResponse(payload, search, tokenConfigured);
+		const normalized = normalizePuzzleResponse(
+			payload,
+			search,
+			tokenConfigured,
+		);
 
 		if (!normalized) {
-			throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid puzzle data");
+			throw new HttpError(
+				502,
+				"invalid_lichess_response",
+				"Lichess returned invalid puzzle data",
+			);
 		}
 
 		return normalized;
@@ -829,13 +945,25 @@ async function advancePuzzle(rawPayload, options = {}) {
 		try {
 			payloadJson = await response.json();
 		} catch {
-			throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid puzzle data");
+			throw new HttpError(
+				502,
+				"invalid_lichess_response",
+				"Lichess returned invalid puzzle data",
+			);
 		}
 
-		const normalized = normalizePuzzleBatchResponse(payloadJson, search, tokenConfigured);
+		const normalized = normalizePuzzleBatchResponse(
+			payloadJson,
+			search,
+			tokenConfigured,
+		);
 
 		if (!normalized) {
-			throw new HttpError(502, "invalid_lichess_response", "Lichess returned invalid puzzle data");
+			throw new HttpError(
+				502,
+				"invalid_lichess_response",
+				"Lichess returned invalid puzzle data",
+			);
 		}
 
 		return normalized;

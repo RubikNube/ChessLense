@@ -33,7 +33,9 @@ const SAMPLE_PGN = `
 `;
 
 async function createTempDbPath() {
-	const rootDir = await fs.mkdtemp(path.join(os.tmpdir(), "chesslense-otb-api-"));
+	const rootDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), "chesslense-otb-api-"),
+	);
 	return {
 		dbPath: path.join(rootDir, "otb.sqlite"),
 		rootDir,
@@ -353,7 +355,9 @@ test("GET /api/guess-history/games browses saved guess-history games and loads o
 			const listResponse = await fetch(`${baseUrl}/api/guess-history/games`);
 			const listData = await listResponse.json();
 			const gameKey = listData.games[0]?.gameKey;
-			const detailResponse = await fetch(`${baseUrl}/api/guess-history/games/${gameKey}`);
+			const detailResponse = await fetch(
+				`${baseUrl}/api/guess-history/games/${gameKey}`,
+			);
 			const detailData = await detailResponse.json();
 
 			assert.equal(listResponse.status, 200);
@@ -403,7 +407,10 @@ test("GET /api/lichess/puzzle/next forwards filters and the request token", asyn
 	const fetchMock = t.mock.method(global, "fetch", async (...args) => {
 		const [url, options] = args;
 
-		if (typeof url !== "string" || !url.startsWith("https://lichess.org/api/puzzle/next")) {
+		if (
+			typeof url !== "string" ||
+			!url.startsWith("https://lichess.org/api/puzzle/next")
+		) {
 			throw new Error(`Unexpected outbound URL: ${String(url)}`);
 		}
 
@@ -456,7 +463,12 @@ test("POST /api/lichess/puzzle/advance submits the puzzle result and returns the
 					rated: true,
 					players: [
 						{ name: "vit2014", id: "vit2014", color: "white", rating: 2395 },
-						{ name: "Yoda-wins", id: "yoda-wins", color: "black", rating: 2511 },
+						{
+							name: "Yoda-wins",
+							id: "yoda-wins",
+							color: "black",
+							rating: 2511,
+						},
 					],
 					pgn: "e4 e6 d4 d5",
 					clock: "3+2",
@@ -476,7 +488,10 @@ test("POST /api/lichess/puzzle/advance submits the puzzle result and returns the
 	const fetchMock = t.mock.method(global, "fetch", async (...args) => {
 		const [url, options] = args;
 
-		if (typeof url !== "string" || !url.startsWith("https://lichess.org/api/puzzle/batch/fork")) {
+		if (
+			typeof url !== "string" ||
+			!url.startsWith("https://lichess.org/api/puzzle/batch/fork")
+		) {
 			throw new Error(`Unexpected outbound URL: ${String(url)}`);
 		}
 

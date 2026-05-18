@@ -124,7 +124,11 @@ function PositionSetupPanel({
       <button
         key={pieceType}
         type="button"
-        className={isSelected ? "annotation-primary-button" : "annotation-secondary-button"}
+        className={
+          isSelected
+            ? "annotation-primary-button"
+            : "annotation-secondary-button"
+        }
         onClick={() => onSelectTool(pieceType)}
         aria-label={`${label} (${pieceType[0] === "w" ? "white" : "black"})`}
         title={label}
@@ -155,8 +159,9 @@ function PositionSetupPanel({
       </div>
       <div className="training-card-body">
         <p className="current-move-label">
-          Click to place pieces, right-click to remove them, or use the move action to drag
-          any piece onto any square. Finish replaces the current position.
+          Click to place pieces, right-click to remove them, or use the move
+          action to drag any piece onto any square. Finish replaces the current
+          position.
         </p>
 
         <div style={toolSectionStyle}>
@@ -275,15 +280,18 @@ function PositionSetupPanel({
           <div style={metaCardStyle}>
             <span className="annotation-label">Finish behavior</span>
             <p className="annotation-empty">
-              Side to move stays <strong>{activeColorLabel}</strong>. Castling follows the
-              checked boxes and en passant is cleared.
+              Side to move stays <strong>{activeColorLabel}</strong>. Castling
+              follows the checked boxes and en passant is cleared.
             </p>
           </div>
         </div>
 
         {error && <p className="error">{error}</p>}
 
-        <div style={{ marginTop: "auto", paddingTop: "16px" }} className="annotation-item-actions">
+        <div
+          style={{ marginTop: "auto", paddingTop: "16px" }}
+          className="annotation-item-actions"
+        >
           <button
             type="button"
             className="annotation-secondary-button"

@@ -39,7 +39,8 @@ export function mergeBoardArrows(baseArrows, previewArrow) {
     previewArrow,
     ...normalizedBaseArrows.filter(
       (arrow) =>
-        arrow?.startSquare !== previewArrow.startSquare || arrow?.endSquare !== previewArrow.endSquare,
+        arrow?.startSquare !== previewArrow.startSquare ||
+        arrow?.endSquare !== previewArrow.endSquare,
     ),
   ];
 }

@@ -1,6 +1,9 @@
 import { Chess, DEFAULT_POSITION } from "chess.js";
 import { parse } from "chess.js/src/pgn.js";
-import { createEmptyVariantTree, createVariantTreeFromParsedPgn } from "./variantTree.js";
+import {
+  createEmptyVariantTree,
+  createVariantTreeFromParsedPgn,
+} from "./variantTree.js";
 
 const HEADER_PATTERN = /\[\s*([A-Za-z0-9_]+)\s+"((?:\\.|[^"\\])*)"\s*\]/g;
 
@@ -288,16 +291,17 @@ function normalizeMainlineComment(entry) {
     return null;
   }
 
-  const ply =
-    Number.isInteger(entry.ply) && entry.ply >= 0 ? entry.ply : null;
+  const ply = Number.isInteger(entry.ply) && entry.ply >= 0 ? entry.ply : null;
   const moveNumber =
     Number.isInteger(entry.moveNumber) && entry.moveNumber >= 0
       ? entry.moveNumber
       : null;
   const side =
     entry.side === "white" || entry.side === "black" ? entry.side : null;
-  const san = typeof entry.san === "string" && entry.san.trim() ? entry.san : null;
-  const fen = typeof entry.fen === "string" && entry.fen.trim() ? entry.fen : null;
+  const san =
+    typeof entry.san === "string" && entry.san.trim() ? entry.san : null;
+  const fen =
+    typeof entry.fen === "string" && entry.fen.trim() ? entry.fen : null;
 
   return {
     comment: entry.comment.trim(),
@@ -402,7 +406,8 @@ export function parseAnnotatedPgn(pgn, options = {}) {
     }
 
     const headerEntries = extractHeaderEntries(trimmedPgn);
-    const { comments: rawComments, variationSnippets } = scanPgnText(trimmedPgn);
+    const { comments: rawComments, variationSnippets } =
+      scanPgnText(trimmedPgn);
     const mainlineComments = buildMainlineComments(game);
     const additionalComments = rawComments.filter(
       ({ text, inVariation }) =>

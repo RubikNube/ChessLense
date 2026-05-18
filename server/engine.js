@@ -16,7 +16,9 @@ function waitForLine(stream, matcher, timeoutMs = 5000) {
 
 			for (const rawLine of lines) {
 				const line = rawLine.trim();
-				if (typeof matcher === "string" ? line.includes(matcher) : matcher(line)) {
+				if (
+					typeof matcher === "string" ? line.includes(matcher) : matcher(line)
+				) {
 					cleanup();
 					resolve(line);
 					return;
@@ -93,7 +95,9 @@ function parsePrincipalVariations(output, requestedMultiPv) {
 		});
 	});
 
-	return Array.from(variationByIndex.values()).sort((left, right) => left.multipv - right.multipv);
+	return Array.from(variationByIndex.values()).sort(
+		(left, right) => left.multipv - right.multipv,
+	);
 }
 
 function getComparableEvaluationScore(evaluation) {
@@ -161,7 +165,10 @@ async function analyzePosition({
 		const combinedOutput = output.join("");
 		const bestMoveMatch = bestMoveLine.match(/^bestmove\s+(\S+)/);
 		const bestmove = bestMoveMatch ? bestMoveMatch[1] : null;
-		const principalVariations = parsePrincipalVariations(combinedOutput, requestedMultiPv);
+		const principalVariations = parsePrincipalVariations(
+			combinedOutput,
+			requestedMultiPv,
+		);
 		const evaluation = principalVariations[0]?.evaluation ?? null;
 
 		send("quit");

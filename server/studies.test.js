@@ -4,9 +4,16 @@ const fs = require("fs/promises");
 const os = require("os");
 const path = require("path");
 const { HttpError } = require("./httpError");
-const { deleteStudy, getStudy, listStudies, saveStudy, __testing } = require("./studies");
+const {
+	deleteStudy,
+	getStudy,
+	listStudies,
+	saveStudy,
+	__testing,
+} = require("./studies");
 
-const { buildStudySummary, normalizeStudyPayload, normalizeStudyRecord } = __testing;
+const { buildStudySummary, normalizeStudyPayload, normalizeStudyRecord } =
+	__testing;
 
 function createStudyPayload() {
 	return {
@@ -22,7 +29,8 @@ function createStudyPayload() {
 			},
 		},
 		importedPgnData: {
-			rawPgn: '[Event "Club Match"]\n[White "Alice"]\n[Black "Bob"]\n\n1. e4 c5 *',
+			rawPgn:
+				'[Event "Club Match"]\n[White "Alice"]\n[Black "Bob"]\n\n1. e4 c5 *',
 			headers: [
 				{ name: "Event", value: "Club Match" },
 				{ name: "White", value: "Alice" },
@@ -66,7 +74,9 @@ test("normalizeStudyPayload rejects payload without variant tree", () => {
 });
 
 test("buildStudySummary derives browse metadata", () => {
-	const summary = buildStudySummary(normalizeStudyPayload(createStudyPayload()));
+	const summary = buildStudySummary(
+		normalizeStudyPayload(createStudyPayload()),
+	);
 
 	assert.deepEqual(summary, {
 		event: "Club Match",

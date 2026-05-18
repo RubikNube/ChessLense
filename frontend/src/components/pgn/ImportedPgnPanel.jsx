@@ -74,7 +74,10 @@ function ImportedPgnPanel({
           <ul className="annotation-list">
             {importedMainlineComments.map((commentEntry, index) => (
               <li
-                key={commentEntry.id ?? `${commentEntry.fen ?? "mainline"}-${index}`}
+                key={
+                  commentEntry.id ??
+                  `${commentEntry.fen ?? "mainline"}-${index}`
+                }
                 className="annotation-item"
               >
                 <span className="annotation-label">
@@ -92,7 +95,10 @@ function ImportedPgnPanel({
           <h3>Additional Notes</h3>
           <ul className="annotation-list">
             {importedPgnData.additionalComments.map((commentEntry, index) => (
-              <li key={`${commentEntry.text}-${index}`} className="annotation-item">
+              <li
+                key={`${commentEntry.text}-${index}`}
+                className="annotation-item"
+              >
                 <span className="annotation-label">
                   {commentEntry.inVariation ? "Variation note" : "General note"}
                 </span>

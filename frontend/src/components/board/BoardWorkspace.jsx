@@ -36,7 +36,9 @@ function BoardWorkspace({
   children,
 }) {
   return (
-    <div className={`workspace${isTrainingFocusMode ? " workspace-training-focus" : ""}`}>
+    <div
+      className={`workspace${isTrainingFocusMode ? " workspace-training-focus" : ""}`}
+    >
       <div className="board-panel" ref={boardPanelRef}>
         <div className="board-and-evaluation">
           <div className="chessboard-wrapper">

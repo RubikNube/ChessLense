@@ -7,7 +7,11 @@ function normalizeStudyIds(studyIds) {
     return [];
   }
 
-  return [...new Set(studyIds.map((studyId) => normalizeString(studyId)).filter(Boolean))];
+  return [
+    ...new Set(
+      studyIds.map((studyId) => normalizeString(studyId)).filter(Boolean),
+    ),
+  ];
 }
 
 function normalizeCount(value, fallback = 0) {
@@ -56,7 +60,11 @@ export function getCollectionsForStudy(collections, studyId) {
     .filter((collection) => collection?.studyIds.includes(normalizedStudyId));
 }
 
-export function filterStudiesByCollection(studies, selectedCollectionId, collections) {
+export function filterStudiesByCollection(
+  studies,
+  selectedCollectionId,
+  collections,
+) {
   const normalizedCollectionId = normalizeString(selectedCollectionId);
   const normalizedStudies = Array.isArray(studies) ? studies : [];
 

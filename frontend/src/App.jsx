@@ -62,9 +62,7 @@ import {
   buildOtbSearchQuery,
   DEFAULT_OTB_SEARCH_FILTERS,
 } from "./utils/otbSearch.js";
-import {
-  buildOpeningTreeArrow,
-} from "./utils/openingTree.js";
+import { buildOpeningTreeArrow } from "./utils/openingTree.js";
 import {
   buildBoardHighlightSquareStyles,
   getBoardAnnotationColor,
@@ -176,10 +174,14 @@ function getPgnHeaderValue(importedPgnData, headerName) {
   }
 
   const matchingHeader = importedPgnData.headers.find(
-    ({ name }) => typeof name === "string" && name.toLowerCase() === headerName.toLowerCase(),
+    ({ name }) =>
+      typeof name === "string" &&
+      name.toLowerCase() === headerName.toLowerCase(),
   );
 
-  return typeof matchingHeader?.value === "string" ? matchingHeader.value.trim() : "";
+  return typeof matchingHeader?.value === "string"
+    ? matchingHeader.value.trim()
+    : "";
 }
 
 function getCurrentMoveLabel(moveHistory) {
@@ -293,7 +295,9 @@ function buildEngineVariantPreview(fen, uciMoves) {
 }
 
 function formatUciMoveAsSan(fen, uciMove) {
-  return buildEngineVariantPreview(fen, [uciMove]).sanMoves[0] ?? uciMove ?? "n/a";
+  return (
+    buildEngineVariantPreview(fen, [uciMove]).sanMoves[0] ?? uciMove ?? "n/a"
+  );
 }
 
 function getTrainingSideForTurn(turn) {
@@ -312,7 +316,8 @@ function getComputerPlayOutcomeText(game, playerSide) {
   }
 
   if (game.isCheckmate()) {
-    const winnerSide = game.turn() === "w" ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
+    const winnerSide =
+      game.turn() === "w" ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
     return winnerSide === playerSide
       ? "You won by checkmate."
       : "Computer won by checkmate.";
@@ -343,7 +348,9 @@ function getLastMoveFromGame(game) {
   }
 
   const verboseHistory = game.history({ verbose: true });
-  return verboseHistory.length ? verboseHistory[verboseHistory.length - 1] : null;
+  return verboseHistory.length
+    ? verboseHistory[verboseHistory.length - 1]
+    : null;
 }
 
 function App() {
@@ -357,7 +364,8 @@ function App() {
   const [engineResult, setEngineResult] = useState(null);
   const [evaluationResult, setEvaluationResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [selectedEngineVariantIndex, setSelectedEngineVariantIndex] = useState(0);
+  const [selectedEngineVariantIndex, setSelectedEngineVariantIndex] =
+    useState(0);
   const [openMenu, setOpenMenu] = useState(null);
   const [showMoveHistory, setShowMoveHistory] = useState(
     () => persistedAppState?.showMoveHistory ?? true,
@@ -403,9 +411,12 @@ function App() {
   const [showImportPgnPopup, setShowImportPgnPopup] = useState(false);
   const [showSaveStudyPopup, setShowSaveStudyPopup] = useState(false);
   const [showStudiesPopup, setShowStudiesPopup] = useState(false);
-  const [showGuessHistoryBrowserPopup, setShowGuessHistoryBrowserPopup] = useState(false);
-  const [showCreateCollectionPopup, setShowCreateCollectionPopup] = useState(false);
-  const [showManageCollectionsPopup, setShowManageCollectionsPopup] = useState(false);
+  const [showGuessHistoryBrowserPopup, setShowGuessHistoryBrowserPopup] =
+    useState(false);
+  const [showCreateCollectionPopup, setShowCreateCollectionPopup] =
+    useState(false);
+  const [showManageCollectionsPopup, setShowManageCollectionsPopup] =
+    useState(false);
   const [showLichessSearchPopup, setShowLichessSearchPopup] = useState(false);
   const [showLichessTokenPopup, setShowLichessTokenPopup] = useState(false);
   const [showOtbSearchPopup, setShowOtbSearchPopup] = useState(false);
@@ -440,10 +451,12 @@ function App() {
   const [updatingCollectionId, setUpdatingCollectionId] = useState("");
   const [deletingCollectionId, setDeletingCollectionId] = useState("");
   const [lichessSearchFilters, setLichessSearchFilters] = useState(
-    () => persistedAppState?.lichessSearchFilters ?? DEFAULT_LICHESS_SEARCH_FILTERS,
+    () =>
+      persistedAppState?.lichessSearchFilters ?? DEFAULT_LICHESS_SEARCH_FILTERS,
   );
   const [lichessPuzzleFilters, setLichessPuzzleFilters] = useState(
-    () => persistedAppState?.lichessPuzzleFilters ?? DEFAULT_LICHESS_PUZZLE_FILTERS,
+    () =>
+      persistedAppState?.lichessPuzzleFilters ?? DEFAULT_LICHESS_PUZZLE_FILTERS,
   );
   const [lichessSearchResults, setLichessSearchResults] = useState([]);
   const [lichessSearchError, setLichessSearchError] = useState("");
@@ -473,30 +486,34 @@ function App() {
   const [positionComments, setPositionComments] = useState(
     () =>
       persistedAppState?.positionComments ??
-      seedPositionCommentsFromImportedPgnData(persistedAppState?.importedPgnData),
+      seedPositionCommentsFromImportedPgnData(
+        persistedAppState?.importedPgnData,
+      ),
   );
   const [trainingState, setTrainingState] = useState(
     () => persistedAppState?.trainingState ?? createEmptyTrainingState(),
   );
   const [trainingError, setTrainingError] = useState("");
   const [trainingLoading, setTrainingLoading] = useState(false);
-  const [trainingPlayAutoReplyPaused, setTrainingPlayAutoReplyPaused] = useState(false);
+  const [trainingPlayAutoReplyPaused, setTrainingPlayAutoReplyPaused] =
+    useState(false);
   const [guessHistoryEntries, setGuessHistoryEntries] = useState([]);
   const [guessHistoryLoading, setGuessHistoryLoading] = useState(false);
   const [guessHistoryError, setGuessHistoryError] = useState("");
-  const [activeGuessHistoryEntryId, setActiveGuessHistoryEntryId] = useState("");
+  const [activeGuessHistoryEntryId, setActiveGuessHistoryEntryId] =
+    useState("");
   const [guessHistoryBrowserGames, setGuessHistoryBrowserGames] = useState([]);
-  const [guessHistoryBrowserLoading, setGuessHistoryBrowserLoading] = useState(false);
+  const [guessHistoryBrowserLoading, setGuessHistoryBrowserLoading] =
+    useState(false);
   const [guessHistoryBrowserError, setGuessHistoryBrowserError] = useState("");
-  const [loadingGuessHistoryGameKey, setLoadingGuessHistoryGameKey] = useState("");
+  const [loadingGuessHistoryGameKey, setLoadingGuessHistoryGameKey] =
+    useState("");
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [boardRenderNonce, setBoardRenderNonce] = useState(0);
   const [positionSetupState, setPositionSetupState] = useState(null);
   const [positionSetupError, setPositionSetupError] = useState("");
-  const shortcutConfigSignatureRef = useRef(
-    DEFAULT_SHORTCUT_CONFIG_SIGNATURE,
-  );
+  const shortcutConfigSignatureRef = useRef(DEFAULT_SHORTCUT_CONFIG_SIGNATURE);
   const boardPanelRef = useRef(null);
   const appliedOtbSearchFiltersRef = useRef(appliedOtbSearchFilters);
   const boardRightMouseSelectionRef = useRef(null);
@@ -572,14 +589,21 @@ function App() {
         currentNodeBoardAnnotations.arrows,
         openingTreeHoverArrow ? [openingTreeHoverArrow] : [],
       ),
-    [currentNodeBoardAnnotations.arrows, openingTreeHoverArrow, showVariantArrows, variantArrows],
+    [
+      currentNodeBoardAnnotations.arrows,
+      openingTreeHoverArrow,
+      showVariantArrows,
+      variantArrows,
+    ],
   );
   const boardSquareStyles = useMemo(
-    () => buildBoardHighlightSquareStyles(currentNodeBoardAnnotations.highlights),
+    () =>
+      buildBoardHighlightSquareStyles(currentNodeBoardAnnotations.highlights),
     [currentNodeBoardAnnotations.highlights],
   );
   const boardRenderKey = useMemo(
-    () => `${isPositionSetupMode ? "setup" : variantTree.currentNodeId}:${boardRenderNonce}`,
+    () =>
+      `${isPositionSetupMode ? "setup" : variantTree.currentNodeId}:${boardRenderNonce}`,
     [boardRenderNonce, isPositionSetupMode, variantTree.currentNodeId],
   );
   const shortcutEntries = useMemo(
@@ -612,12 +636,10 @@ function App() {
     () =>
       !!(
         importedPgnData &&
-        (
-          importedPgnData.headers.length ||
+        (importedPgnData.headers.length ||
           importedMainlineComments.length ||
           importedPgnData.additionalComments.length ||
-          importedPgnData.variationSnippets.length
-        )
+          importedPgnData.variationSnippets.length)
       ),
     [importedMainlineComments, importedPgnData],
   );
@@ -637,10 +659,8 @@ function App() {
   const engineVariants = useMemo(
     () =>
       (engineResult?.principalVariations ?? []).map((variation, index) => {
-        const { moveObjects, sanMoves, displayText } = buildEngineVariantPreview(
-          engineAnalysisFen,
-          variation.moves,
-        );
+        const { moveObjects, sanMoves, displayText } =
+          buildEngineVariantPreview(engineAnalysisFen, variation.moves);
 
         return {
           ...variation,
@@ -654,7 +674,8 @@ function App() {
     [engineAnalysisFen, engineResult],
   );
   const selectedEngineVariant = useMemo(
-    () => engineVariants[selectedEngineVariantIndex] ?? engineVariants[0] ?? null,
+    () =>
+      engineVariants[selectedEngineVariantIndex] ?? engineVariants[0] ?? null,
     [engineVariants, selectedEngineVariantIndex],
   );
   const formattedBestMove = useMemo(
@@ -665,7 +686,8 @@ function App() {
   );
   const hasReplaySource = useMemo(
     () =>
-      typeof importedPgnData?.rawPgn === "string" && importedPgnData.rawPgn.trim().length > 0,
+      typeof importedPgnData?.rawPgn === "string" &&
+      importedPgnData.rawPgn.trim().length > 0,
     [importedPgnData],
   );
   const normalizedTrainingState = useMemo(
@@ -677,7 +699,9 @@ function App() {
   }, [normalizedTrainingState.puzzle?.id]);
   const selectedCollection = useMemo(
     () =>
-      collections.find((collection) => collection.id === selectedCollectionId) ?? null,
+      collections.find(
+        (collection) => collection.id === selectedCollectionId,
+      ) ?? null,
     [collections, selectedCollectionId],
   );
   const visibleStudies = useMemo(
@@ -709,8 +733,10 @@ function App() {
       normalizedTrainingState.mode === TRAINING_MODE_REPLAY_GAME) ||
     (showGuessTrainingPanel &&
       normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE);
-  const effectiveTrainingFocusMode = isTrainingFocusMode && !isPositionSetupMode;
-  const boardWorkspaceFocusMode = effectiveTrainingFocusMode || isPositionSetupMode;
+  const effectiveTrainingFocusMode =
+    isTrainingFocusMode && !isPositionSetupMode;
+  const boardWorkspaceFocusMode =
+    effectiveTrainingFocusMode || isPositionSetupMode;
   const {
     trainingPreview,
     trainingRequestIdRef,
@@ -755,7 +781,9 @@ function App() {
     }
 
     setBoardOrientation(
-      normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK ? "black" : "white",
+      normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK
+        ? "black"
+        : "white",
     );
   }, [
     normalizedTrainingState.mode,
@@ -767,13 +795,16 @@ function App() {
       return [];
     }
 
-    const checkpoints = normalizedTrainingState.referenceMoves.reduce((result, move, index) => {
-      if (move.side === normalizedTrainingState.playerSide) {
-        result.push(index);
-      }
+    const checkpoints = normalizedTrainingState.referenceMoves.reduce(
+      (result, move, index) => {
+        if (move.side === normalizedTrainingState.playerSide) {
+          result.push(index);
+        }
 
-      return result;
-    }, []);
+        return result;
+      },
+      [],
+    );
 
     checkpoints.push(normalizedTrainingState.referenceMoves.length);
 
@@ -784,7 +815,8 @@ function App() {
     normalizedTrainingState.referenceMoves,
   ]);
   const pendingTrainingAttempts = normalizedTrainingState.pendingAttempts;
-  const lastCompletedTrainingAttempts = normalizedTrainingState.lastCompletedAttempts;
+  const lastCompletedTrainingAttempts =
+    normalizedTrainingState.lastCompletedAttempts;
   const lastCompletedIncorrectTrainingAttempts = useMemo(
     () =>
       lastCompletedTrainingAttempts.filter(
@@ -792,14 +824,17 @@ function App() {
       ),
     [lastCompletedTrainingAttempts],
   );
-  const lastCompletedExpectedMove = normalizedTrainingState.lastCompletedExpectedMove;
+  const lastCompletedExpectedMove =
+    normalizedTrainingState.lastCompletedExpectedMove;
   const computerPlayConfig = normalizedTrainingState.computerPlay;
   const isStandaloneComputerPlay =
     normalizedTrainingState.mode === TRAINING_MODE_PLAY_COMPUTER;
   const isStandaloneComputerPlayActive =
-    isStandaloneComputerPlay && normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
+    isStandaloneComputerPlay &&
+    normalizedTrainingState.status === TRAINING_STATUS_ACTIVE;
   const isStandaloneComputerPlayCompleted =
-    isStandaloneComputerPlay && normalizedTrainingState.status === TRAINING_STATUS_COMPLETED;
+    isStandaloneComputerPlay &&
+    normalizedTrainingState.status === TRAINING_STATUS_COMPLETED;
   const activeTrainingPlaySession = normalizedTrainingState.playSession;
   const isTrainingPlayActive = !!activeTrainingPlaySession;
   const isEngineOpponentSessionActive =
@@ -865,15 +900,18 @@ function App() {
   );
   const activeGuessHistoryEntry = useMemo(
     () =>
-      guessHistoryEntries.find((entry) => entry.id === activeGuessHistoryEntryId) ?? null,
+      guessHistoryEntries.find(
+        (entry) => entry.id === activeGuessHistoryEntryId,
+      ) ?? null,
     [activeGuessHistoryEntryId, guessHistoryEntries],
   );
   const currentReplayMoveNumber = useMemo(
     () =>
       currentReplayMove
         ? normalizedTrainingState.referenceMoves
-          .slice(0, normalizedTrainingState.progressPly + 1)
-          .filter((move) => move.side === normalizedTrainingState.playerSide).length
+            .slice(0, normalizedTrainingState.progressPly + 1)
+            .filter((move) => move.side === normalizedTrainingState.playerSide)
+            .length
         : replaySummary.totalMoves,
     [currentReplayMove, normalizedTrainingState, replaySummary.totalMoves],
   );
@@ -881,8 +919,9 @@ function App() {
     () =>
       currentGuessMove
         ? normalizedTrainingState.referenceMoves
-          .slice(0, normalizedTrainingState.progressPly + 1)
-          .filter((move) => move.side === normalizedTrainingState.playerSide).length
+            .slice(0, normalizedTrainingState.progressPly + 1)
+            .filter((move) => move.side === normalizedTrainingState.playerSide)
+            .length
         : guessTheMoveSummary.totalMoves,
     [currentGuessMove, guessTheMoveSummary.totalMoves, normalizedTrainingState],
   );
@@ -891,47 +930,64 @@ function App() {
     guessHistoryRunIdRef.current = null;
     savedGuessHistoryRunIdRef.current = null;
     pendingGuessHistoryEntryIdRef.current = "";
-    setTrainingState(createEmptyTrainingState(normalizedTrainingState.playerSide));
+    setTrainingState(
+      createEmptyTrainingState(normalizedTrainingState.playerSide),
+    );
     setActiveGuessHistoryEntryId("");
     hideTrainingPreview();
     setTrainingError("");
     setTrainingLoading(false);
     setTrainingPlayAutoReplyPaused(false);
-  }, [hideTrainingPreview, normalizedTrainingState.playerSide, trainingRequestIdRef]);
+  }, [
+    hideTrainingPreview,
+    normalizedTrainingState.playerSide,
+    trainingRequestIdRef,
+  ]);
   const playBoardSound = useBoardSounds(boardSoundsEnabled);
-  const playBoardSoundForVariantTree = useCallback((nextVariantTree) => {
-    const nextGame = buildGameToNode(nextVariantTree);
-    const lastMove = getLastMoveFromGame(nextGame);
-    const soundEvent = getBoardSoundEvent(lastMove, nextGame);
+  const playBoardSoundForVariantTree = useCallback(
+    (nextVariantTree) => {
+      const nextGame = buildGameToNode(nextVariantTree);
+      const lastMove = getLastMoveFromGame(nextGame);
+      const soundEvent = getBoardSoundEvent(lastMove, nextGame);
 
-    if (!soundEvent) {
-      return;
-    }
-
-    playBoardSound(soundEvent);
-  }, [playBoardSound]);
-
-  const buildReplayVariantTreeForProgress = useCallback((referenceMoves, progressPly) => {
-    let nextVariantTree = createEmptyVariantTree(referenceMoves[0]?.fenBefore);
-
-    for (const referenceMove of referenceMoves) {
-      const updatedTree = applyMoveToVariantTree(nextVariantTree, referenceMove.move);
-
-      if (!updatedTree) {
-        return null;
+      if (!soundEvent) {
+        return;
       }
 
-      nextVariantTree = updatedTree;
-    }
+      playBoardSound(soundEvent);
+    },
+    [playBoardSound],
+  );
 
-    nextVariantTree = goToStartInVariantTree(nextVariantTree);
+  const buildReplayVariantTreeForProgress = useCallback(
+    (referenceMoves, progressPly) => {
+      let nextVariantTree = createEmptyVariantTree(
+        referenceMoves[0]?.fenBefore,
+      );
 
-    for (let index = 0; index < progressPly; index += 1) {
-      nextVariantTree = redoInVariantTree(nextVariantTree);
-    }
+      for (const referenceMove of referenceMoves) {
+        const updatedTree = applyMoveToVariantTree(
+          nextVariantTree,
+          referenceMove.move,
+        );
 
-    return nextVariantTree;
-  }, []);
+        if (!updatedTree) {
+          return null;
+        }
+
+        nextVariantTree = updatedTree;
+      }
+
+      nextVariantTree = goToStartInVariantTree(nextVariantTree);
+
+      for (let index = 0; index < progressPly; index += 1) {
+        nextVariantTree = redoInVariantTree(nextVariantTree);
+      }
+
+      return nextVariantTree;
+    },
+    [],
+  );
 
   const exitTrainingPlayMode = useCallback(() => {
     if (!activeTrainingPlaySession) {
@@ -949,51 +1005,63 @@ function App() {
     setEvaluationResult(null);
   }, [activeTrainingPlaySession, hideTrainingPreview, trainingRequestIdRef]);
 
-  const startStandaloneComputerPlay = useCallback((startFrom) => {
-    const startVariantTree =
-      startFrom === TRAINING_COMPUTER_PLAY_SOURCE_INITIAL
-        ? createEmptyVariantTree()
-        : normalizeVariantTree(variantTree);
-    const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
-      createComputerPlayTrainingState(
+  const startStandaloneComputerPlay = useCallback(
+    (startFrom) => {
+      const startVariantTree =
+        startFrom === TRAINING_COMPUTER_PLAY_SOURCE_INITIAL
+          ? createEmptyVariantTree()
+          : normalizeVariantTree(variantTree);
+      const {
+        trainingState: nextTrainingState,
+        variantTree: nextVariantTree,
+        error,
+      } = createComputerPlayTrainingState(
         startVariantTree,
         normalizedTrainingState.playerSide,
         startFrom,
       );
 
-    if (error || !nextVariantTree) {
-      setTrainingError(error ?? "Unable to start computer play.");
-      return;
-    }
+      if (error || !nextVariantTree) {
+        setTrainingError(error ?? "Unable to start computer play.");
+        return;
+      }
 
-    trainingRequestIdRef.current += 1;
-    setVariantTree(nextVariantTree);
-    setTrainingState(nextTrainingState);
-    hideTrainingPreview();
-    setShowPlayComputerPanel(true);
-    setTrainingError("");
-    setTrainingLoading(false);
-    setTrainingPlayAutoReplyPaused(false);
-    setEngineResult(null);
-    setEvaluationResult(null);
-  }, [
-    hideTrainingPreview,
-    normalizedTrainingState.playerSide,
-    trainingRequestIdRef,
-    variantTree,
-  ]);
+      trainingRequestIdRef.current += 1;
+      setVariantTree(nextVariantTree);
+      setTrainingState(nextTrainingState);
+      hideTrainingPreview();
+      setShowPlayComputerPanel(true);
+      setTrainingError("");
+      setTrainingLoading(false);
+      setTrainingPlayAutoReplyPaused(false);
+      setEngineResult(null);
+      setEvaluationResult(null);
+    },
+    [
+      hideTrainingPreview,
+      normalizedTrainingState.playerSide,
+      trainingRequestIdRef,
+      variantTree,
+    ],
+  );
 
   const restartStandaloneComputerPlay = useCallback(() => {
-    if (!computerPlayConfig?.startVariantTree || !computerPlayConfig?.startFrom) {
+    if (
+      !computerPlayConfig?.startVariantTree ||
+      !computerPlayConfig?.startFrom
+    ) {
       return;
     }
 
-    const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
-      createComputerPlayTrainingState(
-        computerPlayConfig.startVariantTree,
-        normalizedTrainingState.playerSide,
-        computerPlayConfig.startFrom,
-      );
+    const {
+      trainingState: nextTrainingState,
+      variantTree: nextVariantTree,
+      error,
+    } = createComputerPlayTrainingState(
+      computerPlayConfig.startVariantTree,
+      normalizedTrainingState.playerSide,
+      computerPlayConfig.startFrom,
+    );
 
     if (error || !nextVariantTree) {
       setTrainingError(error ?? "Unable to restart computer play.");
@@ -1023,7 +1091,9 @@ function App() {
 
     trainingRequestIdRef.current += 1;
     hideTrainingPreview();
-    setTrainingState(createEmptyTrainingState(normalizedTrainingState.playerSide));
+    setTrainingState(
+      createEmptyTrainingState(normalizedTrainingState.playerSide),
+    );
     setTrainingError("");
     setTrainingLoading(false);
     setTrainingPlayAutoReplyPaused(false);
@@ -1109,40 +1179,43 @@ function App() {
     playBoardSoundForVariantTree,
   ]);
 
-  const startTrainingPlayMode = useCallback((attempt) => {
-    if (!attempt?.resultingFen || isTrainingPlayActive) {
-      return;
-    }
+  const startTrainingPlayMode = useCallback(
+    (attempt) => {
+      if (!attempt?.resultingFen || isTrainingPlayActive) {
+        return;
+      }
 
-    trainingRequestIdRef.current += 1;
+      trainingRequestIdRef.current += 1;
 
-    setTrainingState({
-      ...normalizedTrainingState,
-      playSession: {
-        status: TRAINING_PLAY_STATUS_ACTIVE,
-        sourceAttempt: attempt,
-        startingFen: attempt.resultingFen,
-        resumeTrainingState: {
-          ...normalizedTrainingState,
-          playSession: null,
+      setTrainingState({
+        ...normalizedTrainingState,
+        playSession: {
+          status: TRAINING_PLAY_STATUS_ACTIVE,
+          sourceAttempt: attempt,
+          startingFen: attempt.resultingFen,
+          resumeTrainingState: {
+            ...normalizedTrainingState,
+            playSession: null,
+          },
+          resumeVariantTree: normalizeVariantTree(variantTree),
         },
-        resumeVariantTree: normalizeVariantTree(variantTree),
-      },
-    });
-    setVariantTree(createEmptyVariantTree(attempt.resultingFen));
-    hideTrainingPreview();
-    setTrainingError("");
-    setTrainingLoading(false);
-    setTrainingPlayAutoReplyPaused(false);
-    setEngineResult(null);
-    setEvaluationResult(null);
-  }, [
-    hideTrainingPreview,
-    isTrainingPlayActive,
-    normalizedTrainingState,
-    trainingRequestIdRef,
-    variantTree,
-  ]);
+      });
+      setVariantTree(createEmptyVariantTree(attempt.resultingFen));
+      hideTrainingPreview();
+      setTrainingError("");
+      setTrainingLoading(false);
+      setTrainingPlayAutoReplyPaused(false);
+      setEngineResult(null);
+      setEvaluationResult(null);
+    },
+    [
+      hideTrainingPreview,
+      isTrainingPlayActive,
+      normalizedTrainingState,
+      trainingRequestIdRef,
+      variantTree,
+    ],
+  );
 
   const loadGuessHistory = useCallback(async (rawPgn) => {
     const normalizedRawPgn = typeof rawPgn === "string" ? rawPgn.trim() : "";
@@ -1173,12 +1246,17 @@ function App() {
       setActiveGuessHistoryEntryId((currentValue) => {
         const preferredEntryId = pendingGuessHistoryEntryIdRef.current;
 
-        if (preferredEntryId && nextEntries.some((entry) => entry.id === preferredEntryId)) {
+        if (
+          preferredEntryId &&
+          nextEntries.some((entry) => entry.id === preferredEntryId)
+        ) {
           pendingGuessHistoryEntryIdRef.current = "";
           return preferredEntryId;
         }
 
-        return nextEntries.some((entry) => entry.id === currentValue) ? currentValue : "";
+        return nextEntries.some((entry) => entry.id === currentValue)
+          ? currentValue
+          : "";
       });
     } catch (error) {
       setGuessHistoryEntries([]);
@@ -1190,54 +1268,61 @@ function App() {
     }
   }, []);
 
-  const navigateReplayTrainingToProgress = useCallback((targetProgressPly) => {
-    const currentTrainingValue = normalizeTrainingState(normalizedTrainingState);
-    const boundedProgressPly = Math.max(
-      0,
-      Math.min(targetProgressPly, currentTrainingValue.referenceMoves.length),
-    );
-    const nextVariantTree = buildReplayVariantTreeForProgress(
-      currentTrainingValue.referenceMoves,
-      boundedProgressPly,
-    );
+  const navigateReplayTrainingToProgress = useCallback(
+    (targetProgressPly) => {
+      const currentTrainingValue = normalizeTrainingState(
+        normalizedTrainingState,
+      );
+      const boundedProgressPly = Math.max(
+        0,
+        Math.min(targetProgressPly, currentTrainingValue.referenceMoves.length),
+      );
+      const nextVariantTree = buildReplayVariantTreeForProgress(
+        currentTrainingValue.referenceMoves,
+        boundedProgressPly,
+      );
 
-    if (!nextVariantTree) {
-      setTrainingError("Unable to navigate within replay training.");
-      return;
-    }
+      if (!nextVariantTree) {
+        setTrainingError("Unable to navigate within replay training.");
+        return;
+      }
 
-    trainingRequestIdRef.current += 1;
-    setVariantTree(nextVariantTree);
-    setTrainingState(
-      normalizeTrainingState({
-        ...currentTrainingValue,
-        progressPly: boundedProgressPly,
-        status:
-          boundedProgressPly >= currentTrainingValue.referenceMoves.length
-            ? TRAINING_STATUS_COMPLETED
-            : TRAINING_STATUS_ACTIVE,
-        attempts: currentTrainingValue.attempts.filter(
-          (attempt) => Number.isInteger(attempt.ply) && attempt.ply <= boundedProgressPly,
-        ),
-        pendingAttempts: [],
-        lastCompletedAttempts: [],
-        lastCompletedExpectedMove: null,
-        lastCompletionMode: null,
-        playSession: null,
-      }),
-    );
-    hideTrainingPreview();
-    setTrainingError("");
-    setTrainingLoading(false);
-    setTrainingPlayAutoReplyPaused(false);
-    setEngineResult(null);
-    setEvaluationResult(null);
-  }, [
-    buildReplayVariantTreeForProgress,
-    hideTrainingPreview,
-    normalizedTrainingState,
-    trainingRequestIdRef,
-  ]);
+      trainingRequestIdRef.current += 1;
+      setVariantTree(nextVariantTree);
+      setTrainingState(
+        normalizeTrainingState({
+          ...currentTrainingValue,
+          progressPly: boundedProgressPly,
+          status:
+            boundedProgressPly >= currentTrainingValue.referenceMoves.length
+              ? TRAINING_STATUS_COMPLETED
+              : TRAINING_STATUS_ACTIVE,
+          attempts: currentTrainingValue.attempts.filter(
+            (attempt) =>
+              Number.isInteger(attempt.ply) &&
+              attempt.ply <= boundedProgressPly,
+          ),
+          pendingAttempts: [],
+          lastCompletedAttempts: [],
+          lastCompletedExpectedMove: null,
+          lastCompletionMode: null,
+          playSession: null,
+        }),
+      );
+      hideTrainingPreview();
+      setTrainingError("");
+      setTrainingLoading(false);
+      setTrainingPlayAutoReplyPaused(false);
+      setEngineResult(null);
+      setEvaluationResult(null);
+    },
+    [
+      buildReplayVariantTreeForProgress,
+      hideTrainingPreview,
+      normalizedTrainingState,
+      trainingRequestIdRef,
+    ],
+  );
 
   useEffect(() => {
     requestTrainingPlayEngineMove();
@@ -1309,11 +1394,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [
-    hasReplaySource,
-    importedPgnData?.rawPgn,
-    normalizedTrainingState,
-  ]);
+  }, [hasReplaySource, importedPgnData?.rawPgn, normalizedTrainingState]);
 
   useEffect(() => {
     if (!isStandaloneComputerPlayActive || !game.isGameOver()) {
@@ -1340,7 +1421,10 @@ function App() {
   }, [game, isStandaloneComputerPlayActive]);
 
   const setTrainingPlayerSide = useCallback((playerSide) => {
-    if (playerSide !== TRAINING_SIDE_WHITE && playerSide !== TRAINING_SIDE_BLACK) {
+    if (
+      playerSide !== TRAINING_SIDE_WHITE &&
+      playerSide !== TRAINING_SIDE_BLACK
+    ) {
       return;
     }
 
@@ -1353,8 +1437,7 @@ function App() {
         (currentTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE &&
           currentTrainingState.status === TRAINING_STATUS_ACTIVE) ||
         (currentTrainingState.mode === TRAINING_MODE_PLAY_COMPUTER &&
-          currentTrainingState.status === TRAINING_STATUS_ACTIVE
-        )
+          currentTrainingState.status === TRAINING_STATUS_ACTIVE)
       ) {
         return currentTrainingState;
       }
@@ -1370,67 +1453,89 @@ function App() {
     });
   }, []);
 
-  const advanceReplayToPlayerTurn = useCallback((trainingStateValue, variantTreeValue) => {
-    const currentTrainingState = normalizeTrainingState(trainingStateValue);
-    let nextVariantTree = variantTreeValue;
-    let nextProgressPly = currentTrainingState.progressPly;
+  const advanceReplayToPlayerTurn = useCallback(
+    (trainingStateValue, variantTreeValue) => {
+      const currentTrainingState = normalizeTrainingState(trainingStateValue);
+      let nextVariantTree = variantTreeValue;
+      let nextProgressPly = currentTrainingState.progressPly;
 
-    while (nextProgressPly < currentTrainingState.referenceMoves.length) {
-      const nextReferenceMove = currentTrainingState.referenceMoves[nextProgressPly];
+      while (nextProgressPly < currentTrainingState.referenceMoves.length) {
+        const nextReferenceMove =
+          currentTrainingState.referenceMoves[nextProgressPly];
 
-      if (!nextReferenceMove || nextReferenceMove.side === currentTrainingState.playerSide) {
-        break;
+        if (
+          !nextReferenceMove ||
+          nextReferenceMove.side === currentTrainingState.playerSide
+        ) {
+          break;
+        }
+
+        const updatedTree = applyMoveToVariantTree(
+          nextVariantTree,
+          nextReferenceMove.move,
+        );
+
+        if (!updatedTree) {
+          return {
+            trainingState: currentTrainingState,
+            variantTree: variantTreeValue,
+            error: "Unable to auto-play the reference move.",
+          };
+        }
+
+        nextVariantTree = updatedTree;
+        nextProgressPly += 1;
       }
 
-      const updatedTree = applyMoveToVariantTree(nextVariantTree, nextReferenceMove.move);
+      return {
+        trainingState: normalizeTrainingState({
+          ...currentTrainingState,
+          progressPly: nextProgressPly,
+          status:
+            nextProgressPly >= currentTrainingState.referenceMoves.length
+              ? TRAINING_STATUS_COMPLETED
+              : TRAINING_STATUS_ACTIVE,
+        }),
+        variantTree: nextVariantTree,
+        error: null,
+      };
+    },
+    [],
+  );
 
-      if (!updatedTree) {
-        return {
-          trainingState: currentTrainingState,
-          variantTree: variantTreeValue,
-          error: "Unable to auto-play the reference move.",
-        };
+  const buildResolvedReplayAttempt = useCallback(
+    (expectedMove, userMove, userSan, comparison = null) => {
+      return buildReplayAttempt({
+        expectedMove,
+        userMove,
+        userSan,
+        referenceEvaluation: comparison?.referenceEvaluation ?? null,
+        userEvaluation: comparison?.userEvaluation ?? null,
+      });
+    },
+    [],
+  );
+
+  const completeReplayMove = useCallback(
+    (expectedMove, completionMode, finalAttempt = null) => {
+      const currentTrainingState = normalizeTrainingState(
+        normalizedTrainingState,
+      );
+      const advancedReplayTree = applyMoveToVariantTree(
+        variantTree,
+        expectedMove.move,
+      );
+
+      if (!advancedReplayTree) {
+        setTrainingError("Unable to advance the replay game.");
+        return;
       }
 
-      nextVariantTree = updatedTree;
-      nextProgressPly += 1;
-    }
-
-    return {
-      trainingState: normalizeTrainingState({
-        ...currentTrainingState,
-        progressPly: nextProgressPly,
-        status:
-          nextProgressPly >= currentTrainingState.referenceMoves.length
-            ? TRAINING_STATUS_COMPLETED
-            : TRAINING_STATUS_ACTIVE,
-      }),
-      variantTree: nextVariantTree,
-      error: null,
-    };
-  }, []);
-
-  const buildResolvedReplayAttempt = useCallback((expectedMove, userMove, userSan, comparison = null) => {
-    return buildReplayAttempt({
-      expectedMove,
-      userMove,
-      userSan,
-      referenceEvaluation: comparison?.referenceEvaluation ?? null,
-      userEvaluation: comparison?.userEvaluation ?? null,
-    });
-  }, []);
-
-  const completeReplayMove = useCallback((expectedMove, completionMode, finalAttempt = null) => {
-    const currentTrainingState = normalizeTrainingState(normalizedTrainingState);
-    const advancedReplayTree = applyMoveToVariantTree(variantTree, expectedMove.move);
-
-    if (!advancedReplayTree) {
-      setTrainingError("Unable to advance the replay game.");
-      return;
-    }
-
-    const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
-      advanceReplayToPlayerTurn(
+      const {
+        trainingState: nextTrainingState,
+        variantTree: nextVariantTree,
+        error,
+      } = advanceReplayToPlayerTurn(
         normalizeTrainingState({
           ...currentTrainingState,
           attempts: [
@@ -1451,17 +1556,24 @@ function App() {
         advancedReplayTree,
       );
 
-    if (error) {
-      setTrainingError(error);
-      return;
-    }
+      if (error) {
+        setTrainingError(error);
+        return;
+      }
 
-    setVariantTree(nextVariantTree);
-    setTrainingState(nextTrainingState);
-    setEngineResult(null);
-    setEvaluationResult(null);
-    playBoardSoundForVariantTree(nextVariantTree);
-  }, [advanceReplayToPlayerTurn, normalizedTrainingState, playBoardSoundForVariantTree, variantTree]);
+      setVariantTree(nextVariantTree);
+      setTrainingState(nextTrainingState);
+      setEngineResult(null);
+      setEvaluationResult(null);
+      playBoardSoundForVariantTree(nextVariantTree);
+    },
+    [
+      advanceReplayToPlayerTurn,
+      normalizedTrainingState,
+      playBoardSoundForVariantTree,
+      variantTree,
+    ],
+  );
 
   const addPendingReplayAttempt = useCallback((nextAttempt) => {
     if (!nextAttempt) {
@@ -1488,8 +1600,14 @@ function App() {
       return;
     }
 
-    const { trainingState: nextTrainingState, variantTree: replayTree, error } =
-      createReplayTrainingState(importedPgnData.rawPgn, normalizedTrainingState.playerSide);
+    const {
+      trainingState: nextTrainingState,
+      variantTree: replayTree,
+      error,
+    } = createReplayTrainingState(
+      importedPgnData.rawPgn,
+      normalizedTrainingState.playerSide,
+    );
 
     if (error || !replayTree) {
       setTrainingError(error ?? "Unable to start replay training.");
@@ -1560,12 +1678,20 @@ function App() {
 
   const startGuessTraining = useCallback(() => {
     if (!hasReplaySource) {
-      setTrainingError("Import a game before starting guess the move training.");
+      setTrainingError(
+        "Import a game before starting guess the move training.",
+      );
       return;
     }
 
-    const { trainingState: nextTrainingState, variantTree: guessTree, error } =
-      createGuessTheMoveTrainingState(importedPgnData.rawPgn, normalizedTrainingState.playerSide);
+    const {
+      trainingState: nextTrainingState,
+      variantTree: guessTree,
+      error,
+    } = createGuessTheMoveTrainingState(
+      importedPgnData.rawPgn,
+      normalizedTrainingState.playerSide,
+    );
 
     if (error || !guessTree) {
       setTrainingError(error ?? "Unable to start guess the move training.");
@@ -1644,55 +1770,77 @@ function App() {
     }
 
     const currentIds = recentLichessPuzzleIdsRef.current.get(filterKey) ?? [];
-    const nextIds = [...currentIds.filter((id) => id !== puzzleId), puzzleId].slice(
-      -MAX_RECENT_LICHESS_PUZZLE_IDS,
-    );
+    const nextIds = [
+      ...currentIds.filter((id) => id !== puzzleId),
+      puzzleId,
+    ].slice(-MAX_RECENT_LICHESS_PUZZLE_IDS);
 
     recentLichessPuzzleIdsRef.current.set(filterKey, nextIds);
   }, []);
 
-  const getBlockedLichessPuzzleIds = useCallback((filterKey, currentPuzzleId = "") => {
-    const blockedIds = new Set(recentLichessPuzzleIdsRef.current.get(filterKey) ?? []);
+  const getBlockedLichessPuzzleIds = useCallback(
+    (filterKey, currentPuzzleId = "") => {
+      const blockedIds = new Set(
+        recentLichessPuzzleIdsRef.current.get(filterKey) ?? [],
+      );
 
-    if (typeof currentPuzzleId === "string" && currentPuzzleId.trim()) {
-      blockedIds.add(currentPuzzleId.trim());
-    }
+      if (typeof currentPuzzleId === "string" && currentPuzzleId.trim()) {
+        blockedIds.add(currentPuzzleId.trim());
+      }
 
-    return blockedIds;
-  }, []);
+      return blockedIds;
+    },
+    [],
+  );
 
-  const applyPuzzleTrainingPayload = useCallback((puzzleData, filterKey) => {
-    const { trainingState: nextTrainingState, variantTree: nextVariantTree, error } =
-      createPuzzleTrainingState(puzzleData);
+  const applyPuzzleTrainingPayload = useCallback(
+    (puzzleData, filterKey) => {
+      const {
+        trainingState: nextTrainingState,
+        variantTree: nextVariantTree,
+        error,
+      } = createPuzzleTrainingState(puzzleData);
 
-    if (error || !nextVariantTree) {
-      setTrainingError(error ?? "Unable to start puzzle mode.");
-      return false;
-    }
+      if (error || !nextVariantTree) {
+        setTrainingError(error ?? "Unable to start puzzle mode.");
+        return false;
+      }
 
-    setVariantTree(nextVariantTree);
-    setShowPuzzleTrainingPanel(true);
-    setShowReplayTrainingPanel(false);
-    setShowGuessTrainingPanel(false);
-    setEngineResult(null);
-    setEvaluationResult(null);
-    setBoardOrientation(
-      nextTrainingState.playerSide === TRAINING_SIDE_BLACK ? "black" : "white",
-    );
-    setTrainingState(nextTrainingState);
-    setTrainingError("");
-    rememberRecentLichessPuzzleId(filterKey, nextTrainingState.puzzle?.id ?? "");
+      setVariantTree(nextVariantTree);
+      setShowPuzzleTrainingPanel(true);
+      setShowReplayTrainingPanel(false);
+      setShowGuessTrainingPanel(false);
+      setEngineResult(null);
+      setEvaluationResult(null);
+      setBoardOrientation(
+        nextTrainingState.playerSide === TRAINING_SIDE_BLACK
+          ? "black"
+          : "white",
+      );
+      setTrainingState(nextTrainingState);
+      setTrainingError("");
+      rememberRecentLichessPuzzleId(
+        filterKey,
+        nextTrainingState.puzzle?.id ?? "",
+      );
 
-    return true;
-  }, [rememberRecentLichessPuzzleId]);
+      return true;
+    },
+    [rememberRecentLichessPuzzleId],
+  );
 
   const loadPuzzleTraining = useCallback(async () => {
     const { query } = buildLichessPuzzleQuery(lichessPuzzleFilters);
     const filterKey = createLichessPuzzleFilterKey(lichessPuzzleFilters);
     const requestId = ++trainingRequestIdRef.current;
     const currentPuzzleId = normalizedTrainingState.puzzle?.id ?? "";
-    const currentPuzzleOutcome = getPuzzleTerminalOutcome(normalizedTrainingState);
-    const blockedPuzzleIds = getBlockedLichessPuzzleIds(filterKey, currentPuzzleId);
+    const currentPuzzleOutcome = getPuzzleTerminalOutcome(
+      normalizedTrainingState,
+    );
+    const blockedPuzzleIds = getBlockedLichessPuzzleIds(
+      filterKey,
+      currentPuzzleId,
+    );
 
     hideTrainingPreview();
     setTrainingError("");
@@ -1700,7 +1848,9 @@ function App() {
     setTrainingPlayAutoReplyPaused(false);
 
     try {
-      const tokenHeaders = lichessApiToken ? { "X-Lichess-Api-Token": lichessApiToken } : {};
+      const tokenHeaders = lichessApiToken
+        ? { "X-Lichess-Api-Token": lichessApiToken }
+        : {};
       let puzzleData = null;
 
       if (currentPuzzleOutcome) {
@@ -1743,26 +1893,40 @@ function App() {
         }
       }
 
-      for (let attemptIndex = 0; attemptIndex < PUZZLE_FETCH_RETRY_ATTEMPTS; attemptIndex += 1) {
+      for (
+        let attemptIndex = 0;
+        attemptIndex < PUZZLE_FETCH_RETRY_ATTEMPTS;
+        attemptIndex += 1
+      ) {
         if (puzzleData) {
           break;
         }
 
         const params = new URLSearchParams(query);
         params.set("_ts", `${Date.now()}-${attemptIndex}`);
-        const data = await fetchJson(`/api/lichess/puzzle/next?${params.toString()}`, {
-          ...(Object.keys(tokenHeaders).length ? { headers: tokenHeaders } : {}),
-          cache: "no-store",
-        });
+        const data = await fetchJson(
+          `/api/lichess/puzzle/next?${params.toString()}`,
+          {
+            ...(Object.keys(tokenHeaders).length
+              ? { headers: tokenHeaders }
+              : {}),
+            cache: "no-store",
+          },
+        );
 
-        console.log("Lichess puzzle fetch attempt", attemptIndex + 1, { query, data });
+        console.log("Lichess puzzle fetch attempt", attemptIndex + 1, {
+          query,
+          data,
+        });
 
         if (requestId !== trainingRequestIdRef.current) {
           return;
         }
 
         if (data?.unavailable) {
-          setTrainingError(data.details || "Lichess puzzle service is unavailable right now.");
+          setTrainingError(
+            data.details || "Lichess puzzle service is unavailable right now.",
+          );
           return;
         }
 
@@ -1781,7 +1945,9 @@ function App() {
       }
 
       if (!puzzleData) {
-        setTrainingError("Lichess kept returning the same puzzle. Try again or change the filters.");
+        setTrainingError(
+          "Lichess kept returning the same puzzle. Try again or change the filters.",
+        );
         return;
       }
 
@@ -1823,7 +1989,9 @@ function App() {
     hideTrainingPreview();
     setVariantTree(createEmptyVariantTree(initialFen));
     setBoardOrientation(
-      normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK ? "black" : "white",
+      normalizedTrainingState.playerSide === TRAINING_SIDE_BLACK
+        ? "black"
+        : "white",
     );
     setTrainingState(
       normalizeTrainingState({
@@ -1844,70 +2012,82 @@ function App() {
     setEvaluationResult(null);
   }, [hideTrainingPreview, normalizedTrainingState, trainingRequestIdRef]);
 
-  const applyImportedPgn = useCallback((rawPgn) => {
-    const {
-      variantTree: importedVariantTree,
-      importedPgnData: nextImportedPgnData,
-      error,
-    } = parseAnnotatedPgn(rawPgn, {
-      allowEmpty: false,
-    });
+  const applyImportedPgn = useCallback(
+    (rawPgn) => {
+      const {
+        variantTree: importedVariantTree,
+        importedPgnData: nextImportedPgnData,
+        error,
+      } = parseAnnotatedPgn(rawPgn, {
+        allowEmpty: false,
+      });
 
-    if (error || !importedVariantTree) {
-      return error ?? "Invalid PGN. Please check the notation and try again.";
-    }
+      if (error || !importedVariantTree) {
+        return error ?? "Invalid PGN. Please check the notation and try again.";
+      }
 
-    setVariantTree(importedVariantTree);
-    setEngineResult(null);
-    setEvaluationResult(null);
-    guessHistoryRunIdRef.current = null;
-    savedGuessHistoryRunIdRef.current = null;
-    pendingGuessHistoryEntryIdRef.current = "";
-    setActiveGuessHistoryEntryId("");
-    setGuessHistoryError("");
-    resetTrainingSession();
-    setImportedPgnData(nextImportedPgnData);
-    setPositionComments(seedPositionCommentsFromImportedPgnData(nextImportedPgnData));
-    setEditingCommentId(null);
-    setCommentDraft("");
-    setPositionSetupState(null);
-    setPositionSetupError("");
-    return "";
-  }, [resetTrainingSession]);
+      setVariantTree(importedVariantTree);
+      setEngineResult(null);
+      setEvaluationResult(null);
+      guessHistoryRunIdRef.current = null;
+      savedGuessHistoryRunIdRef.current = null;
+      pendingGuessHistoryEntryIdRef.current = "";
+      setActiveGuessHistoryEntryId("");
+      setGuessHistoryError("");
+      resetTrainingSession();
+      setImportedPgnData(nextImportedPgnData);
+      setPositionComments(
+        seedPositionCommentsFromImportedPgnData(nextImportedPgnData),
+      );
+      setEditingCommentId(null);
+      setCommentDraft("");
+      setPositionSetupState(null);
+      setPositionSetupError("");
+      return "";
+    },
+    [resetTrainingSession],
+  );
 
-  const loadGuessHistoryGame = useCallback(async (browseEntry) => {
-    if (!browseEntry?.gameKey) {
-      return;
-    }
-
-    setLoadingGuessHistoryGameKey(browseEntry.gameKey);
-    setGuessHistoryBrowserError("");
-
-    try {
-      const data = await fetchJson(`/api/guess-history/games/${browseEntry.gameKey}`);
-      const nextEntries = normalizeGuessHistoryEntries(data.entries);
-      const error = applyImportedPgn(data.rawPgn);
-
-      if (error) {
-        setGuessHistoryBrowserError(error);
+  const loadGuessHistoryGame = useCallback(
+    async (browseEntry) => {
+      if (!browseEntry?.gameKey) {
         return;
       }
 
-      pendingGuessHistoryEntryIdRef.current =
-        browseEntry.latestEntry?.id ?? nextEntries[0]?.id ?? "";
-      setGuessHistoryEntries(nextEntries);
-      setActiveGuessHistoryEntryId(pendingGuessHistoryEntryIdRef.current);
-      setShowGuessTrainingPanel(true);
-      setShowReplayTrainingPanel(false);
-      setShowGuessHistoryBrowserPopup(false);
+      setLoadingGuessHistoryGameKey(browseEntry.gameKey);
       setGuessHistoryBrowserError("");
-      setCopyNotification(`Loaded Guess history for "${browseEntry.game.white || "saved game"}".`);
-    } catch (error) {
-      setGuessHistoryBrowserError(error.message);
-    } finally {
-      setLoadingGuessHistoryGameKey("");
-    }
-  }, [applyImportedPgn]);
+
+      try {
+        const data = await fetchJson(
+          `/api/guess-history/games/${browseEntry.gameKey}`,
+        );
+        const nextEntries = normalizeGuessHistoryEntries(data.entries);
+        const error = applyImportedPgn(data.rawPgn);
+
+        if (error) {
+          setGuessHistoryBrowserError(error);
+          return;
+        }
+
+        pendingGuessHistoryEntryIdRef.current =
+          browseEntry.latestEntry?.id ?? nextEntries[0]?.id ?? "";
+        setGuessHistoryEntries(nextEntries);
+        setActiveGuessHistoryEntryId(pendingGuessHistoryEntryIdRef.current);
+        setShowGuessTrainingPanel(true);
+        setShowReplayTrainingPanel(false);
+        setShowGuessHistoryBrowserPopup(false);
+        setGuessHistoryBrowserError("");
+        setCopyNotification(
+          `Loaded Guess history for "${browseEntry.game.white || "saved game"}".`,
+        );
+      } catch (error) {
+        setGuessHistoryBrowserError(error.message);
+      } finally {
+        setLoadingGuessHistoryGameKey("");
+      }
+    },
+    [applyImportedPgn],
+  );
 
   const currentMoveIndex = useMemo(
     () => moveHistoryEntries.findIndex((entry) => entry.isSelected),
@@ -1939,7 +2119,10 @@ function App() {
     setHoveredOpeningTreeMove(parsedMove);
   }, []);
 
-  function getMoveAttemptForCurrentPosition(move, { defaultPromotion = false } = {}) {
+  function getMoveAttemptForCurrentPosition(
+    move,
+    { defaultPromotion = false } = {},
+  ) {
     if (!move?.from || !move?.to) {
       return null;
     }
@@ -1971,7 +2154,9 @@ function App() {
       normalizedAttemptedMove: {
         from: appliedUserMove.from,
         to: appliedUserMove.to,
-        ...(appliedUserMove.promotion ? { promotion: appliedUserMove.promotion } : {}),
+        ...(appliedUserMove.promotion
+          ? { promotion: appliedUserMove.promotion }
+          : {}),
       },
     };
   }
@@ -1981,7 +2166,9 @@ function App() {
       return false;
     }
 
-    const moveAttempt = getMoveAttemptForCurrentPosition(move, { defaultPromotion });
+    const moveAttempt = getMoveAttemptForCurrentPosition(move, {
+      defaultPromotion,
+    });
 
     if (!moveAttempt) {
       return false;
@@ -1994,7 +2181,10 @@ function App() {
         return false;
       }
 
-      const nextVariantTree = applyMoveToVariantTree(variantTree, normalizedAttemptedMove);
+      const nextVariantTree = applyMoveToVariantTree(
+        variantTree,
+        normalizedAttemptedMove,
+      );
 
       if (!nextVariantTree) {
         return false;
@@ -2204,7 +2394,10 @@ function App() {
         normalizedAttemptedMove,
         appliedUserMove.san,
       );
-      const failedPuzzleTree = applyMoveToVariantTree(variantTree, normalizedAttemptedMove);
+      const failedPuzzleTree = applyMoveToVariantTree(
+        variantTree,
+        normalizedAttemptedMove,
+      );
 
       if (!failedAttempt || !failedPuzzleTree) {
         setTrainingError("Unable to record the puzzle attempt.");
@@ -2242,7 +2435,10 @@ function App() {
       return true;
     }
 
-    const nextVariantTree = applyMoveToVariantTree(variantTree, normalizedAttemptedMove);
+    const nextVariantTree = applyMoveToVariantTree(
+      variantTree,
+      normalizedAttemptedMove,
+    );
 
     if (!nextVariantTree) {
       return false;
@@ -2294,9 +2490,13 @@ function App() {
       setPositionSetupState((currentValue) =>
         currentValue
           ? {
-            ...currentValue,
-            position: movePositionSetupPiece(currentValue.position, sourceSquare, targetSquare),
-          }
+              ...currentValue,
+              position: movePositionSetupPiece(
+                currentValue.position,
+                sourceSquare,
+                targetSquare,
+              ),
+            }
           : currentValue,
       );
       setPositionSetupError("");
@@ -2394,7 +2594,7 @@ function App() {
       );
       const nextCheckpoint =
         currentCheckpointIndex >= 0 &&
-          currentCheckpointIndex < trainingNavigationCheckpoints.length - 1
+        currentCheckpointIndex < trainingNavigationCheckpoints.length - 1
           ? trainingNavigationCheckpoints[currentCheckpointIndex + 1]
           : null;
 
@@ -2488,7 +2688,9 @@ function App() {
 
     if (isReferenceTrainingMode) {
       navigateReplayTrainingToProgress(
-        trainingNavigationCheckpoints[trainingNavigationCheckpoints.length - 1] ?? 0,
+        trainingNavigationCheckpoints[
+          trainingNavigationCheckpoints.length - 1
+        ] ?? 0,
       );
       return;
     }
@@ -2531,43 +2733,67 @@ function App() {
     setEvaluationResult(null);
   }, [canJumpBackToSideline, resetTrainingSession, isPositionSetupMode]);
 
-  const goToMoveHistoryNode = useCallback((nodeId) => {
-    resetTrainingSession();
-    setVariantTree((currentValue) => goToNodeInVariantTree(currentValue, nodeId));
-    setEngineResult(null);
-    setEvaluationResult(null);
-  }, [resetTrainingSession]);
+  const goToMoveHistoryNode = useCallback(
+    (nodeId) => {
+      resetTrainingSession();
+      setVariantTree((currentValue) =>
+        goToNodeInVariantTree(currentValue, nodeId),
+      );
+      setEngineResult(null);
+      setEvaluationResult(null);
+    },
+    [resetTrainingSession],
+  );
 
-  const revertMoveHistoryToNode = useCallback((nodeId) => {
-    resetTrainingSession();
-    setVariantTree((currentValue) => truncateLineAfterNode(currentValue, nodeId));
-    setEngineResult(null);
-    setEvaluationResult(null);
-  }, [resetTrainingSession]);
+  const revertMoveHistoryToNode = useCallback(
+    (nodeId) => {
+      resetTrainingSession();
+      setVariantTree((currentValue) =>
+        truncateLineAfterNode(currentValue, nodeId),
+      );
+      setEngineResult(null);
+      setEvaluationResult(null);
+    },
+    [resetTrainingSession],
+  );
 
-  const selectVariant = useCallback((lineId) => {
-    resetTrainingSession();
-    setVariantTree((currentValue) => selectVariantLine(currentValue, lineId));
-    setEngineResult(null);
-    setEvaluationResult(null);
-  }, [resetTrainingSession]);
+  const selectVariant = useCallback(
+    (lineId) => {
+      resetTrainingSession();
+      setVariantTree((currentValue) => selectVariantLine(currentValue, lineId));
+      setEngineResult(null);
+      setEvaluationResult(null);
+    },
+    [resetTrainingSession],
+  );
 
-  const promoteVariant = useCallback((lineId) => {
-    resetTrainingSession();
-    setVariantTree((currentValue) => promoteVariantLine(currentValue, lineId));
-  }, [resetTrainingSession]);
+  const promoteVariant = useCallback(
+    (lineId) => {
+      resetTrainingSession();
+      setVariantTree((currentValue) =>
+        promoteVariantLine(currentValue, lineId),
+      );
+    },
+    [resetTrainingSession],
+  );
 
-  const demoteVariant = useCallback((lineId) => {
-    resetTrainingSession();
-    setVariantTree((currentValue) => demoteVariantLine(currentValue, lineId));
-  }, [resetTrainingSession]);
+  const demoteVariant = useCallback(
+    (lineId) => {
+      resetTrainingSession();
+      setVariantTree((currentValue) => demoteVariantLine(currentValue, lineId));
+    },
+    [resetTrainingSession],
+  );
 
-  const removeVariant = useCallback((lineId) => {
-    resetTrainingSession();
-    setVariantTree((currentValue) => removeVariantLine(currentValue, lineId));
-    setEngineResult(null);
-    setEvaluationResult(null);
-  }, [resetTrainingSession]);
+  const removeVariant = useCallback(
+    (lineId) => {
+      resetTrainingSession();
+      setVariantTree((currentValue) => removeVariantLine(currentValue, lineId));
+      setEngineResult(null);
+      setEvaluationResult(null);
+    },
+    [resetTrainingSession],
+  );
 
   const retryReplayMove = useCallback(() => {
     setTrainingError("");
@@ -2598,95 +2824,109 @@ function App() {
     setCommentDraft("");
   }, []);
 
-  const removeComment = useCallback((commentId) => {
-    const isRemovingEditedComment = editingCommentId === commentId;
+  const removeComment = useCallback(
+    (commentId) => {
+      const isRemovingEditedComment = editingCommentId === commentId;
 
-    setPositionComments((currentValue) =>
-      removePositionCommentEntry(currentValue, commentId),
-    );
-    if (isRemovingEditedComment) {
-      setEditingCommentId(null);
-      setCommentDraft("");
-    }
-  }, [editingCommentId]);
-
-  const handleBoardSquareMouseDown = useCallback(({ square }, event) => {
-    if (isPositionSetupMode) {
-      boardRightMouseSelectionRef.current = null;
-      if (event.button === 2) {
-        event.preventDefault();
+      setPositionComments((currentValue) =>
+        removePositionCommentEntry(currentValue, commentId),
+      );
+      if (isRemovingEditedComment) {
+        setEditingCommentId(null);
+        setCommentDraft("");
       }
-      return;
-    }
+    },
+    [editingCommentId],
+  );
 
-    if (event.button === 2) {
-      boardRightMouseSelectionRef.current = { startSquare: square };
-      return;
-    }
+  const handleBoardSquareMouseDown = useCallback(
+    ({ square }, event) => {
+      if (isPositionSetupMode) {
+        boardRightMouseSelectionRef.current = null;
+        if (event.button === 2) {
+          event.preventDefault();
+        }
+        return;
+      }
 
-    boardRightMouseSelectionRef.current = null;
-  }, [isPositionSetupMode]);
-
-  const handleBoardSquareMouseUp = useCallback(({ square }, event) => {
-    if (isPositionSetupMode) {
-      boardRightMouseSelectionRef.current = null;
       if (event.button === 2) {
-        event.preventDefault();
-        setPositionSetupState((currentValue) =>
-          currentValue
-            ? {
-              ...currentValue,
-              position: applyPositionSetupTool(
-                currentValue.position,
-                square,
-                POSITION_SETUP_CLEAR_TOOL,
-              ),
-            }
-            : currentValue,
+        boardRightMouseSelectionRef.current = { startSquare: square };
+        return;
+      }
+
+      boardRightMouseSelectionRef.current = null;
+    },
+    [isPositionSetupMode],
+  );
+
+  const handleBoardSquareMouseUp = useCallback(
+    ({ square }, event) => {
+      if (isPositionSetupMode) {
+        boardRightMouseSelectionRef.current = null;
+        if (event.button === 2) {
+          event.preventDefault();
+          setPositionSetupState((currentValue) =>
+            currentValue
+              ? {
+                  ...currentValue,
+                  position: applyPositionSetupTool(
+                    currentValue.position,
+                    square,
+                    POSITION_SETUP_CLEAR_TOOL,
+                  ),
+                }
+              : currentValue,
+          );
+          setPositionSetupError("");
+        }
+        return;
+      }
+
+      if (event.button !== 2) {
+        boardRightMouseSelectionRef.current = null;
+        return;
+      }
+
+      const startSquare =
+        boardRightMouseSelectionRef.current?.startSquare ?? null;
+
+      boardRightMouseSelectionRef.current = null;
+
+      if (!startSquare) {
+        return;
+      }
+
+      const color = getBoardAnnotationColor({
+        shiftKey: event.shiftKey,
+        ctrlKey: event.ctrlKey,
+      });
+
+      setBoardRenderNonce((currentValue) => currentValue + 1);
+
+      if (startSquare === square) {
+        setVariantTree((currentValue) =>
+          toggleBoardHighlightAnnotation(
+            currentValue,
+            currentValue.currentNodeId,
+            {
+              square,
+              color,
+            },
+          ),
         );
-        setPositionSetupError("");
+        return;
       }
-      return;
-    }
 
-    if (event.button !== 2) {
-      boardRightMouseSelectionRef.current = null;
-      return;
-    }
-
-    const startSquare = boardRightMouseSelectionRef.current?.startSquare ?? null;
-
-    boardRightMouseSelectionRef.current = null;
-
-    if (!startSquare) {
-      return;
-    }
-
-    const color = getBoardAnnotationColor({
-      shiftKey: event.shiftKey,
-      ctrlKey: event.ctrlKey,
-    });
-
-    setBoardRenderNonce((currentValue) => currentValue + 1);
-
-    if (startSquare === square) {
       setVariantTree((currentValue) =>
-        toggleBoardHighlightAnnotation(currentValue, currentValue.currentNodeId, {
-          square,
+        toggleBoardArrowAnnotation(currentValue, currentValue.currentNodeId, {
+          startSquare,
+          endSquare: square,
           color,
         }),
       );
-      return;
-    }
-
-    setVariantTree((currentValue) =>
-      toggleBoardArrowAnnotation(currentValue, currentValue.currentNodeId, {
-        startSquare,
-        endSquare: square,
-        color,
-      }),
-    );
-  }, [isPositionSetupMode]);
+    },
+    [isPositionSetupMode],
+  );
 
   const openPositionSetup = useCallback(() => {
     setPositionSetupState(createPositionSetupDraft(fen));
@@ -2702,9 +2942,9 @@ function App() {
     setPositionSetupState((currentValue) =>
       currentValue
         ? {
-          ...currentValue,
-          selectedTool,
-        }
+            ...currentValue,
+            selectedTool,
+          }
         : currentValue,
     );
     setPositionSetupError("");
@@ -2714,12 +2954,13 @@ function App() {
     setPositionSetupState((currentValue) =>
       currentValue
         ? {
-          ...currentValue,
-          castlingRights: {
-            ...currentValue.castlingRights,
-            [castlingRightKey]: !currentValue.castlingRights?.[castlingRightKey],
-          },
-        }
+            ...currentValue,
+            castlingRights: {
+              ...currentValue.castlingRights,
+              [castlingRightKey]:
+                !currentValue.castlingRights?.[castlingRightKey],
+            },
+          }
         : currentValue,
     );
     setPositionSetupError("");
@@ -2729,9 +2970,9 @@ function App() {
     setPositionSetupState((currentValue) =>
       currentValue
         ? {
-          ...currentValue,
-          activeColor: activeColor === "black" ? "black" : "white",
-        }
+            ...currentValue,
+            activeColor: activeColor === "black" ? "black" : "white",
+          }
         : currentValue,
     );
     setPositionSetupError("");
@@ -2769,10 +3010,10 @@ function App() {
     setPositionSetupState((currentValue) =>
       currentValue
         ? {
-          ...currentValue,
-          castlingRights: { ...DEFAULT_POSITION_SETUP_CASTLING_RIGHTS },
-          position: {},
-        }
+            ...currentValue,
+            castlingRights: { ...DEFAULT_POSITION_SETUP_CASTLING_RIGHTS },
+            position: {},
+          }
         : currentValue,
     );
     setPositionSetupError("");
@@ -2786,13 +3027,13 @@ function App() {
     setPositionSetupState((currentValue) =>
       currentValue
         ? {
-          ...currentValue,
-          position: applyPositionSetupTool(
-            currentValue.position,
-            square,
-            currentValue.selectedTool,
-          ),
-        }
+            ...currentValue,
+            position: applyPositionSetupTool(
+              currentValue.position,
+              square,
+              currentValue.selectedTool,
+            ),
+          }
         : currentValue,
     );
     setPositionSetupError("");
@@ -2836,8 +3077,9 @@ function App() {
     }
 
     const existingComment =
-      currentPositionComments.find((commentEntry) => commentEntry.id === editingCommentId) ??
-      null;
+      currentPositionComments.find(
+        (commentEntry) => commentEntry.id === editingCommentId,
+      ) ?? null;
     const commentContext = buildPositionCommentContext(fen, currentMoveHistory);
     const nextComment = createUserPositionComment({
       ...commentContext,
@@ -2859,7 +3101,13 @@ function App() {
     );
     setEditingCommentId(null);
     setCommentDraft("");
-  }, [commentDraft, currentMoveHistory, currentPositionComments, editingCommentId, fen]);
+  }, [
+    commentDraft,
+    currentMoveHistory,
+    currentPositionComments,
+    editingCommentId,
+    fen,
+  ]);
 
   function toggleMenu(menuName) {
     setOpenMenu((currentMenu) => (currentMenu === menuName ? null : menuName));
@@ -2992,7 +3240,9 @@ function App() {
 
     try {
       const data = await fetchJson("/api/guess-history/games");
-      setGuessHistoryBrowserGames(normalizeGuessHistoryBrowseEntries(data.games));
+      setGuessHistoryBrowserGames(
+        normalizeGuessHistoryBrowseEntries(data.games),
+      );
     } catch (error) {
       setGuessHistoryBrowserGames([]);
       setGuessHistoryBrowserError(error.message);
@@ -3012,29 +3262,32 @@ function App() {
     setLoadingGuessHistoryGameKey("");
   }, []);
 
-  const applyStudyToWorkspace = useCallback((studyValue) => {
-    const study = normalizeStudy(studyValue);
+  const applyStudyToWorkspace = useCallback(
+    (studyValue) => {
+      const study = normalizeStudy(studyValue);
 
-    if (!study) {
-      return "Saved study is invalid.";
-    }
+      if (!study) {
+        return "Saved study is invalid.";
+      }
 
-    resetTrainingSession();
-    setVariantTree(study.variantTree);
-    setEngineResult(null);
-    setEvaluationResult(null);
-    setImportedPgnData(study.importedPgnData);
-    setPositionComments(study.positionComments);
-    setEditingCommentId(null);
-    setCommentDraft("");
-    setPositionSetupState(null);
-    setPositionSetupError("");
-    setShowMoveHistory(true);
-    setShowComments(true);
-    setShowVariants(true);
-    setShowImportedPgn(!!study.importedPgnData);
-    return "";
-  }, [resetTrainingSession]);
+      resetTrainingSession();
+      setVariantTree(study.variantTree);
+      setEngineResult(null);
+      setEvaluationResult(null);
+      setImportedPgnData(study.importedPgnData);
+      setPositionComments(study.positionComments);
+      setEditingCommentId(null);
+      setCommentDraft("");
+      setPositionSetupState(null);
+      setPositionSetupError("");
+      setShowMoveHistory(true);
+      setShowComments(true);
+      setShowVariants(true);
+      setShowImportedPgn(!!study.importedPgnData);
+      return "";
+    },
+    [resetTrainingSession],
+  );
 
   const saveCurrentStudy = useCallback(async () => {
     setSavingStudy(true);
@@ -3076,72 +3329,78 @@ function App() {
     variantTree,
   ]);
 
-  const loadStudy = useCallback(async (studyId) => {
-    setLoadingStudyId(studyId);
-    setStudiesError("");
+  const loadStudy = useCallback(
+    async (studyId) => {
+      setLoadingStudyId(studyId);
+      setStudiesError("");
 
-    try {
-      const study = await fetchJson(`/api/studies/${studyId}`);
-      const error = applyStudyToWorkspace(study);
+      try {
+        const study = await fetchJson(`/api/studies/${studyId}`);
+        const error = applyStudyToWorkspace(study);
 
-      if (error) {
-        setStudiesError(error);
+        if (error) {
+          setStudiesError(error);
+          return;
+        }
+
+        setCopyNotification(`Loaded study "${study.title}".`);
+        closeStudiesPopup();
+      } catch (error) {
+        setStudiesError(error.message);
+      } finally {
+        setLoadingStudyId("");
+      }
+    },
+    [applyStudyToWorkspace, closeStudiesPopup],
+  );
+
+  const removeStudy = useCallback(
+    async (study) => {
+      if (!study?.id) {
         return;
       }
 
-      setCopyNotification(`Loaded study "${study.title}".`);
-      closeStudiesPopup();
-    } catch (error) {
-      setStudiesError(error.message);
-    } finally {
-      setLoadingStudyId("");
-    }
-  }, [applyStudyToWorkspace, closeStudiesPopup]);
+      const studyTitle = study.title ?? "Untitled study";
 
-  const removeStudy = useCallback(async (study) => {
-    if (!study?.id) {
-      return;
-    }
-
-    const studyTitle = study.title ?? "Untitled study";
-
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete study "${studyTitle}"? This cannot be undone.`)
-    ) {
-      return;
-    }
-
-    setDeletingStudyId(study.id);
-    setStudiesError("");
-
-    try {
-      await fetchJson(`/api/studies/${study.id}`, {
-        method: "DELETE",
-      });
-      setStudies((currentStudies) =>
-        currentStudies.filter((currentStudy) => currentStudy.id !== study.id),
-      );
-      setCollections((currentCollections) =>
-        currentCollections.map((collection) =>
-          normalizeCollection({
-            ...collection,
-            studyIds: collection.studyIds.filter(
-              (currentStudyId) => currentStudyId !== study.id,
-            ),
-          }),
-        ),
-      );
-      if (managingStudy?.id === study.id) {
-        closeManageCollectionsPopup();
+      if (
+        typeof window !== "undefined" &&
+        !window.confirm(`Delete study "${studyTitle}"? This cannot be undone.`)
+      ) {
+        return;
       }
-      setCopyNotification(`Deleted study "${studyTitle}".`);
-    } catch (error) {
-      setStudiesError(error.message);
-    } finally {
-      setDeletingStudyId("");
-    }
-  }, [closeManageCollectionsPopup, managingStudy]);
+
+      setDeletingStudyId(study.id);
+      setStudiesError("");
+
+      try {
+        await fetchJson(`/api/studies/${study.id}`, {
+          method: "DELETE",
+        });
+        setStudies((currentStudies) =>
+          currentStudies.filter((currentStudy) => currentStudy.id !== study.id),
+        );
+        setCollections((currentCollections) =>
+          currentCollections.map((collection) =>
+            normalizeCollection({
+              ...collection,
+              studyIds: collection.studyIds.filter(
+                (currentStudyId) => currentStudyId !== study.id,
+              ),
+            }),
+          ),
+        );
+        if (managingStudy?.id === study.id) {
+          closeManageCollectionsPopup();
+        }
+        setCopyNotification(`Deleted study "${studyTitle}".`);
+      } catch (error) {
+        setStudiesError(error.message);
+      } finally {
+        setDeletingStudyId("");
+      }
+    },
+    [closeManageCollectionsPopup, managingStudy],
+  );
 
   const createCollection = useCallback(async () => {
     setCreatingCollection(true);
@@ -3163,8 +3422,9 @@ function App() {
       }
 
       setCollections((currentCollections) =>
-        [createdCollection, ...currentCollections].sort((leftCollection, rightCollection) =>
-          rightCollection.updatedAt.localeCompare(leftCollection.updatedAt),
+        [createdCollection, ...currentCollections].sort(
+          (leftCollection, rightCollection) =>
+            rightCollection.updatedAt.localeCompare(leftCollection.updatedAt),
         ),
       );
       setSelectedCollectionId(createdCollection.id);
@@ -3228,17 +3488,17 @@ function App() {
             : `/api/collections/${collection.id}/studies`,
           isMember
             ? {
-              method: "DELETE",
-            }
+                method: "DELETE",
+              }
             : {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  studyId: study.id,
+                }),
               },
-              body: JSON.stringify({
-                studyId: study.id,
-              }),
-            },
         ),
       );
 
@@ -3565,40 +3825,46 @@ function App() {
             ? data.pagination
             : data?.search && typeof data.search === "object"
               ? {
-                page:
-                  Number.isInteger(data.search.page) && data.search.page > 0
-                    ? data.search.page
-                    : otbSearchPage,
-                pageSize:
-                  Number.isInteger(data.search.pageSize) && data.search.pageSize > 0
-                    ? data.search.pageSize
-                    : Number(appliedOtbSearchFiltersRef.current.pageSize) || 25,
-                totalResults: Number.isInteger(data.search.totalResults)
-                  ? data.search.totalResults
-                  : nextResults.length,
-                totalPages: Number.isInteger(data.search.totalPages)
-                  ? data.search.totalPages
-                  : 1,
-                hasPreviousPage:
-                  Number.isInteger(data.search.page) && data.search.page > 1,
-                hasNextPage:
-                  Number.isInteger(data.search.page) &&
-                  Number.isInteger(data.search.totalPages) &&
-                  data.search.page < data.search.totalPages,
-              }
+                  page:
+                    Number.isInteger(data.search.page) && data.search.page > 0
+                      ? data.search.page
+                      : otbSearchPage,
+                  pageSize:
+                    Number.isInteger(data.search.pageSize) &&
+                    data.search.pageSize > 0
+                      ? data.search.pageSize
+                      : Number(appliedOtbSearchFiltersRef.current.pageSize) ||
+                        25,
+                  totalResults: Number.isInteger(data.search.totalResults)
+                    ? data.search.totalResults
+                    : nextResults.length,
+                  totalPages: Number.isInteger(data.search.totalPages)
+                    ? data.search.totalPages
+                    : 1,
+                  hasPreviousPage:
+                    Number.isInteger(data.search.page) && data.search.page > 1,
+                  hasNextPage:
+                    Number.isInteger(data.search.page) &&
+                    Number.isInteger(data.search.totalPages) &&
+                    data.search.page < data.search.totalPages,
+                }
               : {
-                page: otbSearchPage,
-                pageSize: Number(appliedOtbSearchFiltersRef.current.pageSize) || 25,
-                totalResults: nextResults.length,
-                totalPages: nextResults.length > 0 ? 1 : 1,
-                hasPreviousPage: false,
-                hasNextPage: false,
-              };
+                  page: otbSearchPage,
+                  pageSize:
+                    Number(appliedOtbSearchFiltersRef.current.pageSize) || 25,
+                  totalResults: nextResults.length,
+                  totalPages: nextResults.length > 0 ? 1 : 1,
+                  hasPreviousPage: false,
+                  hasNextPage: false,
+                };
 
         setOtbSearchResults(nextResults);
         setOtbSearchPagination(nextPagination);
 
-        if (Number.isInteger(nextPagination.page) && nextPagination.page !== otbSearchPage) {
+        if (
+          Number.isInteger(nextPagination.page) &&
+          nextPagination.page !== otbSearchPage
+        ) {
           setOtbSearchPage(nextPagination.page);
         }
       } catch (error) {
@@ -3619,7 +3885,12 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [hasSearchedOtb, otbSearchNonce, otbSearchPage, otbSearchFilters.pageSize]);
+  }, [
+    hasSearchedOtb,
+    otbSearchNonce,
+    otbSearchPage,
+    otbSearchFilters.pageSize,
+  ]);
 
   useEffect(() => {
     setEditingCommentId(null);
@@ -3631,13 +3902,13 @@ function App() {
       isTrainingFocusMode && trainingFocusRestoreRef.current
         ? trainingFocusRestoreRef.current
         : {
-          showMoveHistory,
-          showOpeningTreePanel,
-          showEngineWindow,
-          showComments,
-          showImportedPgn,
-          showVariants,
-        };
+            showMoveHistory,
+            showOpeningTreePanel,
+            showEngineWindow,
+            showComments,
+            showImportedPgn,
+            showVariants,
+          };
 
     try {
       savePersistedAppState({
@@ -3701,9 +3972,12 @@ function App() {
 
     async function loadShortcuts() {
       try {
-        const response = await fetch(new URL("./shortcuts.json", import.meta.url), {
-          cache: "no-store",
-        });
+        const response = await fetch(
+          new URL("./shortcuts.json", import.meta.url),
+          {
+            cache: "no-store",
+          },
+        );
 
         if (!response.ok) {
           throw new Error("Failed to load shortcuts");
@@ -3720,9 +3994,11 @@ function App() {
       } catch {
         if (
           !ignore &&
-          DEFAULT_SHORTCUT_CONFIG_SIGNATURE !== shortcutConfigSignatureRef.current
+          DEFAULT_SHORTCUT_CONFIG_SIGNATURE !==
+            shortcutConfigSignatureRef.current
         ) {
-          shortcutConfigSignatureRef.current = DEFAULT_SHORTCUT_CONFIG_SIGNATURE;
+          shortcutConfigSignatureRef.current =
+            DEFAULT_SHORTCUT_CONFIG_SIGNATURE;
           setShortcutConfig(DEFAULT_SHORTCUT_CONFIG);
         }
       }
@@ -3855,10 +4131,14 @@ function App() {
       setEngineResult((currentValue) =>
         currentValue
           ? {
-            ...currentValue,
-            error: "Unable to add the selected engine line to the variant tree.",
-          }
-          : { error: "Unable to add the selected engine line to the variant tree." },
+              ...currentValue,
+              error:
+                "Unable to add the selected engine line to the variant tree.",
+            }
+          : {
+              error:
+                "Unable to add the selected engine line to the variant tree.",
+            },
       );
       return;
     }
@@ -3869,7 +4149,12 @@ function App() {
     setShowVariants(true);
     setEngineResult(null);
     setEvaluationResult(null);
-  }, [resetTrainingSession, selectedEngineVariant, variantTree, isPositionSetupMode]);
+  }, [
+    resetTrainingSession,
+    selectedEngineVariant,
+    variantTree,
+    isPositionSetupMode,
+  ]);
 
   const resetGame = useCallback(() => {
     resetTrainingSession();
@@ -4019,150 +4304,159 @@ function App() {
     );
   }, []);
 
-  const menuActions = useMemo(() => ({
-    analyzePosition,
-    toggleVariantArrows,
-    undoMove,
-    redoMove,
-    openImportPgnPopup,
-    openPositionSetup,
-    copyFenToClipboard,
-    resetGame,
-    openLichessSearchPopup,
-    openLichessTokenPopup,
-    openOtbSearchPopup,
-    openGuessHistoryBrowser,
-    openSaveStudyPopup,
-    openStudiesPopup,
-    toggleBoardOrientation,
-    toggleMoveHistory,
-    toggleOpeningTreePanel,
-    togglePuzzleTrainingPanel,
-    toggleReplayTrainingPanel,
-    toggleGuessTrainingPanel,
-    togglePlayComputerPanel,
-    toggleEngineWindow,
-    toggleEvaluationBar,
-    toggleBoardSounds,
-    toggleComments,
-    toggleImportedPgn,
-    toggleVariants,
-    openShortcutsPopup,
-  }), [
-    analyzePosition,
-    copyFenToClipboard,
-    openImportPgnPopup,
-    openPositionSetup,
-    openGuessHistoryBrowser,
-    openLichessSearchPopup,
-    openLichessTokenPopup,
-    openOtbSearchPopup,
-    openSaveStudyPopup,
-    openShortcutsPopup,
-    openStudiesPopup,
-    redoMove,
-    resetGame,
-    toggleBoardOrientation,
-    toggleComments,
-    toggleEngineWindow,
-    toggleEvaluationBar,
-    toggleBoardSounds,
-    toggleImportedPgn,
-    toggleMoveHistory,
-    toggleOpeningTreePanel,
-    togglePuzzleTrainingPanel,
-    toggleReplayTrainingPanel,
-    toggleGuessTrainingPanel,
-    togglePlayComputerPanel,
-    toggleVariantArrows,
-    toggleVariants,
-    undoMove,
-  ]);
+  const menuActions = useMemo(
+    () => ({
+      analyzePosition,
+      toggleVariantArrows,
+      undoMove,
+      redoMove,
+      openImportPgnPopup,
+      openPositionSetup,
+      copyFenToClipboard,
+      resetGame,
+      openLichessSearchPopup,
+      openLichessTokenPopup,
+      openOtbSearchPopup,
+      openGuessHistoryBrowser,
+      openSaveStudyPopup,
+      openStudiesPopup,
+      toggleBoardOrientation,
+      toggleMoveHistory,
+      toggleOpeningTreePanel,
+      togglePuzzleTrainingPanel,
+      toggleReplayTrainingPanel,
+      toggleGuessTrainingPanel,
+      togglePlayComputerPanel,
+      toggleEngineWindow,
+      toggleEvaluationBar,
+      toggleBoardSounds,
+      toggleComments,
+      toggleImportedPgn,
+      toggleVariants,
+      openShortcutsPopup,
+    }),
+    [
+      analyzePosition,
+      copyFenToClipboard,
+      openImportPgnPopup,
+      openPositionSetup,
+      openGuessHistoryBrowser,
+      openLichessSearchPopup,
+      openLichessTokenPopup,
+      openOtbSearchPopup,
+      openSaveStudyPopup,
+      openShortcutsPopup,
+      openStudiesPopup,
+      redoMove,
+      resetGame,
+      toggleBoardOrientation,
+      toggleComments,
+      toggleEngineWindow,
+      toggleEvaluationBar,
+      toggleBoardSounds,
+      toggleImportedPgn,
+      toggleMoveHistory,
+      toggleOpeningTreePanel,
+      togglePuzzleTrainingPanel,
+      toggleReplayTrainingPanel,
+      toggleGuessTrainingPanel,
+      togglePlayComputerPanel,
+      toggleVariantArrows,
+      toggleVariants,
+      undoMove,
+    ],
+  );
 
-  const keyboardActions = useMemo(() => ({
-    closeImportPgnPopup,
-    closeSaveStudyPopup,
-    closeCreateCollectionPopup,
-    closeManageCollectionsPopup,
-    closeStudiesPopup,
-    closeGuessHistoryBrowser,
-    closeLichessSearchPopup,
-    closeLichessTokenPopup,
-    closeOtbSearchPopup,
-    closeShortcutsPopup,
-    openShortcutsPopup,
-    setOpenMenu,
-    goToStart,
-    undoMove,
-    redoMove,
-    jumpToMainVariant,
-    jumpBackToSideline,
-    goToEnd,
-    toggleBoardOrientation,
-    toggleMoveHistory,
-    toggleOpeningTreePanel,
-    togglePuzzleTrainingPanel,
-    toggleReplayTrainingPanel,
-    toggleGuessTrainingPanel,
-    togglePlayComputerPanel,
-    toggleEngineWindow,
-    toggleComments,
-    toggleImportedPgn,
-    toggleVariants,
-  }), [
-    closeCreateCollectionPopup,
-    closeGuessHistoryBrowser,
-    closeImportPgnPopup,
-    closeLichessSearchPopup,
-    closeLichessTokenPopup,
-    closeManageCollectionsPopup,
-    closeOtbSearchPopup,
-    closeSaveStudyPopup,
-    closeShortcutsPopup,
-    closeStudiesPopup,
-    goToEnd,
-    goToStart,
-    jumpBackToSideline,
-    jumpToMainVariant,
-    openShortcutsPopup,
-    redoMove,
-    toggleBoardOrientation,
-    toggleComments,
-    toggleEngineWindow,
-    toggleImportedPgn,
-    toggleMoveHistory,
-    toggleOpeningTreePanel,
-    togglePuzzleTrainingPanel,
-    toggleReplayTrainingPanel,
-    toggleGuessTrainingPanel,
-    togglePlayComputerPanel,
-    toggleVariants,
-    undoMove,
-  ]);
+  const keyboardActions = useMemo(
+    () => ({
+      closeImportPgnPopup,
+      closeSaveStudyPopup,
+      closeCreateCollectionPopup,
+      closeManageCollectionsPopup,
+      closeStudiesPopup,
+      closeGuessHistoryBrowser,
+      closeLichessSearchPopup,
+      closeLichessTokenPopup,
+      closeOtbSearchPopup,
+      closeShortcutsPopup,
+      openShortcutsPopup,
+      setOpenMenu,
+      goToStart,
+      undoMove,
+      redoMove,
+      jumpToMainVariant,
+      jumpBackToSideline,
+      goToEnd,
+      toggleBoardOrientation,
+      toggleMoveHistory,
+      toggleOpeningTreePanel,
+      togglePuzzleTrainingPanel,
+      toggleReplayTrainingPanel,
+      toggleGuessTrainingPanel,
+      togglePlayComputerPanel,
+      toggleEngineWindow,
+      toggleComments,
+      toggleImportedPgn,
+      toggleVariants,
+    }),
+    [
+      closeCreateCollectionPopup,
+      closeGuessHistoryBrowser,
+      closeImportPgnPopup,
+      closeLichessSearchPopup,
+      closeLichessTokenPopup,
+      closeManageCollectionsPopup,
+      closeOtbSearchPopup,
+      closeSaveStudyPopup,
+      closeShortcutsPopup,
+      closeStudiesPopup,
+      goToEnd,
+      goToStart,
+      jumpBackToSideline,
+      jumpToMainVariant,
+      openShortcutsPopup,
+      redoMove,
+      toggleBoardOrientation,
+      toggleComments,
+      toggleEngineWindow,
+      toggleImportedPgn,
+      toggleMoveHistory,
+      toggleOpeningTreePanel,
+      togglePuzzleTrainingPanel,
+      toggleReplayTrainingPanel,
+      toggleGuessTrainingPanel,
+      togglePlayComputerPanel,
+      toggleVariants,
+      undoMove,
+    ],
+  );
 
-  const keyboardModalState = useMemo(() => ({
-    showImportPgnPopup,
-    showSaveStudyPopup,
-    showCreateCollectionPopup,
-    showManageCollectionsPopup,
-    showStudiesPopup,
-    showGuessHistoryBrowserPopup,
-    showLichessSearchPopup,
-    showLichessTokenPopup,
-    showOtbSearchPopup,
-    showShortcutsPopup,
-  }), [
-    showCreateCollectionPopup,
-    showImportPgnPopup,
-    showGuessHistoryBrowserPopup,
-    showLichessSearchPopup,
-    showLichessTokenPopup,
-    showManageCollectionsPopup,
-    showOtbSearchPopup,
-    showSaveStudyPopup,
-    showShortcutsPopup,
-    showStudiesPopup,
-  ]);
+  const keyboardModalState = useMemo(
+    () => ({
+      showImportPgnPopup,
+      showSaveStudyPopup,
+      showCreateCollectionPopup,
+      showManageCollectionsPopup,
+      showStudiesPopup,
+      showGuessHistoryBrowserPopup,
+      showLichessSearchPopup,
+      showLichessTokenPopup,
+      showOtbSearchPopup,
+      showShortcutsPopup,
+    }),
+    [
+      showCreateCollectionPopup,
+      showImportPgnPopup,
+      showGuessHistoryBrowserPopup,
+      showLichessSearchPopup,
+      showLichessTokenPopup,
+      showManageCollectionsPopup,
+      showOtbSearchPopup,
+      showSaveStudyPopup,
+      showShortcutsPopup,
+      showStudiesPopup,
+    ],
+  );
 
   useKeyboardShortcuts({
     shortcutConfig,
@@ -4199,9 +4493,12 @@ function App() {
         boardPanelRef={boardPanelRef}
         position={boardPosition}
         onPieceDrop={handlePieceDrop}
-        onSquareClick={isPositionSetupMode ? handlePositionSetupSquareClick : undefined}
+        onSquareClick={
+          isPositionSetupMode ? handlePositionSetupSquareClick : undefined
+        }
         allowDragging={
-          !isPositionSetupMode || positionSetupState?.selectedTool === POSITION_SETUP_MOVE_TOOL
+          !isPositionSetupMode ||
+          positionSetupState?.selectedTool === POSITION_SETUP_MOVE_TOOL
         }
         boardOrientation={boardOrientation}
         boardArrows={isPositionSetupMode ? [] : boardArrows}
@@ -4245,204 +4542,220 @@ function App() {
           />
         ) : (
           <>
-        {showPlayComputerPanel && !effectiveTrainingFocusMode && (
-          <>
-            <PlayComputerPanel
-              panelHeight={boardPanelHeight}
-              onClose={closePlayComputerPanel}
-              normalizedTrainingState={normalizedTrainingState}
-              setTrainingPlayerSide={setTrainingPlayerSide}
-              isReplayTrainingActive={isReplayTrainingActive || isGuessTrainingActive}
-              isReplayTrainingEnded={isReplayTrainingEnded}
-              isTrainingPlayActive={isTrainingPlayActive}
-              isEngineOpponentUserTurn={isEngineOpponentUserTurn}
-              isStandaloneComputerPlayActive={isStandaloneComputerPlayActive}
-              isStandaloneComputerPlayCompleted={isStandaloneComputerPlayCompleted}
-              computerPlaySourceLabel={computerPlaySourceLabel}
-              computerPlayStatusText={computerPlayStatusText}
-              computerPlayOutcomeText={computerPlayOutcomeText}
-              trainingLoading={trainingLoading}
-              trainingError={trainingError}
-              startComputerPlayFromInitialPosition={() =>
-                startStandaloneComputerPlay(TRAINING_COMPUTER_PLAY_SOURCE_INITIAL)
-              }
-              startComputerPlayFromCurrentPosition={() =>
-                startStandaloneComputerPlay(TRAINING_COMPUTER_PLAY_SOURCE_CURRENT)
-              }
-              restartStandaloneComputerPlay={restartStandaloneComputerPlay}
-              exitStandaloneComputerPlay={exitStandaloneComputerPlay}
-            />
-          </>
-        )}
-        {showPuzzleTrainingPanel && (
-          <PuzzleTrainingPanel
-            panelHeight={boardPanelHeight}
-            onClose={closePuzzleTrainingPanel}
-            filters={lichessPuzzleFilters}
-            setFilters={setLichessPuzzleFilters}
-            normalizedTrainingState={normalizedTrainingState}
-            currentPuzzleMove={currentPuzzleMove}
-            trainingLoading={trainingLoading}
-            trainingError={trainingError}
-            lastCompletedExpectedMove={lastCompletedExpectedMove}
-            lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
-            onStartPuzzle={loadPuzzleTraining}
-            onNextPuzzle={loadPuzzleTraining}
-            onRetryPuzzle={restartPuzzleTraining}
-            onResetPuzzle={resetTrainingSession}
-            onOpenLichessTokenPopup={openLichessTokenPopup}
-          />
-        )}
-        {showReplayTrainingPanel && (
-          <>
-            <ReplayTrainingPanel
-              panelHeight={boardPanelHeight}
-              onClose={closeReplayTrainingPanel}
-              hasReplaySource={hasReplaySource}
-              normalizedTrainingState={normalizedTrainingState}
-              setTrainingPlayerSide={setTrainingPlayerSide}
-              isReplayTrainingActive={isReplayTrainingActive}
-              isReplayTrainingEnded={isReplayTrainingEnded}
-              isTrainingPlayActive={isTrainingPlayActive}
-              trainingLoading={trainingLoading}
-              whiteTrainingLabel={whiteTrainingLabel}
-              blackTrainingLabel={blackTrainingLabel}
-              currentReplayMoveNumber={currentReplayMoveNumber}
-              replaySummary={replaySummary}
-              activeTrainingPlaySession={activeTrainingPlaySession}
-              isEngineOpponentUserTurn={isEngineOpponentUserTurn}
-              exitTrainingPlayMode={exitTrainingPlayMode}
-              currentReplayMove={currentReplayMove}
-              trainingError={trainingError}
-              pendingTrainingAttempts={pendingTrainingAttempts}
-              currentMoveLabel={currentMoveLabel}
-              showTrainingPreview={showTrainingPreview}
-              hideTrainingPreview={hideTrainingPreview}
-              startTrainingPlayMode={startTrainingPlayMode}
-              retryReplayMove={retryReplayMove}
-              revealReplayMove={revealReplayMove}
-              lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
-              lastCompletedExpectedMove={lastCompletedExpectedMove}
-              lastCompletedIncorrectTrainingAttempts={lastCompletedIncorrectTrainingAttempts}
-              startReplayTraining={startReplayTraining}
-              endReplayTraining={endReplayTraining}
-              resetTrainingSession={resetTrainingSession}
-            />
-          </>
-        )}
-        {showGuessTrainingPanel && (
-          <GuessTheMoveTrainingPanel
-            panelHeight={boardPanelHeight}
-            onClose={closeGuessTrainingPanel}
-            hasReplaySource={hasReplaySource}
-            normalizedTrainingState={normalizedTrainingState}
-            setTrainingPlayerSide={setTrainingPlayerSide}
-            isGuessTrainingActive={isGuessTrainingActive}
-            isGuessTrainingEnded={isGuessTrainingEnded}
-            activeTrainingPlaySession={activeTrainingPlaySession}
-            isTrainingPlayActive={isTrainingPlayActive}
-            isEngineOpponentUserTurn={isEngineOpponentUserTurn}
-            trainingLoading={trainingLoading}
-            whiteTrainingLabel={whiteTrainingLabel}
-            blackTrainingLabel={blackTrainingLabel}
-            currentGuessMoveNumber={currentGuessMoveNumber}
-            currentGuessMove={currentGuessMove}
-            guessTheMoveSummary={guessTheMoveSummary}
-            trainingError={trainingError}
-            guessHistoryEntries={guessHistoryEntries}
-            guessHistoryLoading={guessHistoryLoading}
-            guessHistoryError={guessHistoryError}
-            activeGuessHistoryEntry={activeGuessHistoryEntry}
-            currentMoveLabel={currentMoveLabel}
-            showTrainingPreview={showTrainingPreview}
-            hideTrainingPreview={hideTrainingPreview}
-            lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
-            lastCompletedExpectedMove={lastCompletedExpectedMove}
-            startTrainingPlayMode={startTrainingPlayMode}
-            exitTrainingPlayMode={exitTrainingPlayMode}
-            startGuessTraining={startGuessTraining}
-            endGuessTraining={endGuessTraining}
-            viewGuessHistoryEntry={viewGuessHistoryEntry}
-            closeGuessHistoryView={closeGuessHistoryView}
-            resetTrainingSession={resetTrainingSession}
-          />
-        )}
+            {showPlayComputerPanel && !effectiveTrainingFocusMode && (
+              <>
+                <PlayComputerPanel
+                  panelHeight={boardPanelHeight}
+                  onClose={closePlayComputerPanel}
+                  normalizedTrainingState={normalizedTrainingState}
+                  setTrainingPlayerSide={setTrainingPlayerSide}
+                  isReplayTrainingActive={
+                    isReplayTrainingActive || isGuessTrainingActive
+                  }
+                  isReplayTrainingEnded={isReplayTrainingEnded}
+                  isTrainingPlayActive={isTrainingPlayActive}
+                  isEngineOpponentUserTurn={isEngineOpponentUserTurn}
+                  isStandaloneComputerPlayActive={
+                    isStandaloneComputerPlayActive
+                  }
+                  isStandaloneComputerPlayCompleted={
+                    isStandaloneComputerPlayCompleted
+                  }
+                  computerPlaySourceLabel={computerPlaySourceLabel}
+                  computerPlayStatusText={computerPlayStatusText}
+                  computerPlayOutcomeText={computerPlayOutcomeText}
+                  trainingLoading={trainingLoading}
+                  trainingError={trainingError}
+                  startComputerPlayFromInitialPosition={() =>
+                    startStandaloneComputerPlay(
+                      TRAINING_COMPUTER_PLAY_SOURCE_INITIAL,
+                    )
+                  }
+                  startComputerPlayFromCurrentPosition={() =>
+                    startStandaloneComputerPlay(
+                      TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+                    )
+                  }
+                  restartStandaloneComputerPlay={restartStandaloneComputerPlay}
+                  exitStandaloneComputerPlay={exitStandaloneComputerPlay}
+                />
+              </>
+            )}
+            {showPuzzleTrainingPanel && (
+              <PuzzleTrainingPanel
+                panelHeight={boardPanelHeight}
+                onClose={closePuzzleTrainingPanel}
+                filters={lichessPuzzleFilters}
+                setFilters={setLichessPuzzleFilters}
+                normalizedTrainingState={normalizedTrainingState}
+                currentPuzzleMove={currentPuzzleMove}
+                trainingLoading={trainingLoading}
+                trainingError={trainingError}
+                lastCompletedExpectedMove={lastCompletedExpectedMove}
+                lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
+                onStartPuzzle={loadPuzzleTraining}
+                onNextPuzzle={loadPuzzleTraining}
+                onRetryPuzzle={restartPuzzleTraining}
+                onResetPuzzle={resetTrainingSession}
+                onOpenLichessTokenPopup={openLichessTokenPopup}
+              />
+            )}
+            {showReplayTrainingPanel && (
+              <>
+                <ReplayTrainingPanel
+                  panelHeight={boardPanelHeight}
+                  onClose={closeReplayTrainingPanel}
+                  hasReplaySource={hasReplaySource}
+                  normalizedTrainingState={normalizedTrainingState}
+                  setTrainingPlayerSide={setTrainingPlayerSide}
+                  isReplayTrainingActive={isReplayTrainingActive}
+                  isReplayTrainingEnded={isReplayTrainingEnded}
+                  isTrainingPlayActive={isTrainingPlayActive}
+                  trainingLoading={trainingLoading}
+                  whiteTrainingLabel={whiteTrainingLabel}
+                  blackTrainingLabel={blackTrainingLabel}
+                  currentReplayMoveNumber={currentReplayMoveNumber}
+                  replaySummary={replaySummary}
+                  activeTrainingPlaySession={activeTrainingPlaySession}
+                  isEngineOpponentUserTurn={isEngineOpponentUserTurn}
+                  exitTrainingPlayMode={exitTrainingPlayMode}
+                  currentReplayMove={currentReplayMove}
+                  trainingError={trainingError}
+                  pendingTrainingAttempts={pendingTrainingAttempts}
+                  currentMoveLabel={currentMoveLabel}
+                  showTrainingPreview={showTrainingPreview}
+                  hideTrainingPreview={hideTrainingPreview}
+                  startTrainingPlayMode={startTrainingPlayMode}
+                  retryReplayMove={retryReplayMove}
+                  revealReplayMove={revealReplayMove}
+                  lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
+                  lastCompletedExpectedMove={lastCompletedExpectedMove}
+                  lastCompletedIncorrectTrainingAttempts={
+                    lastCompletedIncorrectTrainingAttempts
+                  }
+                  startReplayTraining={startReplayTraining}
+                  endReplayTraining={endReplayTraining}
+                  resetTrainingSession={resetTrainingSession}
+                />
+              </>
+            )}
+            {showGuessTrainingPanel && (
+              <GuessTheMoveTrainingPanel
+                panelHeight={boardPanelHeight}
+                onClose={closeGuessTrainingPanel}
+                hasReplaySource={hasReplaySource}
+                normalizedTrainingState={normalizedTrainingState}
+                setTrainingPlayerSide={setTrainingPlayerSide}
+                isGuessTrainingActive={isGuessTrainingActive}
+                isGuessTrainingEnded={isGuessTrainingEnded}
+                activeTrainingPlaySession={activeTrainingPlaySession}
+                isTrainingPlayActive={isTrainingPlayActive}
+                isEngineOpponentUserTurn={isEngineOpponentUserTurn}
+                trainingLoading={trainingLoading}
+                whiteTrainingLabel={whiteTrainingLabel}
+                blackTrainingLabel={blackTrainingLabel}
+                currentGuessMoveNumber={currentGuessMoveNumber}
+                currentGuessMove={currentGuessMove}
+                guessTheMoveSummary={guessTheMoveSummary}
+                trainingError={trainingError}
+                guessHistoryEntries={guessHistoryEntries}
+                guessHistoryLoading={guessHistoryLoading}
+                guessHistoryError={guessHistoryError}
+                activeGuessHistoryEntry={activeGuessHistoryEntry}
+                currentMoveLabel={currentMoveLabel}
+                showTrainingPreview={showTrainingPreview}
+                hideTrainingPreview={hideTrainingPreview}
+                lastCompletedTrainingAttempts={lastCompletedTrainingAttempts}
+                lastCompletedExpectedMove={lastCompletedExpectedMove}
+                startTrainingPlayMode={startTrainingPlayMode}
+                exitTrainingPlayMode={exitTrainingPlayMode}
+                startGuessTraining={startGuessTraining}
+                endGuessTraining={endGuessTraining}
+                viewGuessHistoryEntry={viewGuessHistoryEntry}
+                closeGuessHistoryView={closeGuessHistoryView}
+                resetTrainingSession={resetTrainingSession}
+              />
+            )}
 
-        {!effectiveTrainingFocusMode && showOpeningTreePanel && (
-          <OpeningTreePanel
-            fen={fen}
-            currentMoveLabel={currentMoveLabel}
-            lichessApiToken={lichessApiToken}
-            onClose={closeOpeningTreePanel}
-            onOpenLichessTokenPopup={openLichessTokenPopup}
-            onHoverMove={handleOpeningTreeHoverMove}
-            onSelectMove={handleOpeningTreeSelectMove}
-          />
-        )}
+            {!effectiveTrainingFocusMode && showOpeningTreePanel && (
+              <OpeningTreePanel
+                fen={fen}
+                currentMoveLabel={currentMoveLabel}
+                lichessApiToken={lichessApiToken}
+                onClose={closeOpeningTreePanel}
+                onOpenLichessTokenPopup={openLichessTokenPopup}
+                onHoverMove={handleOpeningTreeHoverMove}
+                onSelectMove={handleOpeningTreeSelectMove}
+              />
+            )}
 
-        {!effectiveTrainingFocusMode && showEngineWindow && (
-          <EnginePanel
-            onClose={closeEngineWindow}
-            engineSearchDepth={engineSearchDepth}
-            minEngineSearchDepth={MIN_ENGINE_SEARCH_DEPTH}
-            maxEngineSearchDepth={MAX_ENGINE_SEARCH_DEPTH}
-            onChangeEngineSearchDepth={(event) =>
-              setEngineSearchDepth(normalizeEngineSearchDepth(event.target.value))
-            }
-            loading={loading}
-            engineResult={engineResult}
-            formattedBestMove={formattedBestMove}
-            engineVariants={engineVariants}
-            selectedEngineVariant={selectedEngineVariant}
-            selectedEngineVariantIndex={selectedEngineVariantIndex}
-            onSelectEngineVariant={setSelectedEngineVariantIndex}
-            onAnalyzePosition={analyzePosition}
-            onAddSelectedVariant={addSelectedEngineVariantToTree}
-          />
-        )}
+            {!effectiveTrainingFocusMode && showEngineWindow && (
+              <EnginePanel
+                onClose={closeEngineWindow}
+                engineSearchDepth={engineSearchDepth}
+                minEngineSearchDepth={MIN_ENGINE_SEARCH_DEPTH}
+                maxEngineSearchDepth={MAX_ENGINE_SEARCH_DEPTH}
+                onChangeEngineSearchDepth={(event) =>
+                  setEngineSearchDepth(
+                    normalizeEngineSearchDepth(event.target.value),
+                  )
+                }
+                loading={loading}
+                engineResult={engineResult}
+                formattedBestMove={formattedBestMove}
+                engineVariants={engineVariants}
+                selectedEngineVariant={selectedEngineVariant}
+                selectedEngineVariantIndex={selectedEngineVariantIndex}
+                onSelectEngineVariant={setSelectedEngineVariantIndex}
+                onAnalyzePosition={analyzePosition}
+                onAddSelectedVariant={addSelectedEngineVariantToTree}
+              />
+            )}
 
-        {!effectiveTrainingFocusMode && showComments && (
-          <CommentsPanel
-            onClose={closeComments}
-            currentMoveLabel={currentMoveLabel}
-            currentPositionComments={currentPositionComments}
-            onStartEditingComment={startEditingComment}
-            onRemoveComment={removeComment}
-            editedComment={editedComment}
-            onStartAddingComment={startAddingComment}
-            commentDraft={commentDraft}
-            onChangeCommentDraft={setCommentDraft}
-            onSaveComment={saveComment}
-            onCancelCommentEdit={cancelCommentEdit}
-          />
-        )}
+            {!effectiveTrainingFocusMode && showComments && (
+              <CommentsPanel
+                onClose={closeComments}
+                currentMoveLabel={currentMoveLabel}
+                currentPositionComments={currentPositionComments}
+                onStartEditingComment={startEditingComment}
+                onRemoveComment={removeComment}
+                editedComment={editedComment}
+                onStartAddingComment={startAddingComment}
+                commentDraft={commentDraft}
+                onChangeCommentDraft={setCommentDraft}
+                onSaveComment={saveComment}
+                onCancelCommentEdit={cancelCommentEdit}
+              />
+            )}
 
-        {!effectiveTrainingFocusMode && showVariants && (
-          <VariantsView
-            variantLines={variantLines}
-            canUndo={canUndo}
-            canRedo={canRedo}
-            canJumpToMainVariant={canJumpToMainVariant}
-            onClose={closeVariants}
-            onRemoveLine={removeVariant}
-            onSelectLine={selectVariant}
-            onPromoteLine={promoteVariant}
-            onDemoteLine={demoteVariant}
-            onUndo={undoMove}
-            onRedo={redoMove}
-            onGoToStart={goToStart}
-            onGoToEnd={goToEnd}
-            onJumpToMainVariant={jumpToMainVariant}
-          />
-        )}
+            {!effectiveTrainingFocusMode && showVariants && (
+              <VariantsView
+                variantLines={variantLines}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                canJumpToMainVariant={canJumpToMainVariant}
+                onClose={closeVariants}
+                onRemoveLine={removeVariant}
+                onSelectLine={selectVariant}
+                onPromoteLine={promoteVariant}
+                onDemoteLine={demoteVariant}
+                onUndo={undoMove}
+                onRedo={redoMove}
+                onGoToStart={goToStart}
+                onGoToEnd={goToEnd}
+                onJumpToMainVariant={jumpToMainVariant}
+              />
+            )}
 
-        {!effectiveTrainingFocusMode && showImportedPgn && hasImportedPgnDetails && (
-          <ImportedPgnPanel
-            onClose={closeImportedPgn}
-            importedPgnData={importedPgnData}
-            importedMainlineComments={importedMainlineComments}
-          />
-        )}
+            {!effectiveTrainingFocusMode &&
+              showImportedPgn &&
+              hasImportedPgnDetails && (
+                <ImportedPgnPanel
+                  onClose={closeImportedPgn}
+                  importedPgnData={importedPgnData}
+                  importedMainlineComments={importedMainlineComments}
+                />
+              )}
           </>
         )}
       </BoardWorkspace>

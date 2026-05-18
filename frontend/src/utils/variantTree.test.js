@@ -109,13 +109,21 @@ describe("variantTree", () => {
     tree = applyMoveToVariantTree(tree, { from: "f1", to: "c4" });
     tree = undoInVariantTree(tree);
 
-    const sideLineId = getVariantLines(tree).find((line) => !line.isMainLine)?.id;
+    const sideLineId = getVariantLines(tree).find(
+      (line) => !line.isMainLine,
+    )?.id;
 
     tree = removeVariantLine(tree, sideLineId);
 
-    expect(getVariantLines(tree).map((line) => line.moves)).toEqual([["e4", "e5", "Nf3"]]);
+    expect(getVariantLines(tree).map((line) => line.moves)).toEqual([
+      ["e4", "e5", "Nf3"],
+    ]);
     expect(getRelevantVariantLines(tree)).toEqual([]);
-    expect(getMoveHistoryForNode(goToEndInVariantTree(tree))).toEqual(["e4", "e5", "Nf3"]);
+    expect(getMoveHistoryForNode(goToEndInVariantTree(tree))).toEqual([
+      "e4",
+      "e5",
+      "Nf3",
+    ]);
   });
 
   it("removes the selected branch and falls back to the remaining branch", () => {
@@ -133,7 +141,11 @@ describe("variantTree", () => {
     tree = removeVariantLine(tree, selectedLineId);
 
     expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5"]);
-    expect(getMoveHistoryForNode(goToEndInVariantTree(tree))).toEqual(["e4", "e5", "Nf3"]);
+    expect(getMoveHistoryForNode(goToEndInVariantTree(tree))).toEqual([
+      "e4",
+      "e5",
+      "Nf3",
+    ]);
     expect(getVariantLines(tree)[0].isSelected).toBe(true);
   });
 
@@ -204,7 +216,11 @@ describe("variantTree", () => {
     const tree = createVariantTreeFromParsedPgn(parsedPgn);
 
     expect(getMoveHistoryForNode(tree)).toEqual(["e4"]);
-    expect(getMoveHistoryForNode(goToEndInVariantTree(tree))).toEqual(["e4", "e5", "Nf3"]);
+    expect(getMoveHistoryForNode(goToEndInVariantTree(tree))).toEqual([
+      "e4",
+      "e5",
+      "Nf3",
+    ]);
   });
 
   it("builds a tree from a move sequence", () => {
@@ -266,12 +282,17 @@ describe("variantTree", () => {
 
     tree = truncateLineAfterNode(tree, e5NodeId);
 
-    expect(getMoveHistoryEntries(tree).map((entry) => entry.san)).toEqual(["e4", "e5"]);
+    expect(getMoveHistoryEntries(tree).map((entry) => entry.san)).toEqual([
+      "e4",
+      "e5",
+    ]);
     expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5"]);
     expect(tree.currentNodeId).toBe(e5NodeId);
     expect(tree.activeLineLeafId).toBe(e5NodeId);
     expect(tree.nodes[e5NodeId].children).toHaveLength(1);
-    expect(getVariantLines(tree).map((line) => line.moves)).toEqual([["e4", "e5", "Nf3", "Nc6"]]);
+    expect(getVariantLines(tree).map((line) => line.moves)).toEqual([
+      ["e4", "e5", "Nf3", "Nc6"],
+    ]);
   });
 
   it("creates a new variant after jumping to an earlier move from history", () => {
@@ -307,7 +328,12 @@ describe("variantTree", () => {
     expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3"]);
     expect(tree.currentNodeId).toBe(tree.activeLineLeafId);
     expect(tree.nodes[e5NodeId].children).toHaveLength(2);
-    expect(getVariantLines(tree).map((line) => ({ moves: line.moves, isSelected: line.isSelected }))).toEqual([
+    expect(
+      getVariantLines(tree).map((line) => ({
+        moves: line.moves,
+        isSelected: line.isSelected,
+      })),
+    ).toEqual([
       { moves: ["e4", "e5", "Nf3", "Nc6"], isSelected: false },
       { moves: ["e4", "e5", "Nf3"], isSelected: true },
     ]);
@@ -411,7 +437,9 @@ describe("variantTree", () => {
     tree = applyMoveToVariantTree(tree, { from: "g8", to: "f6" });
     tree = applyMoveToVariantTree(tree, { from: "g2", to: "g3" });
 
-    const mainlineId = getVariantLines(tree).find((line) => line.isMainLine)?.id;
+    const mainlineId = getVariantLines(tree).find(
+      (line) => line.isMainLine,
+    )?.id;
     tree = selectVariantLine(tree, mainlineId);
 
     expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3"]);
@@ -429,7 +457,9 @@ describe("variantTree", () => {
     tree = applyMoveToVariantTree(tree, { from: "g8", to: "f6" });
     tree = applyMoveToVariantTree(tree, { from: "g2", to: "g3" });
 
-    const mainlineId = getVariantLines(tree).find((line) => line.isMainLine)?.id;
+    const mainlineId = getVariantLines(tree).find(
+      (line) => line.isMainLine,
+    )?.id;
     const sidelineId = tree.activeLineLeafId;
 
     tree = selectVariantLine(tree, mainlineId);
@@ -440,7 +470,13 @@ describe("variantTree", () => {
 
     tree = redoInVariantTree(tree);
 
-    expect(getMoveHistoryForNode(tree)).toEqual(["e4", "e5", "Nf3", "Nf6", "g3"]);
+    expect(getMoveHistoryForNode(tree)).toEqual([
+      "e4",
+      "e5",
+      "Nf3",
+      "Nf6",
+      "g3",
+    ]);
   });
 
   it("reopens sidelines at their start on every reselection", () => {
@@ -454,7 +490,9 @@ describe("variantTree", () => {
     tree = applyMoveToVariantTree(tree, { from: "g8", to: "f6" });
     tree = applyMoveToVariantTree(tree, { from: "g2", to: "g3" });
 
-    const mainlineId = getVariantLines(tree).find((line) => line.isMainLine)?.id;
+    const mainlineId = getVariantLines(tree).find(
+      (line) => line.isMainLine,
+    )?.id;
     const sidelineId = tree.activeLineLeafId;
 
     tree = selectVariantLine(tree, sidelineId);
@@ -522,7 +560,9 @@ describe("variantTree", () => {
     tree = applyMoveToVariantTree(tree, { from: "c7", to: "c5" });
 
     const promotedLineId = tree.activeLineLeafId;
-    const mainlineId = getVariantLines(tree).find((line) => line.isMainLine)?.id;
+    const mainlineId = getVariantLines(tree).find(
+      (line) => line.isMainLine,
+    )?.id;
 
     tree = selectVariantLine(tree, mainlineId);
     tree = goToEndInVariantTree(tree);

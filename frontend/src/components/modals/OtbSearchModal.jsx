@@ -41,24 +41,38 @@ function OtbSearchModal({
   onClose,
 }) {
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
-  const totalResults = Number.isInteger(pagination?.totalResults) ? pagination.totalResults : 0;
-  const totalPages = Number.isInteger(pagination?.totalPages) ? pagination.totalPages : 1;
+  const totalResults = Number.isInteger(pagination?.totalResults)
+    ? pagination.totalResults
+    : 0;
+  const totalPages = Number.isInteger(pagination?.totalPages)
+    ? pagination.totalPages
+    : 1;
   const pageSize = Number.isInteger(pagination?.pageSize)
     ? pagination.pageSize
     : Number(filters.pageSize) || 25;
-  const firstResultIndex = results.length > 0 ? (safePage - 1) * pageSize + 1 : 0;
-  const lastResultIndex = results.length > 0 ? firstResultIndex + results.length - 1 : 0;
+  const firstResultIndex =
+    results.length > 0 ? (safePage - 1) * pageSize + 1 : 0;
+  const lastResultIndex =
+    results.length > 0 ? firstResultIndex + results.length - 1 : 0;
   const visiblePages = getOtbPageWindow(safePage, totalPages);
 
   return (
-    <ModalShell title="Search OTB Master Games" titleId="otb-search-title" onClose={onClose} wide>
+    <ModalShell
+      title="Search OTB Master Games"
+      titleId="otb-search-title"
+      onClose={onClose}
+      wide
+    >
       <p>
-        Search a local archive of historical master-game PGNs by player, opponent,
-        player color, event, year range, result, ECO range, or opening. Leave player
-        color on <strong>Ignore player color</strong> to match both player/opponent
-        orderings. Import PGN files into the OTB SQLite database with the app&apos;s
+        Search a local archive of historical master-game PGNs by player,
+        opponent, player color, event, year range, result, ECO range, or
+        opening. Leave player color on <strong>Ignore player color</strong> to
+        match both player/opponent orderings. Import PGN files into the OTB
+        SQLite database with the app&apos;s
         <strong>Import PGN</strong> popup for single files, or use
-        <code>cd server && npm run otb:import -- /path/to/master-pgn-archive</code>
+        <code>
+          cd server && npm run otb:import -- /path/to/master-pgn-archive
+        </code>
         for archive-sized imports.
       </p>
       <form
@@ -257,11 +271,7 @@ function OtbSearchModal({
         {searchError && <p style={modalErrorStyle}>{searchError}</p>}
         {importError && <p style={modalErrorStyle}>{importError}</p>}
         <div style={modalActionRowStyle}>
-          <button
-            type="button"
-            style={modalButtonStyle}
-            onClick={onClose}
-          >
+          <button type="button" style={modalButtonStyle} onClick={onClose}>
             Close
           </button>
           <button
@@ -280,14 +290,15 @@ function OtbSearchModal({
         {!searchLoading && !hasSearched && (
           <p>Run a search to browse matching historical games.</p>
         )}
-        {!searchLoading && hasSearched && !searchError && results.length === 0 && (
-          <p>No games matched those filters.</p>
-        )}
+        {!searchLoading &&
+          hasSearched &&
+          !searchError &&
+          results.length === 0 && <p>No games matched those filters.</p>}
         {!!results.length && (
           <>
             <p className="search-result-meta">
-              Showing {firstResultIndex}-{lastResultIndex} of {totalResults} results · Page{" "}
-              {safePage} of {totalPages}
+              Showing {firstResultIndex}-{lastResultIndex} of {totalResults}{" "}
+              results · Page {safePage} of {totalPages}
             </p>
             <ul className="search-results-list">
               {results.map((gameResult) => (
@@ -317,7 +328,9 @@ function OtbSearchModal({
                     {gameResult.sourceFile ? ` · ${gameResult.sourceFile}` : ""}
                   </p>
                   <div className="search-result-actions">
-                    <span className="search-result-source">Local PGN archive</span>
+                    <span className="search-result-source">
+                      Local PGN archive
+                    </span>
                     <button
                       type="button"
                       style={modalPrimaryButtonStyle}
@@ -326,7 +339,9 @@ function OtbSearchModal({
                       }}
                       disabled={importingGameId === gameResult.id}
                     >
-                      {importingGameId === gameResult.id ? "Importing..." : "Import PGN"}
+                      {importingGameId === gameResult.id
+                        ? "Importing..."
+                        : "Import PGN"}
                     </button>
                   </div>
                 </li>
@@ -368,7 +383,11 @@ function OtbSearchModal({
                     <button
                       key={item}
                       type="button"
-                      style={item === safePage ? modalPrimaryButtonStyle : modalButtonStyle}
+                      style={
+                        item === safePage
+                          ? modalPrimaryButtonStyle
+                          : modalButtonStyle
+                      }
                       onClick={() => onPageChange(item)}
                       disabled={searchLoading || item === safePage}
                       aria-current={item === safePage ? "page" : undefined}

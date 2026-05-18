@@ -1,0 +1,10 @@
+{
+  "overrides": [
+    {
+      "files": "server/**/*.js",
+      "options": {
+        "useTabs": true
+      }
+    }
+  ]
+}

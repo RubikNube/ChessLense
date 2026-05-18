@@ -36,7 +36,15 @@ describe("board sounds", () => {
   });
 
   it("returns the check sound when the move gives check", () => {
-    const { game, move } = applyMoveSequence(["e4", "e6", "Bc4", "d5", "exd5", "exd5", "Bb5+"]);
+    const { game, move } = applyMoveSequence([
+      "e4",
+      "e6",
+      "Bc4",
+      "d5",
+      "exd5",
+      "exd5",
+      "Bb5+",
+    ]);
 
     expect(getBoardSoundEvent(move, game)).toBe(BOARD_SOUND_EVENT_CHECK);
   });

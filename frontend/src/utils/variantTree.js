@@ -105,7 +105,9 @@ function getInitialFenFromGame(game) {
 }
 
 function createBaseVariantTree(initialFen = DEFAULT_POSITION) {
-  const normalizedInitialFen = isValidFen(initialFen) ? initialFen : DEFAULT_POSITION;
+  const normalizedInitialFen = isValidFen(initialFen)
+    ? initialFen
+    : DEFAULT_POSITION;
 
   return {
     version: VARIANT_TREE_VERSION,
@@ -167,8 +169,12 @@ function isAncestorNode(tree, ancestorId, targetId) {
 }
 
 function addChildToParent(parentNode, childId, { makeMain = false } = {}) {
-  const children = parentNode.children.filter((existingChildId) => existingChildId !== childId);
-  parentNode.children = makeMain ? [childId, ...children] : [...children, childId];
+  const children = parentNode.children.filter(
+    (existingChildId) => existingChildId !== childId,
+  );
+  parentNode.children = makeMain
+    ? [childId, ...children]
+    : [...children, childId];
 }
 
 function appendMoveNode(tree, parentId, move, { makeMain = false } = {}) {
@@ -183,14 +189,21 @@ function appendMoveNode(tree, parentId, move, { makeMain = false } = {}) {
   const nodeId = `node-${tree.nextNodeIndex}`;
   tree.nextNodeIndex += 1;
 
-  tree.nodes[nodeId] = createNodeFromMove(nodeId, parentNode, appliedMove, game.fen());
+  tree.nodes[nodeId] = createNodeFromMove(
+    nodeId,
+    parentNode,
+    appliedMove,
+    game.fen(),
+  );
   addChildToParent(parentNode, nodeId, { makeMain });
 
   return nodeId;
 }
 
 function reorderChildren(parentNode, childId, targetIndex) {
-  const nextChildren = parentNode.children.filter((candidateId) => candidateId !== childId);
+  const nextChildren = parentNode.children.filter(
+    (candidateId) => candidateId !== childId,
+  );
   nextChildren.splice(targetIndex, 0, childId);
   parentNode.children = nextChildren;
 }
@@ -202,7 +215,11 @@ function collectReachableNodeIds(nodes, rootId) {
   while (stack.length > 0) {
     const currentNodeId = stack.pop();
 
-    if (!currentNodeId || reachableNodeIds.has(currentNodeId) || !nodes[currentNodeId]) {
+    if (
+      !currentNodeId ||
+      reachableNodeIds.has(currentNodeId) ||
+      !nodes[currentNodeId]
+    ) {
       continue;
     }
 
@@ -230,7 +247,9 @@ function sanitizeNode(rawNode, nodeId, nodes, parentId) {
   }
 
   const children = Array.isArray(rawNode.children)
-    ? rawNode.children.filter((childId) => typeof childId === "string" && childId in nodes)
+    ? rawNode.children.filter(
+        (childId) => typeof childId === "string" && childId in nodes,
+      )
     : [];
 
   return {
@@ -238,8 +257,14 @@ function sanitizeNode(rawNode, nodeId, nodes, parentId) {
     parentId,
     children,
     move: normalizedMove,
-    san: typeof rawNode.san === "string" && rawNode.san.trim() ? rawNode.san : null,
-    fen: typeof rawNode.fen === "string" && rawNode.fen.trim() ? rawNode.fen : null,
+    san:
+      typeof rawNode.san === "string" && rawNode.san.trim()
+        ? rawNode.san
+        : null,
+    fen:
+      typeof rawNode.fen === "string" && rawNode.fen.trim()
+        ? rawNode.fen
+        : null,
     ply: Number.isInteger(rawNode.ply) && rawNode.ply >= 0 ? rawNode.ply : 0,
     moveNumber:
       Number.isInteger(rawNode.moveNumber) && rawNode.moveNumber >= 0
@@ -262,7 +287,12 @@ function updateNodeBoardAnnotations(tree, nodeId, updater) {
     updater(normalizeNodeBoardAnnotations(currentNode.boardAnnotations)),
   );
 
-  if (areNodeBoardAnnotationsEqual(currentNode.boardAnnotations, nextBoardAnnotations)) {
+  if (
+    areNodeBoardAnnotationsEqual(
+      currentNode.boardAnnotations,
+      nextBoardAnnotations,
+    )
+  ) {
     return normalizedTree;
   }
 
@@ -335,7 +365,10 @@ function getVariationStartNodeId(tree, leafId) {
   );
 }
 
-function finalizeVariantTree(tree, { preserveRememberedMainline = false } = {}) {
+function finalizeVariantTree(
+  tree,
+  { preserveRememberedMainline = false } = {},
+) {
   const mainlineLeafId = getMainlineLeafId(tree);
   const rememberedSourceId =
     preserveRememberedMainline || tree.activeLineLeafId !== mainlineLeafId
@@ -469,7 +502,9 @@ function normalizeVariantTreeFromRaw(rawTree) {
     return createBaseVariantTree();
   }
 
-  const initialFen = isValidFen(rawTree.initialFen) ? rawTree.initialFen : DEFAULT_POSITION;
+  const initialFen = isValidFen(rawTree.initialFen)
+    ? rawTree.initialFen
+    : DEFAULT_POSITION;
   const rawNodes =
     rawTree.nodes && typeof rawTree.nodes === "object" ? rawTree.nodes : {};
   const rootId =
@@ -479,7 +514,8 @@ function normalizeVariantTreeFromRaw(rawTree) {
   const normalizedNodes = {};
 
   normalizedNodes[rootId] =
-    sanitizeNode(rawNodes[rootId], rootId, rawNodes, null) ?? createRootNode(initialFen);
+    sanitizeNode(rawNodes[rootId], rootId, rawNodes, null) ??
+    createRootNode(initialFen);
   normalizedNodes[rootId].move = null;
   normalizedNodes[rootId].fen = initialFen;
   normalizedNodes[rootId].ply = 0;
@@ -502,7 +538,12 @@ function normalizeVariantTreeFromRaw(rawTree) {
         return true;
       }
 
-      const sanitizedChild = sanitizeNode(rawNodes[childId], childId, rawNodes, nodeId);
+      const sanitizedChild = sanitizeNode(
+        rawNodes[childId],
+        childId,
+        rawNodes,
+        nodeId,
+      );
 
       if (!sanitizedChild) {
         return false;
@@ -517,14 +558,17 @@ function normalizeVariantTreeFromRaw(rawTree) {
 
   const reachableNodeIds = collectReachableNodeIds(normalizedNodes, rootId);
   const nodes = Object.fromEntries(
-    Object.entries(normalizedNodes).filter(([nodeId]) => reachableNodeIds.has(nodeId)),
+    Object.entries(normalizedNodes).filter(([nodeId]) =>
+      reachableNodeIds.has(nodeId),
+    ),
   );
   const currentNodeId =
     typeof rawTree.currentNodeId === "string" && rawTree.currentNodeId in nodes
       ? rawTree.currentNodeId
       : rootId;
   const activeLineLeafId =
-    typeof rawTree.activeLineLeafId === "string" && rawTree.activeLineLeafId in nodes
+    typeof rawTree.activeLineLeafId === "string" &&
+    rawTree.activeLineLeafId in nodes
       ? rawTree.activeLineLeafId
       : getDeepestMainlineNodeId({ rootId, nodes }, rootId);
   const rememberedMainlineNodeId =
@@ -604,13 +648,21 @@ export function getMoveHistoryForNode(tree, targetNodeId = tree.currentNodeId) {
     .filter(Boolean);
 }
 
-export function getBoardAnnotationsForNode(tree, targetNodeId = tree.currentNodeId) {
+export function getBoardAnnotationsForNode(
+  tree,
+  targetNodeId = tree.currentNodeId,
+) {
   const normalizedTree = normalizeVariantTree(tree);
 
-  return normalizeNodeBoardAnnotations(normalizedTree.nodes[targetNodeId]?.boardAnnotations);
+  return normalizeNodeBoardAnnotations(
+    normalizedTree.nodes[targetNodeId]?.boardAnnotations,
+  );
 }
 
-export function getMoveHistoryEntries(tree, targetNodeId = tree.activeLineLeafId) {
+export function getMoveHistoryEntries(
+  tree,
+  targetNodeId = tree.activeLineLeafId,
+) {
   const normalizedTree = normalizeVariantTree(tree);
   const pathNodeIds = findNodePathIds(normalizedTree, targetNodeId);
 
@@ -637,14 +689,19 @@ export function canUndoInVariantTree(tree) {
 
 export function getNextRedoNodeId(tree) {
   const normalizedTree = normalizeVariantTree(tree);
-  const activePath = findNodePathIds(normalizedTree, normalizedTree.activeLineLeafId);
+  const activePath = findNodePathIds(
+    normalizedTree,
+    normalizedTree.activeLineLeafId,
+  );
   const currentPathIndex = activePath.indexOf(normalizedTree.currentNodeId);
 
   if (currentPathIndex >= 0 && currentPathIndex < activePath.length - 1) {
     return activePath[currentPathIndex + 1];
   }
 
-  return normalizedTree.nodes[normalizedTree.currentNodeId]?.children[0] ?? null;
+  return (
+    normalizedTree.nodes[normalizedTree.currentNodeId]?.children[0] ?? null
+  );
 }
 
 export function canRedoInVariantTree(tree) {
@@ -715,7 +772,10 @@ export function goToEndInVariantTree(tree) {
 
 export function goToNodeInVariantTree(tree, nodeId) {
   const normalizedTree = normalizeVariantTree(tree);
-  const activePathNodeIds = findNodePathIds(normalizedTree, normalizedTree.activeLineLeafId);
+  const activePathNodeIds = findNodePathIds(
+    normalizedTree,
+    normalizedTree.activeLineLeafId,
+  );
 
   if (!activePathNodeIds.includes(nodeId)) {
     return normalizedTree;
@@ -793,7 +853,11 @@ export function applyMoveToVariantTree(tree, move) {
   const currentNode = normalizedTree.nodes[normalizedTree.currentNodeId];
   const hasFutureMovesOnActiveLine =
     normalizedTree.currentNodeId !== normalizedTree.activeLineLeafId &&
-    isAncestorNode(normalizedTree, normalizedTree.currentNodeId, normalizedTree.activeLineLeafId);
+    isAncestorNode(
+      normalizedTree,
+      normalizedTree.currentNodeId,
+      normalizedTree.activeLineLeafId,
+    );
   const matchingChildId = currentNode.children.find((childId) => {
     const childMove = normalizedTree.nodes[childId]?.move;
 
@@ -808,7 +872,10 @@ export function applyMoveToVariantTree(tree, move) {
     return finalizeVariantTree({
       ...normalizedTree,
       currentNodeId: matchingChildId,
-      activeLineLeafId: getDeepestMainlineNodeId(normalizedTree, matchingChildId),
+      activeLineLeafId: getDeepestMainlineNodeId(
+        normalizedTree,
+        matchingChildId,
+      ),
     });
   }
 
@@ -900,7 +967,9 @@ export function demoteVariantLine(tree, leafId) {
         nextTree.nodes[parentId].children.length - 1,
       );
 
-      return finalizeVariantTree(nextTree, { preserveRememberedMainline: true });
+      return finalizeVariantTree(nextTree, {
+        preserveRememberedMainline: true,
+      });
     }
   }
 
@@ -928,7 +997,9 @@ export function removeVariantLine(tree, leafId) {
   const parentNode = nextTree.nodes[parentId];
   const removedNodeIds = collectSubtreeNodeIds(nextTree, removableNodeId);
 
-  parentNode.children = parentNode.children.filter((childId) => childId !== removableNodeId);
+  parentNode.children = parentNode.children.filter(
+    (childId) => childId !== removableNodeId,
+  );
 
   removedNodeIds.forEach((nodeId) => {
     delete nextTree.nodes[nodeId];
@@ -952,7 +1023,10 @@ export function truncateLineAfterNode(tree, nodeId) {
     return normalizedTree;
   }
 
-  const activePathNodeIds = findNodePathIds(normalizedTree, normalizedTree.activeLineLeafId);
+  const activePathNodeIds = findNodePathIds(
+    normalizedTree,
+    normalizedTree.activeLineLeafId,
+  );
   const targetIndex = activePathNodeIds.indexOf(nodeId);
 
   if (targetIndex < 0 || targetIndex >= activePathNodeIds.length - 1) {
@@ -967,7 +1041,9 @@ export function truncateLineAfterNode(tree, nodeId) {
   const targetNode = nextTree.nodes[nodeId];
   const removedNodeIds = collectSubtreeNodeIds(nextTree, removableChildId);
 
-  targetNode.children = targetNode.children.filter((childId) => childId !== removableChildId);
+  targetNode.children = targetNode.children.filter(
+    (childId) => childId !== removableChildId,
+  );
 
   removedNodeIds.forEach((removedNodeId) => {
     delete nextTree.nodes[removedNodeId];
@@ -985,12 +1061,19 @@ export function truncateLineAfterNode(tree, nodeId) {
 export function getVariantLines(tree) {
   const normalizedTree = normalizeVariantTree(tree);
   const leafNodeIds = findLeafNodeIds(normalizedTree);
-  const currentPathIds = new Set(findNodePathIds(normalizedTree, normalizedTree.currentNodeId));
+  const currentPathIds = new Set(
+    findNodePathIds(normalizedTree, normalizedTree.currentNodeId),
+  );
 
   return leafNodeIds.map((leafId) => {
     const pathNodeIds = findNodePathIds(normalizedTree, leafId);
-    const pathNodes = pathNodeIds.slice(1).map((nodeId) => normalizedTree.nodes[nodeId]);
-    const firstDivergenceNodeId = getFirstDivergenceNodeId(normalizedTree, leafId);
+    const pathNodes = pathNodeIds
+      .slice(1)
+      .map((nodeId) => normalizedTree.nodes[nodeId]);
+    const firstDivergenceNodeId = getFirstDivergenceNodeId(
+      normalizedTree,
+      leafId,
+    );
     const firstDivergenceNode = firstDivergenceNodeId
       ? normalizedTree.nodes[firstDivergenceNodeId]
       : null;
@@ -1001,14 +1084,21 @@ export function getVariantLines(tree) {
       leafId,
       moveCount: pathNodes.length,
       moves: pathNodes.map((node) => node.san).filter(Boolean),
-      displayText: pathNodes.map((node) => node.san).filter(Boolean).join(" "),
+      displayText: pathNodes
+        .map((node) => node.san)
+        .filter(Boolean)
+        .join(" "),
       isMainLine: !firstDivergenceNodeId,
       isSelected: normalizedTree.activeLineLeafId === leafId,
-      includesCurrentNode: currentPathIds.has(leafId) || isAncestorNode(normalizedTree, leafId, normalizedTree.currentNodeId),
+      includesCurrentNode:
+        currentPathIds.has(leafId) ||
+        isAncestorNode(normalizedTree, leafId, normalizedTree.currentNodeId),
       canPromote: !!firstDivergenceNodeId,
       canDemote: !!getDemotableNodeId(normalizedTree, leafId),
       canRemove: !!getRemovableNodeId(normalizedTree, leafId),
-      firstMoveLabel: firstMoveNodeId ? normalizedTree.nodes[firstMoveNodeId].san : null,
+      firstMoveLabel: firstMoveNodeId
+        ? normalizedTree.nodes[firstMoveNodeId].san
+        : null,
       branchLabel: firstDivergenceNode
         ? `${firstDivergenceNode.moveNumber}${firstDivergenceNode.side === "black" ? "..." : "."} ${firstDivergenceNode.san}`
         : "Main line",
@@ -1029,7 +1119,9 @@ export function getRelevantVariantLines(tree) {
     collectLeafNodeIdsFromNode(normalizedTree, childId),
   );
 
-  return getVariantLines(normalizedTree).filter((line) => leafNodeIds.includes(line.id));
+  return getVariantLines(normalizedTree).filter((line) =>
+    leafNodeIds.includes(line.id),
+  );
 }
 
 export function getVariantLinesForMoveHistoryNode(tree, nodeId) {
@@ -1040,7 +1132,11 @@ export function getVariantLinesForMoveHistoryNode(tree, nodeId) {
   }
 
   return getVariantLines(normalizedTree)
-    .filter((line) => isAncestorNode(normalizedTree, nodeId, line.leafId) && line.leafId !== nodeId)
+    .filter(
+      (line) =>
+        isAncestorNode(normalizedTree, nodeId, line.leafId) &&
+        line.leafId !== nodeId,
+    )
     .map((line) => {
       const pathNodeIds = findNodePathIds(normalizedTree, line.leafId);
       const nodeIndex = pathNodeIds.indexOf(nodeId);
@@ -1069,9 +1165,13 @@ export function getAlternativeVariantFirstMoves(tree) {
     normalizedTree,
     normalizedTree.activeLineLeafId,
   );
-  const currentPathIndex = activePathNodeIds.indexOf(normalizedTree.currentNodeId);
+  const currentPathIndex = activePathNodeIds.indexOf(
+    normalizedTree.currentNodeId,
+  );
   const selectedChildId =
-    currentPathIndex >= 0 ? activePathNodeIds[currentPathIndex + 1] ?? null : null;
+    currentPathIndex >= 0
+      ? (activePathNodeIds[currentPathIndex + 1] ?? null)
+      : null;
 
   return currentNode.children
     .filter((childId) => childId !== selectedChildId)
@@ -1079,7 +1179,10 @@ export function getAlternativeVariantFirstMoves(tree) {
     .filter(Boolean);
 }
 
-export function createVariantTreeFromMoves(moves, { initialFen = DEFAULT_POSITION } = {}) {
+export function createVariantTreeFromMoves(
+  moves,
+  { initialFen = DEFAULT_POSITION } = {},
+) {
   const tree = createBaseVariantTree(initialFen);
   let parentId = tree.rootId;
 
@@ -1114,7 +1217,9 @@ export function createVariantTreeFromGameAndRedo(game, redoMoves = []) {
       return;
     }
 
-    const nextNodeId = appendMoveNode(tree, parentId, appliedMove, { makeMain: true });
+    const nextNodeId = appendMoveNode(tree, parentId, appliedMove, {
+      makeMain: true,
+    });
 
     if (!nextNodeId) {
       return;
@@ -1148,7 +1253,12 @@ export function createVariantTreeFromParsedPgn(parsedPgn) {
       : DEFAULT_POSITION;
   const tree = createBaseVariantTree(initialFen);
 
-  function buildParsedBranch(parsedNode, parentId, game, { makeMain = false } = {}) {
+  function buildParsedBranch(
+    parsedNode,
+    parentId,
+    game,
+    { makeMain = false } = {},
+  ) {
     if (!parsedNode) {
       return null;
     }
@@ -1172,7 +1282,9 @@ export function createVariantTreeFromParsedPgn(parsedPgn) {
       return deepestNodeId;
     }
 
-    const nextNodeId = appendMoveNode(tree, parentId, parsedNode.move, { makeMain });
+    const nextNodeId = appendMoveNode(tree, parentId, parsedNode.move, {
+      makeMain,
+    });
 
     if (!nextNodeId) {
       throw new Error(`Invalid move in PGN variation: ${parsedNode.move}`);

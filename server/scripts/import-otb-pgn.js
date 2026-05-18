@@ -38,7 +38,9 @@ async function main() {
 	const options = parseArgs(process.argv.slice(2));
 	const result = await importPgnDirectory(options);
 
-	console.log(`Imported ${result.importedGames} OTB games into ${result.dbPath}.`);
+	console.log(
+		`Imported ${result.importedGames} OTB games into ${result.dbPath}.`,
+	);
 	console.log(
 		`Processed ${result.totalGames} games from ${result.fileCount} PGN files under ${result.rootDir}.`,
 	);

@@ -13,7 +13,11 @@ const {
 	__testing,
 } = require("./guessHistory");
 
-const { buildGuessHistoryBrowseEntry, createGameSummary, normalizeGuessHistoryEntry } = __testing;
+const {
+	buildGuessHistoryBrowseEntry,
+	createGameSummary,
+	normalizeGuessHistoryEntry,
+} = __testing;
 
 const SAMPLE_PGN = `
 [Event "Training Match"]
@@ -82,16 +86,23 @@ test("createGameSummary extracts core PGN headers", () => {
 });
 
 test("normalizeGuessHistoryEntry rejects incomplete payloads", () => {
-	assert.equal(normalizeGuessHistoryEntry({ status: "completed" }, { requireId: false }), null);
+	assert.equal(
+		normalizeGuessHistoryEntry({ status: "completed" }, { requireId: false }),
+		null,
+	);
 });
 
 test("appendGuessHistory persists entries keyed by the imported PGN", async () => {
 	const rootDir = await createTempGuessHistoryDir();
 
 	try {
-		const savedRecord = await appendGuessHistory(SAMPLE_PGN, createGuessHistoryEntryPayload(), {
-			guessHistoryRootDir: rootDir,
-		});
+		const savedRecord = await appendGuessHistory(
+			SAMPLE_PGN,
+			createGuessHistoryEntryPayload(),
+			{
+				guessHistoryRootDir: rootDir,
+			},
+		);
 		const loadedRecord = await listGuessHistory(SAMPLE_PGN, {
 			guessHistoryRootDir: rootDir,
 		});
@@ -115,9 +126,13 @@ test("buildGuessHistoryBrowseEntry exposes metadata for the browser panel", asyn
 	const rootDir = await createTempGuessHistoryDir();
 
 	try {
-		const savedRecord = await appendGuessHistory(SAMPLE_PGN, createGuessHistoryEntryPayload(), {
-			guessHistoryRootDir: rootDir,
-		});
+		const savedRecord = await appendGuessHistory(
+			SAMPLE_PGN,
+			createGuessHistoryEntryPayload(),
+			{
+				guessHistoryRootDir: rootDir,
+			},
+		);
 
 		assert.deepEqual(buildGuessHistoryBrowseEntry(savedRecord), {
 			gameKey: savedRecord.gameKey,
@@ -172,9 +187,13 @@ test("getGuessHistoryGame reloads a saved game including raw PGN", async () => {
 	const rootDir = await createTempGuessHistoryDir();
 
 	try {
-		const savedRecord = await appendGuessHistory(SAMPLE_PGN, createGuessHistoryEntryPayload(), {
-			guessHistoryRootDir: rootDir,
-		});
+		const savedRecord = await appendGuessHistory(
+			SAMPLE_PGN,
+			createGuessHistoryEntryPayload(),
+			{
+				guessHistoryRootDir: rootDir,
+			},
+		);
 		const game = await getGuessHistoryGame(savedRecord.gameKey, {
 			guessHistoryRootDir: rootDir,
 		});
@@ -214,7 +233,12 @@ test("appendGuessHistory rejects invalid payloads", async () => {
 
 	try {
 		await assert.rejects(
-			() => appendGuessHistory(SAMPLE_PGN, { status: "completed" }, { guessHistoryRootDir: rootDir }),
+			() =>
+				appendGuessHistory(
+					SAMPLE_PGN,
+					{ status: "completed" },
+					{ guessHistoryRootDir: rootDir },
+				),
 			(error) =>
 				error instanceof HttpError &&
 				error.code === "invalid_guess_history" &&

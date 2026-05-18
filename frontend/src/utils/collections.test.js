@@ -37,7 +37,11 @@ describe("collections", () => {
       getCollectionsForStudy(
         [
           { id: "collection-1", title: "Prep", studyIds: ["study-1"] },
-          { id: "collection-2", title: "Endgames", studyIds: ["study-2", "study-1"] },
+          {
+            id: "collection-2",
+            title: "Endgames",
+            studyIds: ["study-2", "study-1"],
+          },
         ],
         "study-1",
       ),
@@ -70,7 +74,13 @@ describe("collections", () => {
           { id: "study-3", title: "C" },
         ],
         "collection-1",
-        [{ id: "collection-1", title: "Prep", studyIds: ["study-2", "study-3"] }],
+        [
+          {
+            id: "collection-1",
+            title: "Prep",
+            studyIds: ["study-2", "study-3"],
+          },
+        ],
       ),
     ).toEqual([
       { id: "study-2", title: "B" },

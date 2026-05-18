@@ -117,8 +117,18 @@ describe("training helpers", () => {
         clock: "3+2",
         perf: { key: "blitz", name: "Blitz" },
         players: {
-          white: { color: "white", id: "vit2014", name: "vit2014", rating: 2395 },
-          black: { color: "black", id: "yoda-wins", name: "Yoda-wins", rating: 2511 },
+          white: {
+            color: "white",
+            id: "vit2014",
+            name: "vit2014",
+            rating: 2395,
+          },
+          black: {
+            color: "black",
+            id: "yoda-wins",
+            name: "Yoda-wins",
+            rating: 2511,
+          },
         },
         pgn: "e4 e5 Nf3 Nc6 Bc4 Bc5",
       },
@@ -148,8 +158,14 @@ describe("training helpers", () => {
         }),
       }),
     );
-    expect(variantTree.initialFen).toBe(trainingState.referenceMoves[0].fenBefore);
-    expect(trainingState.referenceMoves.map((move) => move.san)).toEqual(["Nxe5", "Nxe5", "Qh5"]);
+    expect(variantTree.initialFen).toBe(
+      trainingState.referenceMoves[0].fenBefore,
+    );
+    expect(trainingState.referenceMoves.map((move) => move.san)).toEqual([
+      "Nxe5",
+      "Nxe5",
+      "Qh5",
+    ]);
     expect(getCurrentPuzzleMove(trainingState)).toEqual(
       expect.objectContaining({
         san: "Nxe5",
@@ -160,11 +176,12 @@ describe("training helpers", () => {
 
   it("builds a standalone computer-play session from a starting tree", () => {
     const startVariantTree = createEmptyVariantTree();
-    const { trainingState, variantTree, error } = createComputerPlayTrainingState(
-      startVariantTree,
-      TRAINING_SIDE_BLACK,
-      TRAINING_COMPUTER_PLAY_SOURCE_INITIAL,
-    );
+    const { trainingState, variantTree, error } =
+      createComputerPlayTrainingState(
+        startVariantTree,
+        TRAINING_SIDE_BLACK,
+        TRAINING_COMPUTER_PLAY_SOURCE_INITIAL,
+      );
 
     expect(error).toBeNull();
     expect(variantTree).toEqual(startVariantTree);
@@ -352,7 +369,8 @@ describe("training helpers", () => {
         classification: null,
         deltaCp: null,
         isCritical: false,
-        resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+        resultingFen:
+          "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
       }),
     );
   });
@@ -365,8 +383,10 @@ describe("training helpers", () => {
         side: "white",
         san: "Nf3",
         move: { from: "g1", to: "f3" },
-        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
-        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+        fenBefore:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
       },
       userMove: { from: "f1", to: "c4" },
       userSan: "Bc4",
@@ -380,7 +400,8 @@ describe("training helpers", () => {
         classification: REPLAY_RESULT_WORSE,
         deltaCp: -175,
         isCritical: true,
-        resultingFen: "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
+        resultingFen:
+          "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
       }),
     );
   });
@@ -403,7 +424,8 @@ describe("training helpers", () => {
         san: "e5",
         move: { from: "e7", to: "e5" },
         fenBefore: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
-        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
       },
       {
         ply: 3,
@@ -411,8 +433,10 @@ describe("training helpers", () => {
         side: "white",
         san: "Nf3",
         move: { from: "g1", to: "f3" },
-        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
-        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+        fenBefore:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
       },
     ];
     const attempts = [
@@ -437,7 +461,9 @@ describe("training helpers", () => {
       }),
     ];
 
-    expect(summarizeReplayAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE)).toEqual(
+    expect(
+      summarizeReplayAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE),
+    ).toEqual(
       expect.objectContaining({
         totalMoves: 2,
         attemptedMoves: 3,
@@ -451,14 +477,16 @@ describe("training helpers", () => {
             moveNumber: 1,
             side: "white",
             expectedSan: "e4",
-            expectedResultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            expectedResultingFen:
+              "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
             attempts: [
               expect.objectContaining({
                 index: 1,
                 userSan: "e4",
                 outcome: REPLAY_RESULT_MATCH,
                 classification: null,
-                resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                resultingFen:
+                  "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
               }),
             ],
           },
@@ -467,14 +495,16 @@ describe("training helpers", () => {
             moveNumber: 2,
             side: "white",
             expectedSan: "Nf3",
-            expectedResultingFen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+            expectedResultingFen:
+              "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
             attempts: [
               expect.objectContaining({
                 index: 1,
                 userSan: "Bc4",
                 outcome: "mismatch",
                 classification: REPLAY_RESULT_EQUAL,
-                resultingFen: "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
+                resultingFen:
+                  "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
               }),
             ],
           },
@@ -482,7 +512,8 @@ describe("training helpers", () => {
       }),
     );
     expect(
-      summarizeReplayAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE).criticalMistakes,
+      summarizeReplayAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE)
+        .criticalMistakes,
     ).toHaveLength(1);
   });
 
@@ -503,8 +534,10 @@ describe("training helpers", () => {
         side: "white",
         san: "Nf3",
         move: { from: "g1", to: "f3" },
-        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
-        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+        fenBefore:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
       },
     ];
     const attempts = [
@@ -529,32 +562,39 @@ describe("training helpers", () => {
       }),
     ];
 
-    expect(summarizeReplayAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE)).toEqual(
+    expect(
+      summarizeReplayAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE),
+    ).toEqual(
       expect.objectContaining({
         moveHistory: expect.arrayContaining([
           expect.objectContaining({
             ply: 1,
-            expectedResultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            expectedResultingFen:
+              "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
             attempts: expect.arrayContaining([
               expect.objectContaining({
                 userSan: "e4",
-                resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                resultingFen:
+                  "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
               }),
             ]),
           }),
           expect.objectContaining({
             ply: 3,
-            expectedResultingFen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+            expectedResultingFen:
+              "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
             attempts: expect.arrayContaining([
               expect.objectContaining({
                 index: 1,
                 userSan: "Bc4",
-                resultingFen: "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
+                resultingFen:
+                  "rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq - 1 2",
               }),
               expect.objectContaining({
                 index: 2,
                 userSan: "Nc3",
-                resultingFen: "rnbqkbnr/pppp1ppp/8/4p3/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq - 1 2",
+                resultingFen:
+                  "rnbqkbnr/pppp1ppp/8/4p3/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq - 1 2",
               }),
             ]),
           }),
@@ -586,7 +626,8 @@ describe("training helpers", () => {
           san: "e4",
           move: { from: "e2", to: "e4" },
           fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-          fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+          fenAfter:
+            "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
         },
       ],
       attempts: [],
@@ -617,7 +658,8 @@ describe("training helpers", () => {
           outcome: "mismatch",
           classification: "worse",
           deltaCp: -60,
-          resultingFen: "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1",
+          resultingFen:
+            "rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq - 0 1",
         },
       ],
       lastCompletedExpectedMove: {
@@ -641,7 +683,9 @@ describe("training helpers", () => {
     expect(normalizedState.lastCompletedExpectedMove).toEqual(
       expect.objectContaining({ san: "e4" }),
     );
-    expect(normalizedState.lastCompletionMode).toBe(TRAINING_COMPLETION_REVEALED);
+    expect(normalizedState.lastCompletionMode).toBe(
+      TRAINING_COMPLETION_REVEALED,
+    );
     expect(normalizedState.playSession).toBeNull();
   });
 
@@ -666,7 +710,8 @@ describe("training helpers", () => {
       outcome: "mismatch",
       classification: "equal",
       deltaCp: -5,
-      resultingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+      resultingFen:
+        "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
     };
 
     const normalizedState = normalizeTrainingState({
@@ -739,7 +784,8 @@ describe("training helpers", () => {
       outcome: "mismatch",
       classification: "better",
       deltaCp: 120,
-      resultingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+      resultingFen:
+        "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
     };
 
     const normalizedState = normalizeTrainingState({
@@ -833,9 +879,8 @@ describe("training helpers", () => {
   });
 
   it("builds a guess the move session from the imported main line", () => {
-    const { trainingState, variantTree, error } = createGuessTheMoveTrainingState(
-      "1. e4 e5 2. Nf3 Nc6",
-    );
+    const { trainingState, variantTree, error } =
+      createGuessTheMoveTrainingState("1. e4 e5 2. Nf3 Nc6");
 
     expect(error).toBeNull();
     expect(variantTree.currentNodeId).toBe(variantTree.rootId);
@@ -913,8 +958,10 @@ describe("training helpers", () => {
         side: "white",
         san: "Nf3",
         move: { from: "g1", to: "f3" },
-        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
-        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+        fenBefore:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
       },
       userMove: { from: "f1", to: "c4" },
       userSan: "Bc4",
@@ -928,8 +975,10 @@ describe("training helpers", () => {
         side: "white",
         san: "Bb5",
         move: { from: "f1", to: "b5" },
-        fenBefore: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 3 3",
-        fenAfter: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+        fenBefore:
+          "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 3 3",
+        fenAfter:
+          "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
       },
       userMove: { from: "d2", to: "d3" },
       userSan: "d3",
@@ -943,8 +992,10 @@ describe("training helpers", () => {
         side: "white",
         san: "c3",
         move: { from: "c2", to: "c3" },
-        fenBefore: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 3 4",
-        fenAfter: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/2P2N2/PP1P1PPP/RNBQK2R b KQkq - 0 4",
+        fenBefore:
+          "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 3 4",
+        fenAfter:
+          "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/2P2N2/PP1P1PPP/RNBQK2R b KQkq - 0 4",
       },
       userMove: { from: "h2", to: "h3" },
       userSan: "h3",
@@ -958,8 +1009,10 @@ describe("training helpers", () => {
         side: "white",
         san: "d4",
         move: { from: "d2", to: "d4" },
-        fenBefore: "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/2P2N2/PP1P1PPP/RNBQK2R w KQkq - 0 5",
-        fenAfter: "r1bqkbnr/pppp1ppp/2n5/1B2p3/3PP3/2P2N2/PP3PPP/RNBQK2R b KQkq - 0 5",
+        fenBefore:
+          "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/2P2N2/PP1P1PPP/RNBQK2R w KQkq - 0 5",
+        fenAfter:
+          "r1bqkbnr/pppp1ppp/2n5/1B2p3/3PP3/2P2N2/PP3PPP/RNBQK2R b KQkq - 0 5",
       },
       userMove: { from: "g2", to: "g4" },
       userSan: "g4",
@@ -967,10 +1020,18 @@ describe("training helpers", () => {
       userEvaluation: { type: "cp", value: -200 },
     });
 
-    expect(getGuessTheMovePoints(matchingAttempt)).toBe(GUESS_THE_MOVE_POINTS_MATCH);
-    expect(getGuessTheMovePoints(betterAttempt)).toBe(GUESS_THE_MOVE_POINTS_BETTER);
-    expect(getGuessTheMovePoints(equalAttempt)).toBe(GUESS_THE_MOVE_POINTS_EQUAL);
-    expect(getGuessTheMovePoints(worseAttempt)).toBe(GUESS_THE_MOVE_POINTS_WORSE);
+    expect(getGuessTheMovePoints(matchingAttempt)).toBe(
+      GUESS_THE_MOVE_POINTS_MATCH,
+    );
+    expect(getGuessTheMovePoints(betterAttempt)).toBe(
+      GUESS_THE_MOVE_POINTS_BETTER,
+    );
+    expect(getGuessTheMovePoints(equalAttempt)).toBe(
+      GUESS_THE_MOVE_POINTS_EQUAL,
+    );
+    expect(getGuessTheMovePoints(worseAttempt)).toBe(
+      GUESS_THE_MOVE_POINTS_WORSE,
+    );
     expect(getGuessTheMovePoints(criticalAttempt)).toBe(
       GUESS_THE_MOVE_POINTS_CRITICAL_WORSE,
     );
@@ -994,7 +1055,8 @@ describe("training helpers", () => {
         san: "e5",
         move: { from: "e7", to: "e5" },
         fenBefore: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
-        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
       },
       {
         ply: 3,
@@ -1002,8 +1064,10 @@ describe("training helpers", () => {
         side: "white",
         san: "Nf3",
         move: { from: "g1", to: "f3" },
-        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
-        fenAfter: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+        fenBefore:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+        fenAfter:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
       },
       {
         ply: 4,
@@ -1011,8 +1075,10 @@ describe("training helpers", () => {
         side: "black",
         san: "Nc6",
         move: { from: "b8", to: "c6" },
-        fenBefore: "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
-        fenAfter: "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+        fenBefore:
+          "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+        fenAfter:
+          "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
       },
     ];
     const attempts = [
@@ -1031,7 +1097,11 @@ describe("training helpers", () => {
     ];
 
     expect(
-      summarizeGuessTheMoveAttempts(referenceMoves, attempts, TRAINING_SIDE_WHITE),
+      summarizeGuessTheMoveAttempts(
+        referenceMoves,
+        attempts,
+        TRAINING_SIDE_WHITE,
+      ),
     ).toEqual(
       expect.objectContaining({
         totalMoves: 2,
@@ -1087,8 +1157,10 @@ describe("training helpers", () => {
             side: "white",
             san: "e4",
             move: { from: "e2", to: "e4" },
-            fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            fenBefore:
+              "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            fenAfter:
+              "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
           },
         ],
         attempts: [
@@ -1104,7 +1176,8 @@ describe("training helpers", () => {
             classification: null,
             deltaCp: null,
             isCritical: false,
-            resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            resultingFen:
+              "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
           },
         ],
       },
@@ -1148,8 +1221,10 @@ describe("training helpers", () => {
               side: "white",
               san: "e4",
               move: { from: "e2", to: "e4" },
-              fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-              fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+              fenBefore:
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+              fenAfter:
+                "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
             },
           ],
           attempts: [
@@ -1165,7 +1240,8 @@ describe("training helpers", () => {
               classification: null,
               deltaCp: null,
               isCritical: false,
-              resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+              resultingFen:
+                "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
             },
           ],
         },
@@ -1200,8 +1276,10 @@ describe("training helpers", () => {
             side: "white",
             san: "e4",
             move: { from: "e2", to: "e4" },
-            fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            fenBefore:
+              "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            fenAfter:
+              "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
           },
         ],
         attempts: [
@@ -1217,7 +1295,8 @@ describe("training helpers", () => {
             classification: null,
             deltaCp: null,
             isCritical: false,
-            resultingFen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+            resultingFen:
+              "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
           },
         ],
       },

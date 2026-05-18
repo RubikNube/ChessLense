@@ -16,7 +16,11 @@ const {
 } = require("./collections");
 const { saveStudy } = require("./studies");
 
-const { buildCollectionSummary, normalizeCollectionRecord, normalizeCollectionTitle } = __testing;
+const {
+	buildCollectionSummary,
+	normalizeCollectionRecord,
+	normalizeCollectionTitle,
+} = __testing;
 
 function createStudyPayload() {
 	return {
@@ -104,9 +108,15 @@ test("listCollections returns sorted summaries", async () => {
 	const rootDir = await createTempRoot();
 
 	try {
-		const firstCollection = await createCollection({ title: "Prep" }, { rootDir });
+		const firstCollection = await createCollection(
+			{ title: "Prep" },
+			{ rootDir },
+		);
 		await new Promise((resolve) => setTimeout(resolve, 5));
-		const secondCollection = await createCollection({ title: "Endgames" }, { rootDir });
+		const secondCollection = await createCollection(
+			{ title: "Endgames" },
+			{ rootDir },
+		);
 		const collections = await listCollections({ rootDir });
 
 		assert.equal(collections.length, 2);
@@ -121,8 +131,13 @@ test("addStudyToCollection adds valid study membership", async () => {
 	const rootDir = await createTempRoot();
 
 	try {
-		const study = await saveStudy(createStudyPayload(), { rootDir: path.join(rootDir, "studies") });
-		const collection = await createCollection({ title: "Prep" }, { rootDir: path.join(rootDir, "collections") });
+		const study = await saveStudy(createStudyPayload(), {
+			rootDir: path.join(rootDir, "studies"),
+		});
+		const collection = await createCollection(
+			{ title: "Prep" },
+			{ rootDir: path.join(rootDir, "collections") },
+		);
 		const updatedCollection = await addStudyToCollection(
 			collection.id,
 			study.id,
@@ -166,7 +181,11 @@ test("removeStudyFromCollection deletes only one membership", async () => {
 			},
 			{ rootDir },
 		);
-		const updatedCollection = await removeStudyFromCollection(collection.id, "study-1", { rootDir });
+		const updatedCollection = await removeStudyFromCollection(
+			collection.id,
+			"study-1",
+			{ rootDir },
+		);
 
 		assert.deepEqual(updatedCollection.studyIds, ["study-2"]);
 	} finally {
@@ -187,13 +206,18 @@ test("removeStudyFromAllCollections prunes deleted study membership", async () =
 			{ rootDir },
 		);
 
-		const updatedCollections = await removeStudyFromAllCollections("study-1", { rootDir });
+		const updatedCollections = await removeStudyFromAllCollections("study-1", {
+			rootDir,
+		});
 		const collections = await listCollections({ rootDir });
 
 		assert.equal(updatedCollections.length, 2);
 		assert.deepEqual(
 			Object.fromEntries(
-				collections.map((collection) => [collection.title, collection.studyIds]),
+				collections.map((collection) => [
+					collection.title,
+					collection.studyIds,
+				]),
 			),
 			{
 				Endgames: [],
@@ -210,7 +234,9 @@ test("deleteCollection removes saved collection file", async () => {
 
 	try {
 		const collection = await createCollection({ title: "Prep" }, { rootDir });
-		const deletedCollection = await deleteCollection(collection.id, { rootDir });
+		const deletedCollection = await deleteCollection(collection.id, {
+			rootDir,
+		});
 		const collections = await listCollections({ rootDir });
 
 		assert.deepEqual(deletedCollection, { id: collection.id });

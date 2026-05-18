@@ -212,16 +212,17 @@ function normalizePositionComment(entry, index = 0) {
     return null;
   }
 
-  const fen = typeof entry.fen === "string" && entry.fen.trim() ? entry.fen : null;
-  const ply =
-    Number.isInteger(entry.ply) && entry.ply >= 0 ? entry.ply : null;
+  const fen =
+    typeof entry.fen === "string" && entry.fen.trim() ? entry.fen : null;
+  const ply = Number.isInteger(entry.ply) && entry.ply >= 0 ? entry.ply : null;
   const moveNumber =
     Number.isInteger(entry.moveNumber) && entry.moveNumber >= 0
       ? entry.moveNumber
       : null;
   const side =
     entry.side === "white" || entry.side === "black" ? entry.side : null;
-  const san = typeof entry.san === "string" && entry.san.trim() ? entry.san : null;
+  const san =
+    typeof entry.san === "string" && entry.san.trim() ? entry.san : null;
   const source =
     entry.source === POSITION_COMMENT_SOURCE_IMPORTED
       ? POSITION_COMMENT_SOURCE_IMPORTED
@@ -354,10 +355,17 @@ function sanitizeShortcutKeys(actionName, shortcutKeys) {
     return shortcutKeys;
   }
 
-  return shortcutKeys.filter((shortcutKey) => !isUnsafeViewToggleShortcut(shortcutKey));
+  return shortcutKeys.filter(
+    (shortcutKey) => !isUnsafeViewToggleShortcut(shortcutKey),
+  );
 }
 
-function resolvePersistedPanelVisibility(parsedState, panelKey, legacyKey, fallbackValue = true) {
+function resolvePersistedPanelVisibility(
+  parsedState,
+  panelKey,
+  legacyKey,
+  fallbackValue = true,
+) {
   if (typeof parsedState?.[panelKey] === "boolean") {
     return parsedState[panelKey];
   }
@@ -392,7 +400,7 @@ export function normalizeShortcutConfig(config) {
     normalizedConfig[actionName] = {
       label:
         typeof candidateShortcut?.label === "string" &&
-          candidateShortcut.label.trim().length > 0
+        candidateShortcut.label.trim().length > 0
           ? candidateShortcut.label
           : defaultShortcut.label,
       keys: shortcutKeys,
@@ -510,34 +518,37 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
 
     const redoStack = Array.isArray(parsedState.redoStack)
       ? parsedState.redoStack.reduce((moves, move) => {
-        if (
-          !move ||
-          typeof move !== "object" ||
-          typeof move.from !== "string" ||
-          typeof move.to !== "string"
-        ) {
+          if (
+            !move ||
+            typeof move !== "object" ||
+            typeof move.from !== "string" ||
+            typeof move.to !== "string"
+          ) {
+            return moves;
+          }
+
+          moves.push({
+            from: move.from,
+            to: move.to,
+            ...(typeof move.promotion === "string"
+              ? { promotion: move.promotion }
+              : {}),
+          });
+
           return moves;
-        }
-
-        moves.push({
-          from: move.from,
-          to: move.to,
-          ...(typeof move.promotion === "string"
-            ? { promotion: move.promotion }
-            : {}),
-        });
-
-        return moves;
-      }, [])
+        }, [])
       : [];
 
-    const gamePgn = typeof parsedState.gamePgn === "string" ? parsedState.gamePgn : "";
+    const gamePgn =
+      typeof parsedState.gamePgn === "string" ? parsedState.gamePgn : "";
     const game = createGameFromPgn(gamePgn);
     const variantTree =
       parsedState.variantTree && typeof parsedState.variantTree === "object"
         ? normalizeVariantTree(parsedState.variantTree)
         : createVariantTreeFromGameAndRedo(game, redoStack);
-    const importedPgnData = normalizeImportedPgnData(parsedState.importedPgnData);
+    const importedPgnData = normalizeImportedPgnData(
+      parsedState.importedPgnData,
+    );
     const lichessSearchFilters = parsedState.lichessSearchFilters
       ? normalizeLichessSearchFilters(parsedState.lichessSearchFilters)
       : DEFAULT_LICHESS_SEARCH_FILTERS;
@@ -553,7 +564,9 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
 
     return {
       variantTree,
-      engineSearchDepth: normalizeEngineSearchDepth(parsedState.engineSearchDepth),
+      engineSearchDepth: normalizeEngineSearchDepth(
+        parsedState.engineSearchDepth,
+      ),
       lichessApiToken:
         typeof parsedState.lichessApiToken === "string"
           ? parsedState.lichessApiToken

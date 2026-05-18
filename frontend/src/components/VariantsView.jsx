@@ -71,10 +71,14 @@ function VariantsView({
                   <span className="variant-line-title">
                     {line.isMainLine ? "Main line" : "Sideline"}
                   </span>
-                  <span className="variant-line-branch">{line.branchLabel}</span>
+                  <span className="variant-line-branch">
+                    {line.branchLabel}
+                  </span>
                 </div>
                 <div className="variant-line-header-actions">
-                  {line.isSelected && <span className="variant-line-badge">Selected</span>}
+                  {line.isSelected && (
+                    <span className="variant-line-badge">Selected</span>
+                  )}
                   <button
                     type="button"
                     className="variant-line-remove-button"
@@ -137,7 +141,10 @@ function VariantsView({
           disabled={!canUndo}
           aria-label="Go to start"
           title="Go to start"
-          style={{ ...actionButtonStyle, ...(!canUndo ? disabledActionButtonStyle : {}) }}
+          style={{
+            ...actionButtonStyle,
+            ...(!canUndo ? disabledActionButtonStyle : {}),
+          }}
         >
           ⏮
         </button>
@@ -147,7 +154,10 @@ function VariantsView({
           disabled={!canUndo}
           aria-label="Undo"
           title="Undo"
-          style={{ ...actionButtonStyle, ...(!canUndo ? disabledActionButtonStyle : {}) }}
+          style={{
+            ...actionButtonStyle,
+            ...(!canUndo ? disabledActionButtonStyle : {}),
+          }}
         >
           ◀
         </button>
@@ -157,7 +167,10 @@ function VariantsView({
           disabled={!canRedo}
           aria-label="Redo"
           title="Redo"
-          style={{ ...actionButtonStyle, ...(!canRedo ? disabledActionButtonStyle : {}) }}
+          style={{
+            ...actionButtonStyle,
+            ...(!canRedo ? disabledActionButtonStyle : {}),
+          }}
         >
           ▶
         </button>
@@ -167,7 +180,10 @@ function VariantsView({
           disabled={!canRedo}
           aria-label="Go to end"
           title="Go to end"
-          style={{ ...actionButtonStyle, ...(!canRedo ? disabledActionButtonStyle : {}) }}
+          style={{
+            ...actionButtonStyle,
+            ...(!canRedo ? disabledActionButtonStyle : {}),
+          }}
         >
           ⏭
         </button>

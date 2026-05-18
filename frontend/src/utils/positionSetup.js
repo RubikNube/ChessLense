@@ -59,7 +59,9 @@ function isValidSquare(square) {
 }
 
 function isValidPieceType(pieceType) {
-  return typeof pieceType === "string" && VALID_PIECE_TYPE_PATTERN.test(pieceType);
+  return (
+    typeof pieceType === "string" && VALID_PIECE_TYPE_PATTERN.test(pieceType)
+  );
 }
 
 function parseFenPlacement(placement) {
@@ -151,7 +153,8 @@ function buildCastlingRights(castlingRights) {
 }
 
 function normalizeValidationError(error) {
-  const message = error instanceof Error ? error.message : "Invalid position setup.";
+  const message =
+    error instanceof Error ? error.message : "Invalid position setup.";
 
   if (message.startsWith(INVALID_FEN_PREFIX)) {
     return `Cannot finish setup: ${message.slice(INVALID_FEN_PREFIX.length)}.`;
@@ -165,7 +168,8 @@ export function createPositionSetupDraft(fen) {
     typeof fen === "string" ? fen.trim().split(/\s+/) : [];
 
   return {
-    initialFen: typeof fen === "string" && fen.trim() ? fen.trim() : new Chess().fen(),
+    initialFen:
+      typeof fen === "string" && fen.trim() ? fen.trim() : new Chess().fen(),
     position: parseFenPlacement(placement),
     activeColor: activeColor === "b" ? "black" : "white",
     castlingRights: parseCastlingRights(castlingField),

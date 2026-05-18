@@ -52,7 +52,11 @@ describe("boardAnnotations", () => {
       { startSquare: "e2", endSquare: "e4", color: DEFAULT_BOARD_ARROW_COLOR },
     ]);
     expect(recolored.arrows).toEqual([
-      { startSquare: "e2", endSquare: "e4", color: SECONDARY_BOARD_ARROW_COLOR },
+      {
+        startSquare: "e2",
+        endSquare: "e4",
+        color: SECONDARY_BOARD_ARROW_COLOR,
+      },
     ]);
     expect(removed.arrows).toEqual([]);
   });
@@ -84,12 +88,28 @@ describe("boardAnnotations", () => {
     expect(
       mergeBoardArrowCollections(
         [{ startSquare: "g1", endSquare: "f3", color: "#2563eb" }],
-        [{ startSquare: "g1", endSquare: "f3", color: DEFAULT_BOARD_ARROW_COLOR }],
-        [{ startSquare: "b1", endSquare: "c3", color: SECONDARY_BOARD_ARROW_COLOR }],
+        [
+          {
+            startSquare: "g1",
+            endSquare: "f3",
+            color: DEFAULT_BOARD_ARROW_COLOR,
+          },
+        ],
+        [
+          {
+            startSquare: "b1",
+            endSquare: "c3",
+            color: SECONDARY_BOARD_ARROW_COLOR,
+          },
+        ],
       ),
     ).toEqual([
       { startSquare: "g1", endSquare: "f3", color: DEFAULT_BOARD_ARROW_COLOR },
-      { startSquare: "b1", endSquare: "c3", color: SECONDARY_BOARD_ARROW_COLOR },
+      {
+        startSquare: "b1",
+        endSquare: "c3",
+        color: SECONDARY_BOARD_ARROW_COLOR,
+      },
     ]);
   });
 
@@ -108,7 +128,11 @@ describe("boardAnnotations", () => {
 
   it("returns the correct annotation color for board modifiers", () => {
     expect(getBoardAnnotationColor({})).toBe(DEFAULT_BOARD_ARROW_COLOR);
-    expect(getBoardAnnotationColor({ shiftKey: true })).toBe(SECONDARY_BOARD_ARROW_COLOR);
-    expect(getBoardAnnotationColor({ ctrlKey: true })).toBe(TERTIARY_BOARD_ARROW_COLOR);
+    expect(getBoardAnnotationColor({ shiftKey: true })).toBe(
+      SECONDARY_BOARD_ARROW_COLOR,
+    );
+    expect(getBoardAnnotationColor({ ctrlKey: true })).toBe(
+      TERTIARY_BOARD_ARROW_COLOR,
+    );
   });
 });

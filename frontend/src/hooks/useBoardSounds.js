@@ -39,67 +39,76 @@ function useBoardSounds(enabled) {
     };
   }, []);
 
-  return useCallback((eventName) => {
-    if (!enabled) {
-      return;
-    }
-
-    const pattern = BOARD_SOUND_PATTERNS[eventName];
-
-    if (!pattern) {
-      console.error(`Unknown board sound event: ${eventName}`);
-      return;
-    }
-
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const AudioContextConstructor =
-      window.AudioContext || window.webkitAudioContext;
-
-    if (!AudioContextConstructor) {
-      console.error("Web Audio API is unavailable for board sounds.");
-      return;
-    }
-
-    if (!audioContextRef.current || audioContextRef.current.state === "closed") {
-      audioContextRef.current = new AudioContextConstructor();
-    }
-
-    const audioContext = audioContextRef.current;
-    const playPattern = () => {
-      let startTime = audioContext.currentTime;
-
-      for (const [frequency, duration, volume] of pattern) {
-        const oscillator = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(frequency, startTime);
-        gain.gain.setValueAtTime(0.0001, startTime);
-        gain.gain.linearRampToValueAtTime(volume, startTime + 0.01);
-        gain.gain.linearRampToValueAtTime(volume, startTime + duration * 0.6);
-        gain.gain.linearRampToValueAtTime(0.0001, startTime + duration);
-
-        oscillator.connect(gain);
-        gain.connect(audioContext.destination);
-        oscillator.start(startTime);
-        oscillator.stop(startTime + duration);
-
-        startTime += duration;
+  return useCallback(
+    (eventName) => {
+      if (!enabled) {
+        return;
       }
-    };
 
-    if (audioContext.state === "suspended") {
-      void audioContext.resume().then(playPattern).catch((error) => {
-        console.error("Failed to resume board sound audio context:", error);
-      });
-      return;
-    }
+      const pattern = BOARD_SOUND_PATTERNS[eventName];
 
-    playPattern();
-  }, [enabled]);
+      if (!pattern) {
+        console.error(`Unknown board sound event: ${eventName}`);
+        return;
+      }
+
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      const AudioContextConstructor =
+        window.AudioContext || window.webkitAudioContext;
+
+      if (!AudioContextConstructor) {
+        console.error("Web Audio API is unavailable for board sounds.");
+        return;
+      }
+
+      if (
+        !audioContextRef.current ||
+        audioContextRef.current.state === "closed"
+      ) {
+        audioContextRef.current = new AudioContextConstructor();
+      }
+
+      const audioContext = audioContextRef.current;
+      const playPattern = () => {
+        let startTime = audioContext.currentTime;
+
+        for (const [frequency, duration, volume] of pattern) {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(frequency, startTime);
+          gain.gain.setValueAtTime(0.0001, startTime);
+          gain.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+          gain.gain.linearRampToValueAtTime(volume, startTime + duration * 0.6);
+          gain.gain.linearRampToValueAtTime(0.0001, startTime + duration);
+
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(startTime);
+          oscillator.stop(startTime + duration);
+
+          startTime += duration;
+        }
+      };
+
+      if (audioContext.state === "suspended") {
+        void audioContext
+          .resume()
+          .then(playPattern)
+          .catch((error) => {
+            console.error("Failed to resume board sound audio context:", error);
+          });
+        return;
+      }
+
+      playPattern();
+    },
+    [enabled],
+  );
 }
 
 export default useBoardSounds;

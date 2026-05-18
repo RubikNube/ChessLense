@@ -183,10 +183,14 @@ function MoveHistory({
     };
   }, [contextMenu]);
 
-  const lastMoveNodeId = moveHistoryItems[moveHistoryItems.length - 1]?.nodeId ?? null;
-  const variantOptions = contextMenu ? getVariantOptionsForMove(contextMenu.moveEntry.nodeId) : [];
+  const lastMoveNodeId =
+    moveHistoryItems[moveHistoryItems.length - 1]?.nodeId ?? null;
+  const variantOptions = contextMenu
+    ? getVariantOptionsForMove(contextMenu.moveEntry.nodeId)
+    : [];
   const shouldShowVariantOptions =
-    variantOptions.length > 1 || variantOptions.some((option) => !option.isSelected);
+    variantOptions.length > 1 ||
+    variantOptions.some((option) => !option.isSelected);
 
   function openContextMenu(event, moveEntry) {
     event.preventDefault();
@@ -216,50 +220,77 @@ function MoveHistory({
         </button>
       </div>
       <div className="move-history-body">
-        {!groupedMoveHistory.length && <p className="annotation-empty">No moves yet.</p>}
+        {!groupedMoveHistory.length && (
+          <p className="annotation-empty">No moves yet.</p>
+        )}
         {!!groupedMoveHistory.length && (
           <ol className="move-history" ref={moveHistoryRef}>
             {groupedMoveHistory.map(
               ({ moveNumber, white, whiteIndex, black, blackIndex }) => (
-                <li key={`${moveNumber}-${white?.nodeId ?? black?.nodeId ?? "row"}`} className="move-row">
+                <li
+                  key={`${moveNumber}-${white?.nodeId ?? black?.nodeId ?? "row"}`}
+                  className="move-row"
+                >
                   <span className="move-number">{moveNumber}.</span>
                   {white ? (
                     <button
                       type="button"
-                      ref={whiteIndex === currentMoveIndex ? selectedMoveRef : null}
+                      ref={
+                        whiteIndex === currentMoveIndex ? selectedMoveRef : null
+                      }
                       className={`move-entry move-entry-button${whiteIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
                       onClick={() => onSelectMove(white.nodeId)}
                       onContextMenu={(event) => openContextMenu(event, white)}
                     >
                       <span>{white.san}</span>
                       {(white.hasVariants || white.hasComments) && (
-                        <span className="move-entry-indicators" aria-hidden="true">
-                          {white.hasVariants && <span className="move-entry-indicator">V</span>}
-                          {white.hasComments && <span className="move-entry-indicator">C</span>}
+                        <span
+                          className="move-entry-indicators"
+                          aria-hidden="true"
+                        >
+                          {white.hasVariants && (
+                            <span className="move-entry-indicator">V</span>
+                          )}
+                          {white.hasComments && (
+                            <span className="move-entry-indicator">C</span>
+                          )}
                         </span>
                       )}
                     </button>
                   ) : (
-                    <span className="move-entry move-entry-placeholder">...</span>
+                    <span className="move-entry move-entry-placeholder">
+                      ...
+                    </span>
                   )}
                   {black ? (
                     <button
                       type="button"
-                      ref={blackIndex === currentMoveIndex ? selectedMoveRef : null}
+                      ref={
+                        blackIndex === currentMoveIndex ? selectedMoveRef : null
+                      }
                       className={`move-entry move-entry-button${blackIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
                       onClick={() => onSelectMove(black.nodeId)}
                       onContextMenu={(event) => openContextMenu(event, black)}
                     >
                       <span>{black.san}</span>
                       {(black.hasVariants || black.hasComments) && (
-                        <span className="move-entry-indicators" aria-hidden="true">
-                          {black.hasVariants && <span className="move-entry-indicator">V</span>}
-                          {black.hasComments && <span className="move-entry-indicator">C</span>}
+                        <span
+                          className="move-entry-indicators"
+                          aria-hidden="true"
+                        >
+                          {black.hasVariants && (
+                            <span className="move-entry-indicator">V</span>
+                          )}
+                          {black.hasComments && (
+                            <span className="move-entry-indicator">C</span>
+                          )}
                         </span>
                       )}
                     </button>
                   ) : (
-                    <span className="move-entry move-entry-placeholder">...</span>
+                    <span className="move-entry move-entry-placeholder">
+                      ...
+                    </span>
                   )}
                 </li>
               ),
@@ -274,7 +305,10 @@ function MoveHistory({
           disabled={!canUndo}
           aria-label="Go to start"
           title="Go to start"
-          style={{ ...actionButtonStyle, ...(!canUndo ? disabledActionButtonStyle : {}) }}
+          style={{
+            ...actionButtonStyle,
+            ...(!canUndo ? disabledActionButtonStyle : {}),
+          }}
         >
           ⏮
         </button>
@@ -284,7 +318,10 @@ function MoveHistory({
           disabled={!canUndo}
           aria-label="Undo"
           title="Undo"
-          style={{ ...actionButtonStyle, ...(!canUndo ? disabledActionButtonStyle : {}) }}
+          style={{
+            ...actionButtonStyle,
+            ...(!canUndo ? disabledActionButtonStyle : {}),
+          }}
         >
           ◀
         </button>
@@ -294,7 +331,10 @@ function MoveHistory({
           disabled={!canRedo}
           aria-label="Redo"
           title="Redo"
-          style={{ ...actionButtonStyle, ...(!canRedo ? disabledActionButtonStyle : {}) }}
+          style={{
+            ...actionButtonStyle,
+            ...(!canRedo ? disabledActionButtonStyle : {}),
+          }}
         >
           ▶
         </button>
@@ -304,7 +344,10 @@ function MoveHistory({
           disabled={!canRedo}
           aria-label="Go to end"
           title="Go to end"
-          style={{ ...actionButtonStyle, ...(!canRedo ? disabledActionButtonStyle : {}) }}
+          style={{
+            ...actionButtonStyle,
+            ...(!canRedo ? disabledActionButtonStyle : {}),
+          }}
         >
           ⏭
         </button>
@@ -328,7 +371,11 @@ function MoveHistory({
                   key={option.id}
                   type="button"
                   role="menuitem"
-                  style={option.isSelected ? disabledContextMenuButtonStyle : contextMenuButtonStyle}
+                  style={
+                    option.isSelected
+                      ? disabledContextMenuButtonStyle
+                      : contextMenuButtonStyle
+                  }
                   onClick={() => {
                     if (option.isSelected) {
                       return;
@@ -339,7 +386,11 @@ function MoveHistory({
                   }}
                   disabled={option.isSelected}
                 >
-                  <span>{option.continuationText || option.displayText || "Current line"}</span>
+                  <span>
+                    {option.continuationText ||
+                      option.displayText ||
+                      "Current line"}
+                  </span>
                   <span style={contextMenuMetaStyle}>
                     {option.isMainLine ? "Main line" : "Sideline"}
                     {option.isSelected ? " - Selected" : ""}

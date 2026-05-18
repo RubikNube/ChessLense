@@ -126,7 +126,8 @@ function normalizePuzzlePlayer(entry) {
     return null;
   }
 
-  const color = entry.color === "white" || entry.color === "black" ? entry.color : null;
+  const color =
+    entry.color === "white" || entry.color === "black" ? entry.color : null;
   const name = normalizeString(entry.name);
 
   if (!color || !name) {
@@ -164,7 +165,9 @@ function normalizePuzzleSourceGame(entry) {
       normalizeString(entry.perf.key)
         ? {
             key: normalizeString(entry.perf.key),
-            name: normalizeString(entry.perf.name) || normalizeString(entry.perf.key),
+            name:
+              normalizeString(entry.perf.name) ||
+              normalizeString(entry.perf.key),
           }
         : null,
     players: {
@@ -180,18 +183,26 @@ function normalizePuzzleMetadata(entry) {
   }
 
   const id = normalizeString(entry.id);
-  const initialPly = Number.isInteger(entry.initialPly) && entry.initialPly >= 0 ? entry.initialPly : null;
+  const initialPly =
+    Number.isInteger(entry.initialPly) && entry.initialPly >= 0
+      ? entry.initialPly
+      : null;
   const rating = Number.isInteger(entry.rating) ? entry.rating : null;
-  const plays = Number.isInteger(entry.plays) && entry.plays >= 0 ? entry.plays : null;
+  const plays =
+    Number.isInteger(entry.plays) && entry.plays >= 0 ? entry.plays : null;
   const themes = Array.isArray(entry.themes)
-    ? entry.themes
-        .map((theme) => normalizeString(theme))
-        .filter(Boolean)
+    ? entry.themes.map((theme) => normalizeString(theme)).filter(Boolean)
     : [];
   const initialFen = normalizeFen(entry.initialFen);
   const sourceGame = normalizePuzzleSourceGame(entry.sourceGame);
 
-  if (!id || initialPly === null || rating === null || plays === null || !sourceGame) {
+  if (
+    !id ||
+    initialPly === null ||
+    rating === null ||
+    plays === null ||
+    !sourceGame
+  ) {
     return null;
   }
 
@@ -228,7 +239,9 @@ function normalizeReferenceMove(entry) {
   return {
     ply: Number.isInteger(entry.ply) && entry.ply > 0 ? entry.ply : null,
     moveNumber:
-      Number.isInteger(entry.moveNumber) && entry.moveNumber > 0 ? entry.moveNumber : null,
+      Number.isInteger(entry.moveNumber) && entry.moveNumber > 0
+        ? entry.moveNumber
+        : null,
     side: entry.side === "white" || entry.side === "black" ? entry.side : null,
     san: entry.san.trim(),
     move,
@@ -268,7 +281,9 @@ function normalizeAttempt(entry) {
   return {
     ply: Number.isInteger(entry.ply) && entry.ply > 0 ? entry.ply : null,
     moveNumber:
-      Number.isInteger(entry.moveNumber) && entry.moveNumber > 0 ? entry.moveNumber : null,
+      Number.isInteger(entry.moveNumber) && entry.moveNumber > 0
+        ? entry.moveNumber
+        : null,
     side: entry.side === "white" || entry.side === "black" ? entry.side : null,
     expectedSan: entry.expectedSan.trim(),
     userSan: entry.userSan.trim(),
@@ -325,7 +340,9 @@ export function createEmptyTrainingState(playerSide = TRAINING_SIDE_WHITE) {
     mode: TRAINING_MODE_OFF,
     status: TRAINING_STATUS_IDLE,
     playerSide:
-      playerSide === TRAINING_SIDE_BLACK ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE,
+      playerSide === TRAINING_SIDE_BLACK
+        ? TRAINING_SIDE_BLACK
+        : TRAINING_SIDE_WHITE,
     progressPly: 0,
     referenceMoves: [],
     attempts: [],
@@ -389,14 +406,16 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
     entry.mode === TRAINING_MODE_REPLAY_GAME
       ? TRAINING_MODE_REPLAY_GAME
       : entry.mode === TRAINING_MODE_GUESS_THE_MOVE
-      ? TRAINING_MODE_GUESS_THE_MOVE
-      : entry.mode === TRAINING_MODE_PUZZLE
-        ? TRAINING_MODE_PUZZLE
-      : entry.mode === TRAINING_MODE_PLAY_COMPUTER
-        ? TRAINING_MODE_PLAY_COMPUTER
-        : TRAINING_MODE_OFF;
+        ? TRAINING_MODE_GUESS_THE_MOVE
+        : entry.mode === TRAINING_MODE_PUZZLE
+          ? TRAINING_MODE_PUZZLE
+          : entry.mode === TRAINING_MODE_PLAY_COMPUTER
+            ? TRAINING_MODE_PLAY_COMPUTER
+            : TRAINING_MODE_OFF;
   const normalizedPlayerSide =
-    entry.playerSide === TRAINING_SIDE_BLACK ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
+    entry.playerSide === TRAINING_SIDE_BLACK
+      ? TRAINING_SIDE_BLACK
+      : TRAINING_SIDE_WHITE;
   const status =
     entry.status === TRAINING_STATUS_ACTIVE ||
     entry.status === TRAINING_STATUS_COMPLETED ||
@@ -415,8 +434,12 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
   const lastCompletedAttempts = Array.isArray(entry.lastCompletedAttempts)
     ? entry.lastCompletedAttempts.map(normalizeAttempt).filter(Boolean)
     : [];
-  const boundedProgress = Number.isInteger(entry.progressPly) ? entry.progressPly : 0;
-  const lastCompletedExpectedMove = normalizeReferenceMove(entry.lastCompletedExpectedMove);
+  const boundedProgress = Number.isInteger(entry.progressPly)
+    ? entry.progressPly
+    : 0;
+  const lastCompletedExpectedMove = normalizeReferenceMove(
+    entry.lastCompletedExpectedMove,
+  );
   const lastCompletionMode =
     entry.lastCompletionMode === TRAINING_COMPLETION_MATCH ||
     entry.lastCompletionMode === TRAINING_COMPLETION_REVEALED
@@ -443,7 +466,8 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
     status:
       normalizedMode === TRAINING_MODE_OFF
         ? TRAINING_STATUS_IDLE
-        : status === TRAINING_STATUS_COMPLETED && boundedProgress < referenceMoves.length
+        : status === TRAINING_STATUS_COMPLETED &&
+            boundedProgress < referenceMoves.length
           ? TRAINING_STATUS_ACTIVE
           : status,
     progressPly: supportsReferenceTrainingState
@@ -452,9 +476,15 @@ function normalizeTrainingCheckpoint(entry, playerSide = TRAINING_SIDE_WHITE) {
     referenceMoves: supportsReferenceTrainingState ? referenceMoves : [],
     attempts: supportsReferenceTrainingState ? attempts : [],
     pendingAttempts: supportsReferenceTrainingState ? pendingAttempts : [],
-    lastCompletedAttempts: supportsReferenceTrainingState ? lastCompletedAttempts : [],
-    lastCompletedExpectedMove: supportsReferenceTrainingState ? lastCompletedExpectedMove : null,
-    lastCompletionMode: supportsReferenceTrainingState ? lastCompletionMode : null,
+    lastCompletedAttempts: supportsReferenceTrainingState
+      ? lastCompletedAttempts
+      : [],
+    lastCompletedExpectedMove: supportsReferenceTrainingState
+      ? lastCompletedExpectedMove
+      : null,
+    lastCompletionMode: supportsReferenceTrainingState
+      ? lastCompletionMode
+      : null,
     puzzle: normalizedMode === TRAINING_MODE_PUZZLE ? puzzle : null,
     computerPlay: supportsComputerPlay ? computerPlay : null,
   };
@@ -466,10 +496,15 @@ function normalizeTrainingPlaySession(entry, playerSide = TRAINING_SIDE_WHITE) {
   }
 
   const status =
-    entry.status === TRAINING_PLAY_STATUS_ACTIVE ? TRAINING_PLAY_STATUS_ACTIVE : null;
+    entry.status === TRAINING_PLAY_STATUS_ACTIVE
+      ? TRAINING_PLAY_STATUS_ACTIVE
+      : null;
   const sourceAttempt = normalizeAttempt(entry.sourceAttempt);
   const startingFen = normalizeFen(entry.startingFen);
-  const resumeTrainingState = normalizeTrainingCheckpoint(entry.resumeTrainingState, playerSide);
+  const resumeTrainingState = normalizeTrainingCheckpoint(
+    entry.resumeTrainingState,
+    playerSide,
+  );
   const resumeVariantTree =
     entry.resumeVariantTree && typeof entry.resumeVariantTree === "object"
       ? normalizeVariantTree(entry.resumeVariantTree)
@@ -510,7 +545,10 @@ export function normalizeTrainingState(trainingState) {
 export function getPuzzleTerminalOutcome(trainingState) {
   const normalizedState = normalizeTrainingState(trainingState);
 
-  if (normalizedState.mode !== TRAINING_MODE_PUZZLE || !normalizedState.puzzle?.id) {
+  if (
+    normalizedState.mode !== TRAINING_MODE_PUZZLE ||
+    !normalizedState.puzzle?.id
+  ) {
     return null;
   }
 
@@ -532,7 +570,9 @@ export function getPuzzleTerminalOutcome(trainingState) {
 }
 
 export function getReplayReferenceMoves(rawPgn) {
-  const { game, variantTree, error } = parseAnnotatedPgn(rawPgn, { allowEmpty: false });
+  const { game, variantTree, error } = parseAnnotatedPgn(rawPgn, {
+    allowEmpty: false,
+  });
 
   if (error || !game || !variantTree) {
     return {
@@ -576,7 +616,8 @@ function createReferenceTrainingState(
   playerSide = TRAINING_SIDE_WHITE,
   errorMessage,
 ) {
-  const { initialFen, variantTree, referenceMoves, error } = getReplayReferenceMoves(rawPgn);
+  const { initialFen, variantTree, referenceMoves, error } =
+    getReplayReferenceMoves(rawPgn);
 
   if (error || !variantTree) {
     return {
@@ -590,7 +631,9 @@ function createReferenceTrainingState(
   return {
     trainingState: normalizeTrainingState({
       mode,
-      status: referenceMoves.length ? TRAINING_STATUS_ACTIVE : TRAINING_STATUS_COMPLETED,
+      status: referenceMoves.length
+        ? TRAINING_STATUS_ACTIVE
+        : TRAINING_STATUS_COMPLETED,
       playerSide,
       progressPly: 0,
       referenceMoves,
@@ -608,7 +651,10 @@ function createReferenceTrainingState(
   };
 }
 
-export function createReplayTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHITE) {
+export function createReplayTrainingState(
+  rawPgn,
+  playerSide = TRAINING_SIDE_WHITE,
+) {
   return createReferenceTrainingState(
     TRAINING_MODE_REPLAY_GAME,
     rawPgn,
@@ -617,7 +663,10 @@ export function createReplayTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHI
   );
 }
 
-export function createGuessTheMoveTrainingState(rawPgn, playerSide = TRAINING_SIDE_WHITE) {
+export function createGuessTheMoveTrainingState(
+  rawPgn,
+  playerSide = TRAINING_SIDE_WHITE,
+) {
   return createReferenceTrainingState(
     TRAINING_MODE_GUESS_THE_MOVE,
     rawPgn,
@@ -628,7 +677,9 @@ export function createGuessTheMoveTrainingState(rawPgn, playerSide = TRAINING_SI
 
 export function createPuzzleTrainingState(payload) {
   const gamePgn =
-    typeof payload?.game?.pgn === "string" && payload.game.pgn.trim() ? payload.game.pgn.trim() : "";
+    typeof payload?.game?.pgn === "string" && payload.game.pgn.trim()
+      ? payload.game.pgn.trim()
+      : "";
   const solution = Array.isArray(payload?.puzzle?.solution)
     ? payload.puzzle.solution
         .map((move) => (typeof move === "string" ? move.trim() : ""))
@@ -675,7 +726,10 @@ export function createPuzzleTrainingState(payload) {
     normalizedPuzzle.initialPly - 1,
   ]
     .filter((value, index, values) => values.indexOf(value) === index)
-    .filter((value) => Number.isInteger(value) && value >= 0 && value <= history.length);
+    .filter(
+      (value) =>
+        Number.isInteger(value) && value >= 0 && value <= history.length,
+    );
   const puzzleCandidates = [];
 
   if (normalizedPuzzle.initialFen) {
@@ -728,7 +782,8 @@ export function createPuzzleTrainingState(payload) {
 
       const fenBefore = puzzleGame.fen();
       const moveNumber = puzzleGame.moveNumber();
-      const side = puzzleGame.turn() === "w" ? TRAINING_SIDE_WHITE : TRAINING_SIDE_BLACK;
+      const side =
+        puzzleGame.turn() === "w" ? TRAINING_SIDE_WHITE : TRAINING_SIDE_BLACK;
       let appliedMove = null;
 
       try {
@@ -765,7 +820,8 @@ export function createPuzzleTrainingState(payload) {
     return {
       trainingState: createEmptyTrainingState(),
       variantTree: null,
-      error: "Lichess returned a puzzle position that could not be reconstructed.",
+      error:
+        "Lichess returned a puzzle position that could not be reconstructed.",
     };
   }
 
@@ -892,7 +948,11 @@ export function buildReplayAttempt({
   const normalizedExpectedMove = normalizeReferenceMove(expectedMove);
   const normalizedUserMove = normalizeMove(userMove);
 
-  if (!normalizedExpectedMove || !normalizedUserMove || typeof userSan !== "string") {
+  if (
+    !normalizedExpectedMove ||
+    !normalizedUserMove ||
+    typeof userSan !== "string"
+  ) {
     return null;
   }
 
@@ -970,7 +1030,9 @@ export function summarizeReplayAttempts(
     (move) => move.side === playerSide,
   );
   const targetMoveCount = playerReferenceMoves.length;
-  const criticalMistakes = normalizedAttempts.filter((attempt) => attempt.isCritical);
+  const criticalMistakes = normalizedAttempts.filter(
+    (attempt) => attempt.isCritical,
+  );
   const attemptsByPly = normalizedAttempts.reduce((result, attempt) => {
     if (!Number.isInteger(attempt.ply)) {
       return result;
@@ -1106,7 +1168,9 @@ export function summarizeGuessTheMoveAttempts(
     evaluationBaseScore > 0 ? totalScore / evaluationBaseScore : null;
   const moveHistory = playerReferenceMoves
     .map((move) => {
-      const attempt = normalizedAttempts.find((entry) => entry.ply === move.ply);
+      const attempt = normalizedAttempts.find(
+        (entry) => entry.ply === move.ply,
+      );
 
       if (!attempt) {
         return null;
@@ -1147,9 +1211,12 @@ export function summarizeGuessTheMoveAttempts(
       (attempt) => attempt.classification === REPLAY_RESULT_EQUAL,
     ).length,
     worseMoves: normalizedAttempts.filter(
-      (attempt) => attempt.classification === REPLAY_RESULT_WORSE && !attempt.isCritical,
+      (attempt) =>
+        attempt.classification === REPLAY_RESULT_WORSE && !attempt.isCritical,
     ).length,
-    criticalWorseMoves: normalizedAttempts.filter((attempt) => attempt.isCritical).length,
+    criticalWorseMoves: normalizedAttempts.filter(
+      (attempt) => attempt.isCritical,
+    ).length,
     moveHistory,
     evaluation: {
       label: getGuessTheMoveEvaluationLabel(scoreRatio),
@@ -1167,11 +1234,14 @@ export function normalizeGuessHistoryEntry(entry) {
   const id = normalizeString(entry.id);
   const completedAt = normalizeIsoTimestamp(entry.completedAt);
   const status =
-    entry.status === TRAINING_STATUS_COMPLETED || entry.status === TRAINING_STATUS_ENDED
+    entry.status === TRAINING_STATUS_COMPLETED ||
+    entry.status === TRAINING_STATUS_ENDED
       ? entry.status
       : null;
   const playerSide =
-    entry.playerSide === TRAINING_SIDE_BLACK ? TRAINING_SIDE_BLACK : TRAINING_SIDE_WHITE;
+    entry.playerSide === TRAINING_SIDE_BLACK
+      ? TRAINING_SIDE_BLACK
+      : TRAINING_SIDE_WHITE;
   const referenceMoves = Array.isArray(entry.referenceMoves)
     ? entry.referenceMoves.map(normalizeReferenceMove).filter(Boolean)
     : [];
@@ -1190,7 +1260,11 @@ export function normalizeGuessHistoryEntry(entry) {
     playerSide,
     referenceMoves,
     attempts,
-    summary: summarizeGuessTheMoveAttempts(referenceMoves, attempts, playerSide),
+    summary: summarizeGuessTheMoveAttempts(
+      referenceMoves,
+      attempts,
+      playerSide,
+    ),
   };
 }
 
@@ -1213,7 +1287,9 @@ export function normalizeGuessHistoryBrowseEntry(entry) {
   const gameKey = normalizeString(entry.gameKey);
   const updatedAt = normalizeIsoTimestamp(entry.updatedAt);
   const runCount =
-    Number.isInteger(entry.runCount) && entry.runCount > 0 ? entry.runCount : null;
+    Number.isInteger(entry.runCount) && entry.runCount > 0
+      ? entry.runCount
+      : null;
   const latestEntry = normalizeGuessHistoryEntry(entry.latestEntry);
 
   if (!gameKey || !updatedAt || !runCount || !latestEntry) {
@@ -1245,7 +1321,10 @@ export function normalizeGuessHistoryBrowseEntries(entries) {
     : [];
 }
 
-export function createGuessHistoryEntryPayload(trainingState, completedAt = new Date().toISOString()) {
+export function createGuessHistoryEntryPayload(
+  trainingState,
+  completedAt = new Date().toISOString(),
+) {
   const normalizedTrainingState = normalizeTrainingState(trainingState);
 
   if (

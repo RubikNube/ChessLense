@@ -85,7 +85,8 @@ function PlayComputerPanel({
   const isStandaloneComputerPlay =
     normalizedTrainingState.mode === TRAINING_MODE_PLAY_COMPUTER;
   const shouldShowComputerPlayError =
-    !isTrainingPlayActive && normalizedTrainingState.mode !== TRAINING_MODE_REPLAY_GAME;
+    !isTrainingPlayActive &&
+    normalizedTrainingState.mode !== TRAINING_MODE_REPLAY_GAME;
   const sideSelectionDisabled =
     isReplayTrainingActive ||
     isTrainingPlayActive ||
@@ -124,8 +125,8 @@ function PlayComputerPanel({
               </span>
             </div>
             <p>
-              Playing from the <strong>{computerPlaySourceLabel}</strong>. Manual board
-              navigation exits this mode.
+              Playing from the <strong>{computerPlaySourceLabel}</strong>.
+              Manual board navigation exits this mode.
             </p>
             {computerPlayOutcomeText && <p>{computerPlayOutcomeText}</p>}
           </div>
@@ -133,7 +134,9 @@ function PlayComputerPanel({
         {trainingLoading && isStandaloneComputerPlayActive && (
           <p className="annotation-empty">Computer is thinking...</p>
         )}
-        {shouldShowComputerPlayError && trainingError && <p className="error">{trainingError}</p>}
+        {shouldShowComputerPlayError && trainingError && (
+          <p className="error">{trainingError}</p>
+        )}
         <div className="annotation-item-actions">
           <button
             type="button"

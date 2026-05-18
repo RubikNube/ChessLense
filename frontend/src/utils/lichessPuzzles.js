@@ -47,7 +47,8 @@ export function filterLichessPuzzleThemeOptions(searchValue) {
   const searchTerms = normalizedSearchValue.split(/\s+/).filter(Boolean);
 
   return LICHESS_PUZZLE_THEME_OPTIONS.filter((option) => {
-    const haystack = `${option.value} ${option.label} ${option.description}`.toLowerCase();
+    const haystack =
+      `${option.value} ${option.label} ${option.description}`.toLowerCase();
     return searchTerms.every((term) => haystack.includes(term));
   });
 }
@@ -72,14 +73,14 @@ export function normalizeLichessPuzzleFilters(filters) {
   return {
     theme,
     opening,
-    difficulty:
-      LICHESS_PUZZLE_DIFFICULTY_OPTIONS.some((option) => option.value === difficulty)
-        ? difficulty
-        : "",
-    color:
-      LICHESS_PUZZLE_COLOR_OPTIONS.some((option) => option.value === color)
-        ? color
-        : "",
+    difficulty: LICHESS_PUZZLE_DIFFICULTY_OPTIONS.some(
+      (option) => option.value === difficulty,
+    )
+      ? difficulty
+      : "",
+    color: LICHESS_PUZZLE_COLOR_OPTIONS.some((option) => option.value === color)
+      ? color
+      : "",
   };
 }
 

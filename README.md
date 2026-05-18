@@ -14,6 +14,21 @@ recommended way to run both together is:
 ./dev.sh
 ```
 
+## Formatting
+
+Install the repository formatting tool once from the project root:
+
+```bash
+npm install
+```
+
+Then use Prettier from the project root:
+
+```bash
+npm run format
+npm run format:check
+```
+
 ## Highlights
 
 - Analyze the current position with Stockfish

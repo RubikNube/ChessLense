@@ -16,11 +16,15 @@ function LichessTokenModal({ currentToken, onClose, onSave }) {
   }, [currentToken]);
 
   return (
-    <ModalShell title="Lichess Token" titleId="lichess-token-title" onClose={onClose}>
+    <ModalShell
+      title="Lichess Token"
+      titleId="lichess-token-title"
+      onClose={onClose}
+    >
       <p>
-        Use a Lichess API token for Opening Tree requests when the server environment does
-        not provide <code>LICHESS_API_TOKEN</code>. The token stays only in this app
-        session and is not persisted.
+        Use a Lichess API token for Opening Tree requests when the server
+        environment does not provide <code>LICHESS_API_TOKEN</code>. The token
+        stays only in this app session and is not persisted.
       </p>
       <label style={modalFieldLabelStyle} htmlFor="lichess-token-input">
         API token

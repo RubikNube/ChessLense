@@ -30,14 +30,19 @@ function ManageCollectionsModal({
             const isMember = collection.studyIds.includes(managingStudy.id);
 
             return (
-              <li key={`${managingStudy.id}-${collection.id}`} style={collectionRowStyle}>
+              <li
+                key={`${managingStudy.id}-${collection.id}`}
+                style={collectionRowStyle}
+              >
                 <div>
                   <strong>{collection.title}</strong>
                   <p style={studyMetaStyle}>{collection.studyCount} studies</p>
                 </div>
                 <button
                   type="button"
-                  style={isMember ? modalDangerButtonStyle : modalPrimaryButtonStyle}
+                  style={
+                    isMember ? modalDangerButtonStyle : modalPrimaryButtonStyle
+                  }
                   onClick={() => {
                     void onToggleStudyCollection(collection, managingStudy);
                   }}

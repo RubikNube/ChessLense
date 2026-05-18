@@ -440,10 +440,10 @@ When either ECO bound is provided:
 If no OTB database is configured, the API returns:
 
 ```json
-  {
-    "error": "otb_source_not_configured",
-    "details": "OTB database not found. Set OTB_DB_PATH or import PGN files with npm run otb:import to create ~/own_projects/ChessLense/server/data/otb.sqlite."
-  }
+{
+  "error": "otb_source_not_configured",
+  "details": "OTB database not found. Set OTB_DB_PATH or import PGN files with npm run otb:import to create ~/own_projects/ChessLense/server/data/otb.sqlite."
+}
 ```
 
 ### `GET /api/otb/games/:gameId`

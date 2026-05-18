@@ -141,15 +141,18 @@ test("resolveLichessApiToken uses the request token when no env token is configu
 });
 
 test("normalizePuzzleQuery accepts supported filters", () => {
-	assert.deepEqual(normalizePuzzleQuery({
-		angle: " fork ",
-		difficulty: "harder",
-		color: "black",
-	}), {
-		angle: "fork",
-		difficulty: "harder",
-		color: "black",
-	});
+	assert.deepEqual(
+		normalizePuzzleQuery({
+			angle: " fork ",
+			difficulty: "harder",
+			color: "black",
+		}),
+		{
+			angle: "fork",
+			difficulty: "harder",
+			color: "black",
+		},
+	);
 });
 
 test("normalizePuzzleAdvancePayload requires a puzzle id and boolean win", () => {
@@ -202,7 +205,12 @@ test("normalizePuzzleResponse keeps puzzle metadata and selected filters", () =>
 					rated: true,
 					players: [
 						{ color: "white", id: "vit2014", name: "vit2014", rating: 2395 },
-						{ color: "black", id: "yoda-wins", name: "Yoda-wins", rating: 2511 },
+						{
+							color: "black",
+							id: "yoda-wins",
+							name: "Yoda-wins",
+							rating: 2511,
+						},
 					],
 					pgn: "e4 e5 Nf3 Nc6",
 					clock: "3+2",
@@ -279,7 +287,12 @@ test("normalizePuzzleBatchResponse reads the first returned batch puzzle", () =>
 						rated: true,
 						players: [
 							{ color: "white", id: "vit2014", name: "vit2014", rating: 2395 },
-							{ color: "black", id: "yoda-wins", name: "Yoda-wins", rating: 2511 },
+							{
+								color: "black",
+								id: "yoda-wins",
+								name: "Yoda-wins",
+								rating: 2511,
+							},
 						],
 						pgn: "e4 e5 Nf3 Nc6",
 						clock: "3+2",

@@ -137,14 +137,18 @@ function StudiesModal({
                 }}
                 disabled={deletingCollectionId === collection.id}
               >
-                {deletingCollectionId === collection.id ? "Removing..." : "Remove"}
+                {deletingCollectionId === collection.id
+                  ? "Removing..."
+                  : "Remove"}
               </button>
             </li>
           ))}
         </ul>
       )}
       <h3 style={{ marginTop: "1.25rem" }}>
-        {selectedCollection ? `Studies in ${selectedCollection.title}` : "All studies"}
+        {selectedCollection
+          ? `Studies in ${selectedCollection.title}`
+          : "All studies"}
       </h3>
       {studiesLoading && <p>Loading studies...</p>}
       {!studiesLoading && !visibleStudies.length && !studiesError && (
@@ -153,7 +157,10 @@ function StudiesModal({
       {!!visibleStudies.length && (
         <ul style={studyListStyle}>
           {visibleStudies.map((study) => {
-            const studyCollections = getCollectionsForStudy(collections, study.id);
+            const studyCollections = getCollectionsForStudy(
+              collections,
+              study.id,
+            );
 
             return (
               <li key={study.id} style={studyListItemStyle}>
@@ -167,7 +174,10 @@ function StudiesModal({
                     <div style={collectionTagListStyle}>
                       {studyCollections.length ? (
                         studyCollections.map((collection) => (
-                          <span key={`${study.id}-${collection.id}`} style={collectionTagStyle}>
+                          <span
+                            key={`${study.id}-${collection.id}`}
+                            style={collectionTagStyle}
+                          >
                             {collection.title}
                           </span>
                         ))
@@ -181,7 +191,10 @@ function StudiesModal({
                       type="button"
                       style={modalButtonStyle}
                       onClick={() => openManageCollectionsPopup(study)}
-                      disabled={deletingStudyId === study.id || loadingStudyId === study.id}
+                      disabled={
+                        deletingStudyId === study.id ||
+                        loadingStudyId === study.id
+                      }
                     >
                       Collections
                     </button>
@@ -191,7 +204,10 @@ function StudiesModal({
                       onClick={() => {
                         void loadStudy(study.id);
                       }}
-                      disabled={loadingStudyId === study.id || deletingStudyId === study.id}
+                      disabled={
+                        loadingStudyId === study.id ||
+                        deletingStudyId === study.id
+                      }
                     >
                       {loadingStudyId === study.id ? "Loading..." : "Load"}
                     </button>
@@ -201,7 +217,10 @@ function StudiesModal({
                       onClick={() => {
                         void removeStudy(study);
                       }}
-                      disabled={loadingStudyId === study.id || deletingStudyId === study.id}
+                      disabled={
+                        loadingStudyId === study.id ||
+                        deletingStudyId === study.id
+                      }
                     >
                       {deletingStudyId === study.id ? "Removing..." : "Remove"}
                     </button>

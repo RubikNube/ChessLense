@@ -71,28 +71,36 @@ function AppMenuBar({
               className="menu-entry"
               onClick={() => onMenuAction(actions.togglePlayComputerPanel)}
             >
-              {showPlayComputerPanel ? "Hide Play vs Computer" : "Show Play vs Computer"}
+              {showPlayComputerPanel
+                ? "Hide Play vs Computer"
+                : "Show Play vs Computer"}
             </button>
             <button
               type="button"
               className="menu-entry"
               onClick={() => onMenuAction(actions.togglePuzzleTrainingPanel)}
             >
-              {showPuzzleTrainingPanel ? "Hide Puzzle Mode" : "Show Puzzle Mode"}
+              {showPuzzleTrainingPanel
+                ? "Hide Puzzle Mode"
+                : "Show Puzzle Mode"}
             </button>
             <button
               type="button"
               className="menu-entry"
               onClick={() => onMenuAction(actions.toggleReplayTrainingPanel)}
             >
-              {showReplayTrainingPanel ? "Hide Replay Mode" : "Show Replay Mode"}
+              {showReplayTrainingPanel
+                ? "Hide Replay Mode"
+                : "Show Replay Mode"}
             </button>
             <button
               type="button"
               className="menu-entry"
               onClick={() => onMenuAction(actions.toggleGuessTrainingPanel)}
             >
-              {showGuessTrainingPanel ? "Hide Guess The Move" : "Show Guess The Move"}
+              {showGuessTrainingPanel
+                ? "Hide Guess The Move"
+                : "Show Guess The Move"}
             </button>
             <button
               type="button"
@@ -127,7 +135,9 @@ function AppMenuBar({
               className="menu-entry"
               onClick={() => onMenuAction(actions.toggleVariantArrows)}
             >
-              {showVariantArrows ? "Hide Variant Arrows" : "Show Variant Arrows"}
+              {showVariantArrows
+                ? "Hide Variant Arrows"
+                : "Show Variant Arrows"}
             </button>
           </div>
         )}
@@ -283,28 +293,36 @@ function AppMenuBar({
               className="menu-entry"
               onClick={() => onMenuAction(actions.togglePuzzleTrainingPanel)}
             >
-              {showPuzzleTrainingPanel ? "Hide Puzzle Mode" : "Show Puzzle Mode"}
+              {showPuzzleTrainingPanel
+                ? "Hide Puzzle Mode"
+                : "Show Puzzle Mode"}
             </button>
             <button
               type="button"
               className="menu-entry"
               onClick={() => onMenuAction(actions.toggleReplayTrainingPanel)}
             >
-              {showReplayTrainingPanel ? "Hide Replay Mode" : "Show Replay Mode"}
+              {showReplayTrainingPanel
+                ? "Hide Replay Mode"
+                : "Show Replay Mode"}
             </button>
             <button
               type="button"
               className="menu-entry"
               onClick={() => onMenuAction(actions.toggleGuessTrainingPanel)}
             >
-              {showGuessTrainingPanel ? "Hide Guess The Move" : "Show Guess The Move"}
+              {showGuessTrainingPanel
+                ? "Hide Guess The Move"
+                : "Show Guess The Move"}
             </button>
             <button
               type="button"
               className="menu-entry"
               onClick={() => onMenuAction(actions.togglePlayComputerPanel)}
             >
-              {showPlayComputerPanel ? "Hide Play vs Computer" : "Show Play vs Computer"}
+              {showPlayComputerPanel
+                ? "Hide Play vs Computer"
+                : "Show Play vs Computer"}
             </button>
             <button
               type="button"
@@ -318,14 +336,18 @@ function AppMenuBar({
               className="menu-entry"
               onClick={() => onMenuAction(actions.toggleEvaluationBar)}
             >
-              {showEvaluationBar ? "Hide Evaluation Bar" : "Show Evaluation Bar"}
+              {showEvaluationBar
+                ? "Hide Evaluation Bar"
+                : "Show Evaluation Bar"}
             </button>
             <button
               type="button"
               className="menu-entry"
               onClick={() => onMenuAction(actions.toggleBoardSounds)}
             >
-              {boardSoundsEnabled ? "Disable Board Sounds" : "Enable Board Sounds"}
+              {boardSoundsEnabled
+                ? "Disable Board Sounds"
+                : "Enable Board Sounds"}
             </button>
             <button
               type="button"
@@ -400,8 +422,12 @@ function AppMenuBar({
           type="button"
           className="menu-trigger menu-trigger-icon"
           aria-pressed={!boardSoundsEnabled}
-          aria-label={boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"}
-          title={boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"}
+          aria-label={
+            boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"
+          }
+          title={
+            boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"
+          }
           onClick={() => onMenuAction(actions.toggleBoardSounds)}
         >
           <BoardSoundIcon muted={!boardSoundsEnabled} />

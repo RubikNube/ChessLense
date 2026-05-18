@@ -5,7 +5,10 @@ export const TERTIARY_BOARD_ARROW_COLOR = "#f44336";
 const VALID_SQUARE_PATTERN = /^[a-h][1-8]$/;
 
 function normalizeSquare(square) {
-  if (typeof square !== "string" || !VALID_SQUARE_PATTERN.test(square.trim().toLowerCase())) {
+  if (
+    typeof square !== "string" ||
+    !VALID_SQUARE_PATTERN.test(square.trim().toLowerCase())
+  ) {
     return null;
   }
 
@@ -129,7 +132,10 @@ export function normalizeNodeBoardAnnotations(boardAnnotations) {
     ({ startSquare, endSquare }) => `${startSquare}:${endSquare}`,
   );
   const highlights = dedupeEntries(
-    (Array.isArray(boardAnnotations.highlights) ? boardAnnotations.highlights : [])
+    (Array.isArray(boardAnnotations.highlights)
+      ? boardAnnotations.highlights
+      : []
+    )
       .map(normalizeBoardHighlight)
       .filter(Boolean),
     ({ square }) => square,
@@ -149,7 +155,8 @@ export function areNodeBoardAnnotationsEqual(left, right) {
 }
 
 export function toggleBoardArrowInAnnotations(boardAnnotations, arrow) {
-  const normalizedBoardAnnotations = normalizeNodeBoardAnnotations(boardAnnotations);
+  const normalizedBoardAnnotations =
+    normalizeNodeBoardAnnotations(boardAnnotations);
   const normalizedArrow = normalizeBoardArrow(arrow);
 
   if (!normalizedArrow) {
@@ -174,7 +181,9 @@ export function toggleBoardArrowInAnnotations(boardAnnotations, arrow) {
   if (existingArrow.color === normalizedArrow.color) {
     return {
       ...normalizedBoardAnnotations,
-      arrows: normalizedBoardAnnotations.arrows.filter((_, index) => index !== existingIndex),
+      arrows: normalizedBoardAnnotations.arrows.filter(
+        (_, index) => index !== existingIndex,
+      ),
     };
   }
 
@@ -187,7 +196,8 @@ export function toggleBoardArrowInAnnotations(boardAnnotations, arrow) {
 }
 
 export function toggleBoardHighlightInAnnotations(boardAnnotations, highlight) {
-  const normalizedBoardAnnotations = normalizeNodeBoardAnnotations(boardAnnotations);
+  const normalizedBoardAnnotations =
+    normalizeNodeBoardAnnotations(boardAnnotations);
   const normalizedHighlight = normalizeBoardHighlight(highlight);
 
   if (!normalizedHighlight) {
@@ -201,11 +211,15 @@ export function toggleBoardHighlightInAnnotations(boardAnnotations, highlight) {
   if (existingIndex === -1) {
     return {
       ...normalizedBoardAnnotations,
-      highlights: [...normalizedBoardAnnotations.highlights, normalizedHighlight],
+      highlights: [
+        ...normalizedBoardAnnotations.highlights,
+        normalizedHighlight,
+      ],
     };
   }
 
-  const existingHighlight = normalizedBoardAnnotations.highlights[existingIndex];
+  const existingHighlight =
+    normalizedBoardAnnotations.highlights[existingIndex];
 
   if (existingHighlight.color === normalizedHighlight.color) {
     return {
@@ -227,7 +241,9 @@ export function toggleBoardHighlightInAnnotations(boardAnnotations, highlight) {
 export function mergeBoardArrowCollections(...collections) {
   return dedupeEntries(
     collections.flatMap((collection) =>
-      (Array.isArray(collection) ? collection : []).map(normalizeBoardArrow).filter(Boolean),
+      (Array.isArray(collection) ? collection : [])
+        .map(normalizeBoardArrow)
+        .filter(Boolean),
     ),
     ({ startSquare, endSquare }) => `${startSquare}:${endSquare}`,
   );
@@ -235,12 +251,14 @@ export function mergeBoardArrowCollections(...collections) {
 
 export function buildBoardHighlightSquareStyles(highlights) {
   return Object.fromEntries(
-    normalizeNodeBoardAnnotations({ highlights }).highlights.map(({ square, color }) => [
-      square,
-      {
-        backgroundColor: hexToRgba(color, 0.38),
-        boxShadow: `inset 0 0 0 2px ${hexToRgba(color, 0.7)}`,
-      },
-    ]),
+    normalizeNodeBoardAnnotations({ highlights }).highlights.map(
+      ({ square, color }) => [
+        square,
+        {
+          backgroundColor: hexToRgba(color, 0.38),
+          boxShadow: `inset 0 0 0 2px ${hexToRgba(color, 0.7)}`,
+        },
+      ],
+    ),
   );
 }

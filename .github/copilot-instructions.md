@@ -5,6 +5,11 @@ Local chess analysis tool: React frontend + Node.js/Express backend that spawns 
 ## Commands
 
 ```bash
+# Repository tooling
+npm install                     # install root formatting tooling
+npm run format                 # format supported files across the repository
+npm run format:check           # check formatting without writing changes
+
 # Start both server and frontend concurrently (from repo root)
 ./dev.sh
 
@@ -58,6 +63,7 @@ ChessLense/
 ## Key Conventions
 
 ### Game state in `App.jsx`
+
 - `App.jsx` is now a thin orchestrator: most render-heavy UI lives in extracted feature components under `src/components/`.
 - The **variant tree** is the source of truth for game state; the current `Chess` instance is derived with `buildGameToNode(variantTree)`.
 - Move navigation, variation selection, promotion/demotion, and imported engine lines all go through helpers from `src/utils/variantTree.js`.
@@ -66,24 +72,30 @@ ChessLense/
 - Keyboard shortcut handling is centralized in `src/hooks/useKeyboardShortcuts.js`, while training preview/focus behavior lives in `src/hooks/useTrainingController.js`.
 
 ### Evaluation format
+
 - The server returns `evaluation: { type: "cp" | "mate", value: number }` where `value` is always from the **side to move**'s perspective (raw Stockfish output).
 - `EvaluationBar.jsx` uses helpers from `src/utils/evaluation.js` to normalize it to White's perspective via `normalizeEvaluationForWhite(evaluation, turn)` before rendering. Always pass `turn` (from `game.turn()`) when displaying evaluations.
 - Centipawn values use `value / 100` to convert to pawns.
 
 ### Logic tests
+
 - Frontend unit tests live next to the extracted helper modules in `src/utils/*.test.js`.
 - Prefer adding tests for pure helpers in `src/utils/` before reaching for component-level tests.
 
 ### Styling
+
 - Components use **plain JavaScript style objects** (defined as `const xStyle = { ... }` at the top of the file) — no CSS modules, no Tailwind, no styled-components.
 - `App.css` and `index.css` handle global/layout styles; component-level overrides are inline.
+- Run `npm run format` from the repository root before ending a task whenever you change files that Prettier supports.
 
 ### Keyboard shortcuts
+
 - Default shortcuts are defined in `src/shortcuts.json` and mirrored as `DEFAULT_SHORTCUT_CONFIG` in `src/utils/appState.js`.
 - At startup, `shortcuts.json` is loaded and merged with defaults via `normalizeShortcutConfig()`, which falls back to defaults for any invalid or missing entries.
 - Add new actions to `SHORTCUT_ACTION_ORDER` in `src/utils/appState.js` to include them in the shortcut popup.
 
 ### Server / Stockfish
+
 - A fresh Stockfish process is spawned **per request** (not a persistent engine).
 - The `waitForLine(stream, matcher, timeoutMs)` helper reads stdout line-by-line until a string/predicate match; used to implement the UCI handshake sequence.
 - `STOCKFISH_PATH` env var overrides the binary path (defaults to `"stockfish"`).

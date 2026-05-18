@@ -26,11 +26,7 @@ function ShortcutsModal({ shortcutEntries, onClose }) {
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        style={shortcutCloseButtonStyle}
-        onClick={onClose}
-      >
+      <button type="button" style={shortcutCloseButtonStyle} onClick={onClose}>
         Close
       </button>
     </ModalShell>

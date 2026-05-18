@@ -44,7 +44,9 @@ function getGameSummaryText(entry) {
   }
 
   parts.push(`${entry.runCount} saved run${entry.runCount === 1 ? "" : "s"}`);
-  parts.push(`Latest: ${entry.latestSummary.totalScore}/${entry.latestSummary.parScore}`);
+  parts.push(
+    `Latest: ${entry.latestSummary.totalScore}/${entry.latestSummary.parScore}`,
+  );
   parts.push(entry.latestSummary.evaluation.label);
 
   return parts.join(" · ");
@@ -66,12 +68,21 @@ function GuessHistoryBrowserModal({
       onClose={onClose}
       wide
     >
-      <p>Browse games that already have Guess The Move history and load one into the board.</p>
-      {!!guessHistoryBrowserError && <p style={modalErrorStyle}>{guessHistoryBrowserError}</p>}
-      {guessHistoryBrowserLoading && <p>Loading saved Guess-history games...</p>}
-      {!guessHistoryBrowserLoading && !guessHistoryBrowserGames.length && !guessHistoryBrowserError && (
-        <p>No Guess The Move history has been saved yet.</p>
+      <p>
+        Browse games that already have Guess The Move history and load one into
+        the board.
+      </p>
+      {!!guessHistoryBrowserError && (
+        <p style={modalErrorStyle}>{guessHistoryBrowserError}</p>
       )}
+      {guessHistoryBrowserLoading && (
+        <p>Loading saved Guess-history games...</p>
+      )}
+      {!guessHistoryBrowserLoading &&
+        !guessHistoryBrowserGames.length &&
+        !guessHistoryBrowserError && (
+          <p>No Guess The Move history has been saved yet.</p>
+        )}
       {!!guessHistoryBrowserGames.length && (
         <ul style={studyListStyle}>
           {guessHistoryBrowserGames.map((entry) => (
@@ -92,10 +103,13 @@ function GuessHistoryBrowserModal({
                     void loadGuessHistoryGame(entry);
                   }}
                   disabled={
-                    guessHistoryBrowserLoading || loadingGuessHistoryGameKey === entry.gameKey
+                    guessHistoryBrowserLoading ||
+                    loadingGuessHistoryGameKey === entry.gameKey
                   }
                 >
-                  {loadingGuessHistoryGameKey === entry.gameKey ? "Loading..." : "Load game"}
+                  {loadingGuessHistoryGameKey === entry.gameKey
+                    ? "Loading..."
+                    : "Load game"}
                 </button>
               </div>
             </li>

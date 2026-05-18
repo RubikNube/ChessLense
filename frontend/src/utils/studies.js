@@ -17,10 +17,13 @@ function getHeaderValue(importedPgnData, headerName) {
 
   const matchingHeader = importedPgnData.headers.find(
     ({ name }) =>
-      typeof name === "string" && name.toLowerCase() === headerName.toLowerCase(),
+      typeof name === "string" &&
+      name.toLowerCase() === headerName.toLowerCase(),
   );
 
-  return typeof matchingHeader?.value === "string" ? matchingHeader.value.trim() : "";
+  return typeof matchingHeader?.value === "string"
+    ? matchingHeader.value.trim()
+    : "";
 }
 
 export function buildStudyTitle(importedPgnData, requestedTitle = "") {
@@ -83,7 +86,12 @@ export function normalizeStudySummary(entry) {
 }
 
 export function normalizeStudy(entry) {
-  if (!entry || typeof entry !== "object" || !entry.variantTree || typeof entry.variantTree !== "object") {
+  if (
+    !entry ||
+    typeof entry !== "object" ||
+    !entry.variantTree ||
+    typeof entry.variantTree !== "object"
+  ) {
     return null;
   }
 

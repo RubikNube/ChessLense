@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  normalizeImportedPgnData,
-  parseAnnotatedPgn,
-} from "./annotatedPgn.js";
+import { normalizeImportedPgnData, parseAnnotatedPgn } from "./annotatedPgn.js";
 import { getVariantLines } from "./variantTree.js";
 
 describe("parseAnnotatedPgn", () => {
@@ -20,9 +17,12 @@ describe("parseAnnotatedPgn", () => {
 2. c4 (2. e4 { A possible transposition. }) 2... e6 *
 `.trim();
 
-    const { game, importedPgnData, variantTree, error } = parseAnnotatedPgn(annotatedPgn, {
-      allowEmpty: false,
-    });
+    const { game, importedPgnData, variantTree, error } = parseAnnotatedPgn(
+      annotatedPgn,
+      {
+        allowEmpty: false,
+      },
+    );
 
     expect(error).toBeNull();
     expect(game.history()).toEqual(["Nf3", "d5", "c4", "e6"]);
@@ -78,14 +78,16 @@ describe("parseAnnotatedPgn", () => {
   });
 
   it("rejects invalid annotated PGN", () => {
-    const result = parseAnnotatedPgn("[Event \"Broken\"] 1. NotAMove", {
+    const result = parseAnnotatedPgn('[Event "Broken"] 1. NotAMove', {
       allowEmpty: false,
     });
 
     expect(result.game).toBeNull();
     expect(result.importedPgnData).toBeNull();
     expect(result.variantTree).toBeNull();
-    expect(result.error).toBe("Invalid PGN. Please check the notation and try again.");
+    expect(result.error).toBe(
+      "Invalid PGN. Please check the notation and try again.",
+    );
   });
 
   it("supports annotated PGNs that start from a custom FEN", () => {
@@ -104,9 +106,12 @@ describe("parseAnnotatedPgn", () => {
 7. Qb3 Qd7 8. d4 Nc6 9. Bd3 Nge7 10. Bd2 O-O 11. Rae1 { Critical rook lift. } *
 `.trim();
 
-    const { game, importedPgnData, variantTree, error } = parseAnnotatedPgn(annotatedPgn, {
-      allowEmpty: false,
-    });
+    const { game, importedPgnData, variantTree, error } = parseAnnotatedPgn(
+      annotatedPgn,
+      {
+        allowEmpty: false,
+      },
+    );
 
     expect(error).toBeNull();
     expect(game.history()).toEqual([
@@ -160,7 +165,7 @@ describe("normalizeImportedPgnData", () => {
   it("filters malformed persisted annotation data", () => {
     expect(
       normalizeImportedPgnData({
-        rawPgn: "[Event \"Test\"] 1. e4",
+        rawPgn: '[Event "Test"] 1. e4',
         headers: [{ name: "Event", value: "Test" }, { foo: "bar" }],
         mainlineComments: [
           { comment: "First", ply: 1, moveNumber: 1, side: "white", san: "e4" },
@@ -173,7 +178,7 @@ describe("normalizeImportedPgnData", () => {
         variationSnippets: ["1... c5", 7, ""],
       }),
     ).toEqual({
-      rawPgn: "[Event \"Test\"] 1. e4",
+      rawPgn: '[Event "Test"] 1. e4',
       headers: [{ name: "Event", value: "Test" }],
       mainlineComments: [
         {

@@ -126,7 +126,9 @@ describe("puzzle progression helpers", () => {
         color: "black",
       }),
     ).toBe("angle=fork&difficulty=harder&color=black");
-    expect(createLichessPuzzleFilterKey(DEFAULT_LICHESS_PUZZLE_FILTERS)).toBe("default");
+    expect(createLichessPuzzleFilterKey(DEFAULT_LICHESS_PUZZLE_FILTERS)).toBe(
+      "default",
+    );
   });
 });
 

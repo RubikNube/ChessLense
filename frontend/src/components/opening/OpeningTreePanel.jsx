@@ -78,9 +78,12 @@ function OpeningTreePanel({
         const headers = lichessApiToken
           ? { "X-Lichess-Api-Token": lichessApiToken }
           : undefined;
-        const data = await fetchJson(`/api/lichess/opening-tree?fen=${encodeURIComponent(fen)}`, {
-          ...(headers ? { headers } : {}),
-        });
+        const data = await fetchJson(
+          `/api/lichess/opening-tree?fen=${encodeURIComponent(fen)}`,
+          {
+            ...(headers ? { headers } : {}),
+          },
+        );
 
         if (!ignore) {
           setOpeningTree(data);
@@ -168,52 +171,61 @@ function OpeningTreePanel({
       {!loading && error && <p className="error">{error}</p>}
       {!loading && !error && openingTree?.unavailable && (
         <p className="annotation-empty">
-          {openingTree.details || "Lichess opening explorer is unavailable right now."}
+          {openingTree.details ||
+            "Lichess opening explorer is unavailable right now."}
         </p>
       )}
-      {!loading && !error && !openingTree?.unavailable && !openingTree?.moves?.length && (
-        <p className="annotation-empty">
-          Lichess has no opening-tree data for this position.
-        </p>
-      )}
-      {!loading && !error && !openingTree?.unavailable && !!openingTree?.moves?.length && (
-        <table style={openingTreeTableStyle}>
-          <thead>
-            <tr>
-              <th style={openingTreeHeaderCellStyle}>Move</th>
-              <th style={openingTreeHeaderCellStyle}>Games</th>
-              <th style={openingTreeHeaderCellStyle}>White</th>
-              <th style={openingTreeHeaderCellStyle}>Draw</th>
-              <th style={openingTreeHeaderCellStyle}>Black</th>
-            </tr>
-          </thead>
-          <tbody>
-            {openingTree.moves.map((move) => (
-              <tr
-                key={move.uci}
-                style={openingTreeRowStyle}
-                onMouseEnter={() => onHoverMove(move)}
-                onMouseLeave={() => onHoverMove(null)}
-                onClick={() => onSelectMove(move)}
-              >
-                <td style={openingTreeCellStyle}>
-                  <strong>{move.san}</strong>
-                </td>
-                <td style={openingTreeNumericCellStyle}>{move.gameCount.toLocaleString()}</td>
-                <td style={openingTreeNumericCellStyle}>
-                  {formatPercent(move.whitePercent)}
-                </td>
-                <td style={openingTreeNumericCellStyle}>
-                  {formatPercent(move.drawPercent)}
-                </td>
-                <td style={openingTreeNumericCellStyle}>
-                  {formatPercent(move.blackPercent)}
-                </td>
+      {!loading &&
+        !error &&
+        !openingTree?.unavailable &&
+        !openingTree?.moves?.length && (
+          <p className="annotation-empty">
+            Lichess has no opening-tree data for this position.
+          </p>
+        )}
+      {!loading &&
+        !error &&
+        !openingTree?.unavailable &&
+        !!openingTree?.moves?.length && (
+          <table style={openingTreeTableStyle}>
+            <thead>
+              <tr>
+                <th style={openingTreeHeaderCellStyle}>Move</th>
+                <th style={openingTreeHeaderCellStyle}>Games</th>
+                <th style={openingTreeHeaderCellStyle}>White</th>
+                <th style={openingTreeHeaderCellStyle}>Draw</th>
+                <th style={openingTreeHeaderCellStyle}>Black</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {openingTree.moves.map((move) => (
+                <tr
+                  key={move.uci}
+                  style={openingTreeRowStyle}
+                  onMouseEnter={() => onHoverMove(move)}
+                  onMouseLeave={() => onHoverMove(null)}
+                  onClick={() => onSelectMove(move)}
+                >
+                  <td style={openingTreeCellStyle}>
+                    <strong>{move.san}</strong>
+                  </td>
+                  <td style={openingTreeNumericCellStyle}>
+                    {move.gameCount.toLocaleString()}
+                  </td>
+                  <td style={openingTreeNumericCellStyle}>
+                    {formatPercent(move.whitePercent)}
+                  </td>
+                  <td style={openingTreeNumericCellStyle}>
+                    {formatPercent(move.drawPercent)}
+                  </td>
+                  <td style={openingTreeNumericCellStyle}>
+                    {formatPercent(move.blackPercent)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
     </div>
   );
 }

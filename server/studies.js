@@ -167,10 +167,13 @@ function getHeaderValue(importedPgnData, headerName) {
 
 	const matchingHeader = importedPgnData.headers.find(
 		({ name }) =>
-			typeof name === "string" && name.toLowerCase() === headerName.toLowerCase(),
+			typeof name === "string" &&
+			name.toLowerCase() === headerName.toLowerCase(),
 	);
 
-	return typeof matchingHeader?.value === "string" ? matchingHeader.value.trim() : "";
+	return typeof matchingHeader?.value === "string"
+		? matchingHeader.value.trim()
+		: "";
 }
 
 function buildFallbackStudyTitle(importedPgnData) {
@@ -194,7 +197,9 @@ function buildFallbackStudyTitle(importedPgnData) {
 }
 
 function normalizeStudyTitle(title, importedPgnData) {
-	return (normalizeString(title) || buildFallbackStudyTitle(importedPgnData)).slice(0, 120);
+	return (
+		normalizeString(title) || buildFallbackStudyTitle(importedPgnData)
+	).slice(0, 120);
 }
 
 function normalizeVariantTree(variantTree) {
@@ -203,7 +208,9 @@ function normalizeVariantTree(variantTree) {
 
 function buildStudySummary({ variantTree, importedPgnData, positionComments }) {
 	const nodes =
-		variantTree?.nodes && typeof variantTree.nodes === "object" ? variantTree.nodes : {};
+		variantTree?.nodes && typeof variantTree.nodes === "object"
+			? variantTree.nodes
+			: {};
 	let maxPly = 0;
 
 	for (const node of Object.values(nodes)) {
@@ -219,13 +226,19 @@ function buildStudySummary({ variantTree, importedPgnData, positionComments }) {
 		commentCount: positionComments.length,
 		nodeCount: Object.keys(nodes).length,
 		maxPly,
-		hasImportedPgn: typeof importedPgnData?.rawPgn === "string" && importedPgnData.rawPgn.length > 0,
+		hasImportedPgn:
+			typeof importedPgnData?.rawPgn === "string" &&
+			importedPgnData.rawPgn.length > 0,
 	};
 }
 
 function normalizeStudyPayload(payload) {
 	if (!payload || typeof payload !== "object") {
-		throw new HttpError(400, "invalid_study", "Study payload must be an object.");
+		throw new HttpError(
+			400,
+			"invalid_study",
+			"Study payload must be an object.",
+		);
 	}
 
 	const importedPgnData = normalizeImportedPgnData(payload.importedPgnData);
@@ -257,7 +270,10 @@ function normalizeStudyRecord(record) {
 	}
 
 	const positionComments = normalizePositionComments(record.positionComments);
-	const createdAt = normalizeIsoTimestamp(record.createdAt, new Date().toISOString());
+	const createdAt = normalizeIsoTimestamp(
+		record.createdAt,
+		new Date().toISOString(),
+	);
 	const updatedAt = normalizeIsoTimestamp(record.updatedAt, createdAt);
 
 	return {
@@ -309,7 +325,11 @@ async function readStoredStudy(filePath) {
 		}
 
 		if (error instanceof SyntaxError) {
-			throw new HttpError(500, "invalid_study", "Stored study is invalid JSON.");
+			throw new HttpError(
+				500,
+				"invalid_study",
+				"Stored study is invalid JSON.",
+			);
 		}
 
 		throw error;
@@ -317,7 +337,9 @@ async function readStoredStudy(filePath) {
 }
 
 async function listStudies(options = {}) {
-	const rootDir = await ensureStudiesDir(getStudiesDir(options.studiesRootDir ?? options.rootDir));
+	const rootDir = await ensureStudiesDir(
+		getStudiesDir(options.studiesRootDir ?? options.rootDir),
+	);
 	const entries = await fs.readdir(rootDir, { withFileTypes: true });
 	const studies = [];
 
@@ -349,12 +371,16 @@ async function listStudies(options = {}) {
 		}
 	}
 
-	studies.sort((leftStudy, rightStudy) => rightStudy.updatedAt.localeCompare(leftStudy.updatedAt));
+	studies.sort((leftStudy, rightStudy) =>
+		rightStudy.updatedAt.localeCompare(leftStudy.updatedAt),
+	);
 	return studies;
 }
 
 async function getStudy(studyId, options = {}) {
-	const rootDir = await ensureStudiesDir(getStudiesDir(options.studiesRootDir ?? options.rootDir));
+	const rootDir = await ensureStudiesDir(
+		getStudiesDir(options.studiesRootDir ?? options.rootDir),
+	);
 	const study = normalizeStudyRecord(
 		await readStoredStudy(getStudyFilePath(rootDir, studyId)),
 	);
@@ -367,7 +393,9 @@ async function getStudy(studyId, options = {}) {
 }
 
 async function saveStudy(payload, options = {}) {
-	const rootDir = await ensureStudiesDir(getStudiesDir(options.studiesRootDir ?? options.rootDir));
+	const rootDir = await ensureStudiesDir(
+		getStudiesDir(options.studiesRootDir ?? options.rootDir),
+	);
 	const normalizedPayload = normalizeStudyPayload(payload);
 	const now = new Date().toISOString();
 	const studyRecord = {
@@ -390,7 +418,9 @@ async function saveStudy(payload, options = {}) {
 }
 
 async function deleteStudy(studyId, options = {}) {
-	const rootDir = await ensureStudiesDir(getStudiesDir(options.studiesRootDir ?? options.rootDir));
+	const rootDir = await ensureStudiesDir(
+		getStudiesDir(options.studiesRootDir ?? options.rootDir),
+	);
 	const normalizedStudyId = normalizeStudyId(studyId);
 
 	if (!normalizedStudyId) {
@@ -412,7 +442,9 @@ async function deleteStudy(studyId, options = {}) {
 }
 
 async function hasStudy(studyId, options = {}) {
-	const rootDir = await ensureStudiesDir(getStudiesDir(options.studiesRootDir ?? options.rootDir));
+	const rootDir = await ensureStudiesDir(
+		getStudiesDir(options.studiesRootDir ?? options.rootDir),
+	);
 
 	try {
 		await fs.access(getStudyFilePath(rootDir, studyId));

@@ -36,15 +36,19 @@ describe("positionSetup", () => {
 
   it("places and clears pieces on the draft board", () => {
     const withPiece = applyPositionSetupTool({}, "d5", "wQ");
-    const cleared = applyPositionSetupTool(withPiece, "d5", POSITION_SETUP_CLEAR_TOOL);
+    const cleared = applyPositionSetupTool(
+      withPiece,
+      "d5",
+      POSITION_SETUP_CLEAR_TOOL,
+    );
 
     expect(withPiece).toEqual({
       d5: { pieceType: "wQ" },
     });
     expect(cleared).toEqual({});
-    expect(applyPositionSetupTool(withPiece, "d5", POSITION_SETUP_MOVE_TOOL)).toEqual(
-      withPiece,
-    );
+    expect(
+      applyPositionSetupTool(withPiece, "d5", POSITION_SETUP_MOVE_TOOL),
+    ).toEqual(withPiece);
   });
 
   it("moves setup pieces without applying chess rules", () => {

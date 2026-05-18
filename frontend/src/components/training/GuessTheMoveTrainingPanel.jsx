@@ -240,7 +240,11 @@ function GuessSummarySection({
                     })}
                   </span>
                   <strong
-                    className={moveEntry.expectedResultingFen ? "training-preview-trigger" : undefined}
+                    className={
+                      moveEntry.expectedResultingFen
+                        ? "training-preview-trigger"
+                        : undefined
+                    }
                     tabIndex={moveEntry.expectedResultingFen ? 0 : undefined}
                     onMouseEnter={(event) =>
                       showTrainingPreview(
@@ -292,7 +296,8 @@ function GuessSummarySection({
                     })}
                   </span>
                   <span>
-                    Played {moveEntry.userSan} ({formatPoints(moveEntry.points)})
+                    Played {moveEntry.userSan} ({formatPoints(moveEntry.points)}
+                    )
                   </span>
                   {moveEntry.outcome !== "match" && (
                     <>
@@ -300,16 +305,19 @@ function GuessSummarySection({
                         Delta {formatReplayDelta(moveEntry.deltaCp)}
                         {moveEntry.isCritical ? " - critical" : ""}
                       </span>
-                      {allowPlayVsComputer && moveEntry.sourceAttempt?.resultingFen && (
-                        <button
-                          type="button"
-                          className="annotation-secondary-button"
-                          onClick={() => startTrainingPlayMode(moveEntry.sourceAttempt)}
-                          disabled={isTrainingPlayActive || trainingLoading}
-                        >
-                          Play vs computer
-                        </button>
-                      )}
+                      {allowPlayVsComputer &&
+                        moveEntry.sourceAttempt?.resultingFen && (
+                          <button
+                            type="button"
+                            className="annotation-secondary-button"
+                            onClick={() =>
+                              startTrainingPlayMode(moveEntry.sourceAttempt)
+                            }
+                            disabled={isTrainingPlayActive || trainingLoading}
+                          >
+                            Play vs computer
+                          </button>
+                        )}
                     </>
                   )}
                 </div>
@@ -336,46 +344,61 @@ function GuessHistorySection({
   return (
     <div className="annotation-section">
       <h3>Previous results</h3>
-      {guessHistoryLoading && <p className="annotation-empty">Loading saved guess runs...</p>}
-      {!guessHistoryLoading && guessHistoryError && <p className="error">{guessHistoryError}</p>}
-      {!guessHistoryLoading && !guessHistoryError && guessHistoryEntries.length === 0 && (
-        <p className="annotation-empty">
-          Finished guess-the-move runs for this game will appear here.
-        </p>
+      {guessHistoryLoading && (
+        <p className="annotation-empty">Loading saved guess runs...</p>
       )}
-      {!guessHistoryLoading && !guessHistoryError && guessHistoryEntries.length > 0 && (
-        <ol className="training-summary-history">
-          {guessHistoryEntries.map((entry) => (
-            <li key={entry.id} className="training-summary-history-entry">
-              <div className="training-summary-history-header">
-                <span className="annotation-label">{formatCompletedAt(entry.completedAt)}</span>
-                <strong>{entry.summary.evaluation.label}</strong>
-              </div>
-              <div className="training-summary-history-attempt">
-                <span>
-                  Score {entry.summary.totalScore}/{entry.summary.parScore}
-                </span>
-                <span>
-                  Moves {entry.summary.attemptedMoves}/{entry.summary.totalMoves}
-                </span>
-                <span>{entry.status === "completed" ? "Completed" : "Ended early"}</span>
-                <button
-                  type="button"
-                  className={
-                    activeGuessHistoryEntry?.id === entry.id
-                      ? "annotation-primary-button"
-                      : "annotation-secondary-button"
-                  }
-                  onClick={() => viewGuessHistoryEntry(entry.id)}
-                  disabled={trainingLoading || isGuessTrainingActive}
-                >
-                  {activeGuessHistoryEntry?.id === entry.id ? "Viewing result" : "View result"}
-                </button>
-              </div>
-            </li>
-          ))}
-        </ol>
+      {!guessHistoryLoading && guessHistoryError && (
+        <p className="error">{guessHistoryError}</p>
       )}
+      {!guessHistoryLoading &&
+        !guessHistoryError &&
+        guessHistoryEntries.length === 0 && (
+          <p className="annotation-empty">
+            Finished guess-the-move runs for this game will appear here.
+          </p>
+        )}
+      {!guessHistoryLoading &&
+        !guessHistoryError &&
+        guessHistoryEntries.length > 0 && (
+          <ol className="training-summary-history">
+            {guessHistoryEntries.map((entry) => (
+              <li key={entry.id} className="training-summary-history-entry">
+                <div className="training-summary-history-header">
+                  <span className="annotation-label">
+                    {formatCompletedAt(entry.completedAt)}
+                  </span>
+                  <strong>{entry.summary.evaluation.label}</strong>
+                </div>
+                <div className="training-summary-history-attempt">
+                  <span>
+                    Score {entry.summary.totalScore}/{entry.summary.parScore}
+                  </span>
+                  <span>
+                    Moves {entry.summary.attemptedMoves}/
+                    {entry.summary.totalMoves}
+                  </span>
+                  <span>
+                    {entry.status === "completed" ? "Completed" : "Ended early"}
+                  </span>
+                  <button
+                    type="button"
+                    className={
+                      activeGuessHistoryEntry?.id === entry.id
+                        ? "annotation-primary-button"
+                        : "annotation-secondary-button"
+                    }
+                    onClick={() => viewGuessHistoryEntry(entry.id)}
+                    disabled={trainingLoading || isGuessTrainingActive}
+                  >
+                    {activeGuessHistoryEntry?.id === entry.id
+                      ? "Viewing result"
+                      : "View result"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
     </div>
   );
 }
@@ -415,13 +438,18 @@ function GuessTheMoveTrainingPanel({
   closeGuessHistoryView,
   resetTrainingSession,
 }) {
-  const isGuessMode = normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE;
+  const isGuessMode =
+    normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE;
   const isGuessSessionFinished =
-    normalizedTrainingState.status === TRAINING_STATUS_COMPLETED || isGuessTrainingEnded;
-  const isViewingHistoricalResult = !isTrainingPlayActive && !!activeGuessHistoryEntry;
+    normalizedTrainingState.status === TRAINING_STATUS_COMPLETED ||
+    isGuessTrainingEnded;
+  const isViewingHistoricalResult =
+    !isTrainingPlayActive && !!activeGuessHistoryEntry;
   const shouldShowSummary =
-    !isTrainingPlayActive && (isViewingHistoricalResult || (isGuessMode && isGuessSessionFinished));
-  const displayedSummary = activeGuessHistoryEntry?.summary ?? guessTheMoveSummary;
+    !isTrainingPlayActive &&
+    (isViewingHistoricalResult || (isGuessMode && isGuessSessionFinished));
+  const displayedSummary =
+    activeGuessHistoryEntry?.summary ?? guessTheMoveSummary;
   const sideSelectionDisabled = isGuessTrainingActive || trainingLoading;
   const summaryRef = useRef(null);
   const lastAttempt = lastCompletedTrainingAttempts[0] ?? null;
@@ -453,14 +481,17 @@ function GuessTheMoveTrainingPanel({
           disabled={sideSelectionDisabled}
         />
         {!hasReplaySource && (
-          <p className="annotation-empty">Import a game to enable guess the move training.</p>
+          <p className="annotation-empty">
+            Import a game to enable guess the move training.
+          </p>
         )}
         {hasReplaySource && (
           <>
             <p className="current-move-label">
               {isViewingHistoricalResult
                 ? `Viewing saved result from ${formatCompletedAt(activeGuessHistoryEntry.completedAt)}`
-                : isGuessMode && normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
+                : isGuessMode &&
+                    normalizedTrainingState.status === TRAINING_STATUS_COMPLETED
                   ? "Guess the move complete"
                   : isGuessTrainingEnded
                     ? "Guess the move ended"
@@ -480,13 +511,15 @@ function GuessTheMoveTrainingPanel({
               <div className="training-summary-card">
                 <span className="annotation-label">Moves scored</span>
                 <strong>
-                  {displayedSummary.attemptedMoves}/{displayedSummary.totalMoves}
+                  {displayedSummary.attemptedMoves}/
+                  {displayedSummary.totalMoves}
                 </strong>
               </div>
             </div>
             {!isGuessMode && !isViewingHistoricalResult && (
               <p className="annotation-empty">
-                Start guess mode to score one move at a time against the imported game.
+                Start guess mode to score one move at a time against the
+                imported game.
               </p>
             )}
             {isTrainingPlayActive && activeTrainingPlaySession && (
@@ -499,8 +532,11 @@ function GuessTheMoveTrainingPanel({
                 </div>
                 <p>
                   Exploring the position after{" "}
-                  <strong>{activeTrainingPlaySession.sourceAttempt.userSan}</strong>. Return to
-                  training to resume Guess The Move exactly where you left it.
+                  <strong>
+                    {activeTrainingPlaySession.sourceAttempt.userSan}
+                  </strong>
+                  . Return to training to resume Guess The Move exactly where
+                  you left it.
                 </p>
                 <div className="annotation-item-actions">
                   <button
@@ -514,15 +550,20 @@ function GuessTheMoveTrainingPanel({
                 </div>
               </div>
             )}
-            {!isTrainingPlayActive && !isViewingHistoricalResult && isGuessTrainingActive && currentGuessMove && (
-              <p className="annotation-empty">
-                Play the next move on the board. You only get one try; the game move is
-                revealed immediately after your guess. Current position:{" "}
-                <strong>{currentMoveLabel}</strong>.
-              </p>
-            )}
+            {!isTrainingPlayActive &&
+              !isViewingHistoricalResult &&
+              isGuessTrainingActive &&
+              currentGuessMove && (
+                <p className="annotation-empty">
+                  Play the next move on the board. You only get one try; the
+                  game move is revealed immediately after your guess. Current
+                  position: <strong>{currentMoveLabel}</strong>.
+                </p>
+              )}
             {trainingLoading && !isTrainingPlayActive && (
-              <p className="annotation-empty">Comparing your move with the game move...</p>
+              <p className="annotation-empty">
+                Comparing your move with the game move...
+              </p>
             )}
             {trainingError && <p className="error">{trainingError}</p>}
             {!isTrainingPlayActive &&
@@ -540,8 +581,14 @@ function GuessTheMoveTrainingPanel({
                   </div>
                   <p>
                     <strong
-                      className={lastCompletedExpectedMove.fenAfter ? "training-preview-trigger" : undefined}
-                      tabIndex={lastCompletedExpectedMove.fenAfter ? 0 : undefined}
+                      className={
+                        lastCompletedExpectedMove.fenAfter
+                          ? "training-preview-trigger"
+                          : undefined
+                      }
+                      tabIndex={
+                        lastCompletedExpectedMove.fenAfter ? 0 : undefined
+                      }
                       onMouseEnter={(event) =>
                         showTrainingPreview(
                           { resultingFen: lastCompletedExpectedMove.fenAfter },
@@ -561,11 +608,19 @@ function GuessTheMoveTrainingPanel({
                     </strong>{" "}
                     was the game move. You played{" "}
                     <strong
-                      className={lastAttempt.resultingFen ? "training-preview-trigger" : undefined}
+                      className={
+                        lastAttempt.resultingFen
+                          ? "training-preview-trigger"
+                          : undefined
+                      }
                       tabIndex={lastAttempt.resultingFen ? 0 : undefined}
-                      onMouseEnter={(event) => showTrainingPreview(lastAttempt, event.currentTarget)}
+                      onMouseEnter={(event) =>
+                        showTrainingPreview(lastAttempt, event.currentTarget)
+                      }
                       onMouseLeave={hideTrainingPreview}
-                      onFocus={(event) => showTrainingPreview(lastAttempt, event.currentTarget)}
+                      onFocus={(event) =>
+                        showTrainingPreview(lastAttempt, event.currentTarget)
+                      }
                       onBlur={hideTrainingPreview}
                     >
                       {lastAttempt.userSan}
@@ -573,32 +628,39 @@ function GuessTheMoveTrainingPanel({
                     .
                   </p>
                   <p className="training-feedback-detail">
-                    <strong>Points:</strong> {formatPoints(getGuessTheMovePoints(lastAttempt))}
+                    <strong>Points:</strong>{" "}
+                    {formatPoints(getGuessTheMovePoints(lastAttempt))}
                     {lastAttempt.outcome !== "match" && (
                       <>
                         {" · "}
-                        <strong>Delta:</strong> {formatReplayDelta(lastAttempt.deltaCp)} pawns
+                        <strong>Delta:</strong>{" "}
+                        {formatReplayDelta(lastAttempt.deltaCp)} pawns
                       </>
                     )}
                   </p>
-                  {lastAttempt.outcome !== "match" && lastAttempt.resultingFen && (
-                    <div className="annotation-item-actions">
-                      <button
-                        type="button"
-                        className="annotation-secondary-button"
-                        onClick={() => startTrainingPlayMode(lastAttempt)}
-                        disabled={isTrainingPlayActive || trainingLoading}
-                      >
-                        Play vs computer
-                      </button>
-                    </div>
-                  )}
+                  {lastAttempt.outcome !== "match" &&
+                    lastAttempt.resultingFen && (
+                      <div className="annotation-item-actions">
+                        <button
+                          type="button"
+                          className="annotation-secondary-button"
+                          onClick={() => startTrainingPlayMode(lastAttempt)}
+                          disabled={isTrainingPlayActive || trainingLoading}
+                        >
+                          Play vs computer
+                        </button>
+                      </div>
+                    )}
                 </div>
               )}
             {shouldShowSummary && (
               <GuessSummarySection
                 summaryRef={summaryRef}
-                title={isViewingHistoricalResult ? "Saved evaluation" : "Final evaluation"}
+                title={
+                  isViewingHistoricalResult
+                    ? "Saved evaluation"
+                    : "Final evaluation"
+                }
                 summary={displayedSummary}
                 showTrainingPreview={showTrainingPreview}
                 hideTrainingPreview={hideTrainingPreview}
@@ -639,13 +701,19 @@ function GuessTheMoveTrainingPanel({
                   onClick={closeGuessHistoryView}
                   disabled={trainingLoading}
                 >
-                  {isGuessMode ? "Return to current guess view" : "Close saved result"}
+                  {isGuessMode
+                    ? "Return to current guess view"
+                    : "Close saved result"}
                 </button>
               ) : isGuessMode ? (
                 <button
                   type="button"
                   className="annotation-secondary-button"
-                  onClick={isGuessTrainingActive ? endGuessTraining : resetTrainingSession}
+                  onClick={
+                    isGuessTrainingActive
+                      ? endGuessTraining
+                      : resetTrainingSession
+                  }
                   disabled={trainingLoading}
                 >
                   {isGuessTrainingActive ? "End Training" : "Clear training"}

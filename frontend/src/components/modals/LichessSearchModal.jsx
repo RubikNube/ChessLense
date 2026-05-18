@@ -34,10 +34,15 @@ function LichessSearchModal({
   onClose,
 }) {
   return (
-    <ModalShell title="Search Lichess" titleId="lichess-search-title" onClose={onClose} wide>
+    <ModalShell
+      title="Search Lichess"
+      titleId="lichess-search-title"
+      onClose={onClose}
+      wide
+    >
       <p>
-        Search public Lichess games by player, then narrow results with filters like
-        opponent, year, color, and speed.
+        Search public Lichess games by player, then narrow results with filters
+        like opponent, year, color, and speed.
       </p>
       <form
         onSubmit={(event) => {
@@ -154,11 +159,7 @@ function LichessSearchModal({
         {searchError && <p style={modalErrorStyle}>{searchError}</p>}
         {importError && <p style={modalErrorStyle}>{importError}</p>}
         <div style={modalActionRowStyle}>
-          <button
-            type="button"
-            style={modalButtonStyle}
-            onClick={onClose}
-          >
+          <button type="button" style={modalButtonStyle} onClick={onClose}>
             Close
           </button>
           <button
@@ -174,10 +175,13 @@ function LichessSearchModal({
       <div className="search-results-section">
         <h3>Lichess results</h3>
         {searchLoading && <p>Loading games...</p>}
-        {!searchLoading && !hasSearched && <p>Run a search to browse matching games.</p>}
-        {!searchLoading && hasSearched && !searchError && results.length === 0 && (
-          <p>No games matched those filters.</p>
+        {!searchLoading && !hasSearched && (
+          <p>Run a search to browse matching games.</p>
         )}
+        {!searchLoading &&
+          hasSearched &&
+          !searchError &&
+          results.length === 0 && <p>No games matched those filters.</p>}
         {!!results.length && (
           <ul className="search-results-list">
             {results.map((gameResult) => (
@@ -214,7 +218,9 @@ function LichessSearchModal({
                     }}
                     disabled={importingGameId === gameResult.id}
                   >
-                    {importingGameId === gameResult.id ? "Importing..." : "Import PGN"}
+                    {importingGameId === gameResult.id
+                      ? "Importing..."
+                      : "Import PGN"}
                   </button>
                 </div>
               </li>

@@ -17,7 +17,11 @@ function CreateCollectionModal({
   onClose,
 }) {
   return (
-    <ModalShell title="New collection" titleId="create-collection-title" onClose={onClose}>
+    <ModalShell
+      title="New collection"
+      titleId="create-collection-title"
+      onClose={onClose}
+    >
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -34,7 +38,9 @@ function CreateCollectionModal({
             placeholder="Opening prep"
           />
         </label>
-        {!!createCollectionError && <p style={modalErrorStyle}>{createCollectionError}</p>}
+        {!!createCollectionError && (
+          <p style={modalErrorStyle}>{createCollectionError}</p>
+        )}
         <div style={modalActionRowStyle}>
           <button
             type="button"

@@ -1,11 +1,7 @@
 import { useEffect } from "react";
 import { matchesShortcut } from "../utils/appState.js";
 
-function useKeyboardShortcuts({
-  shortcutConfig,
-  modalState,
-  actions,
-}) {
+function useKeyboardShortcuts({ shortcutConfig, modalState, actions }) {
   useEffect(() => {
     function handleKeyDown(event) {
       if (event.defaultPrevented) {
@@ -178,19 +174,25 @@ function useKeyboardShortcuts({
         return;
       }
 
-      if (matchesShortcut(event, shortcutConfig.togglePuzzleTrainingPanel.keys)) {
+      if (
+        matchesShortcut(event, shortcutConfig.togglePuzzleTrainingPanel.keys)
+      ) {
         event.preventDefault();
         actions.togglePuzzleTrainingPanel();
         return;
       }
 
-      if (matchesShortcut(event, shortcutConfig.toggleReplayTrainingPanel.keys)) {
+      if (
+        matchesShortcut(event, shortcutConfig.toggleReplayTrainingPanel.keys)
+      ) {
         event.preventDefault();
         actions.toggleReplayTrainingPanel();
         return;
       }
 
-      if (matchesShortcut(event, shortcutConfig.toggleGuessTrainingPanel.keys)) {
+      if (
+        matchesShortcut(event, shortcutConfig.toggleGuessTrainingPanel.keys)
+      ) {
         event.preventDefault();
         actions.toggleGuessTrainingPanel();
         return;

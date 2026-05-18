@@ -31,14 +31,22 @@ function normalizeStudyIds(studyIds) {
 		return [];
 	}
 
-	return [...new Set(studyIds.map((studyId) => normalizeString(studyId)).filter(Boolean))];
+	return [
+		...new Set(
+			studyIds.map((studyId) => normalizeString(studyId)).filter(Boolean),
+		),
+	];
 }
 
 function normalizeCollectionTitle(title) {
 	const normalized = normalizeString(title);
 
 	if (!normalized) {
-		throw new HttpError(400, "invalid_collection", "Collection title is required.");
+		throw new HttpError(
+			400,
+			"invalid_collection",
+			"Collection title is required.",
+		);
 	}
 
 	return normalized.slice(0, 120);
@@ -66,7 +74,10 @@ function normalizeCollectionRecord(record) {
 		return null;
 	}
 
-	const createdAt = normalizeIsoTimestamp(record.createdAt, new Date().toISOString());
+	const createdAt = normalizeIsoTimestamp(
+		record.createdAt,
+		new Date().toISOString(),
+	);
 	const updatedAt = normalizeIsoTimestamp(record.updatedAt, createdAt);
 
 	try {
@@ -118,7 +129,11 @@ async function readStoredCollection(filePath) {
 		}
 
 		if (error instanceof SyntaxError) {
-			throw new HttpError(500, "invalid_collection", "Stored collection is invalid JSON.");
+			throw new HttpError(
+				500,
+				"invalid_collection",
+				"Stored collection is invalid JSON.",
+			);
 		}
 
 		throw error;
@@ -134,7 +149,9 @@ async function writeCollectionRecord(rootDir, collectionRecord) {
 }
 
 async function listCollections(options = {}) {
-	const rootDir = await ensureCollectionsDir(getCollectionsDir(options.rootDir));
+	const rootDir = await ensureCollectionsDir(
+		getCollectionsDir(options.rootDir),
+	);
 	const entries = await fs.readdir(rootDir, { withFileTypes: true });
 	const collections = [];
 
@@ -154,7 +171,9 @@ async function listCollections(options = {}) {
 
 			collections.push(buildCollectionSummary(collection));
 		} catch (error) {
-			if (!(error instanceof HttpError && error.code === "invalid_collection")) {
+			if (
+				!(error instanceof HttpError && error.code === "invalid_collection")
+			) {
 				throw error;
 			}
 		}
@@ -167,13 +186,19 @@ async function listCollections(options = {}) {
 }
 
 async function getCollection(collectionId, options = {}) {
-	const rootDir = await ensureCollectionsDir(getCollectionsDir(options.rootDir));
+	const rootDir = await ensureCollectionsDir(
+		getCollectionsDir(options.rootDir),
+	);
 	const collection = normalizeCollectionRecord(
 		await readStoredCollection(getCollectionFilePath(rootDir, collectionId)),
 	);
 
 	if (!collection) {
-		throw new HttpError(500, "invalid_collection", "Stored collection is invalid.");
+		throw new HttpError(
+			500,
+			"invalid_collection",
+			"Stored collection is invalid.",
+		);
 	}
 
 	return collection;
@@ -181,10 +206,16 @@ async function getCollection(collectionId, options = {}) {
 
 async function createCollection(payload, options = {}) {
 	if (!payload || typeof payload !== "object") {
-		throw new HttpError(400, "invalid_collection", "Collection payload must be an object.");
+		throw new HttpError(
+			400,
+			"invalid_collection",
+			"Collection payload must be an object.",
+		);
 	}
 
-	const rootDir = await ensureCollectionsDir(getCollectionsDir(options.rootDir));
+	const rootDir = await ensureCollectionsDir(
+		getCollectionsDir(options.rootDir),
+	);
 	const now = new Date().toISOString();
 	const collectionRecord = {
 		id: createCollectionId(),
@@ -199,7 +230,9 @@ async function createCollection(payload, options = {}) {
 }
 
 async function deleteCollection(collectionId, options = {}) {
-	const rootDir = await ensureCollectionsDir(getCollectionsDir(options.rootDir));
+	const rootDir = await ensureCollectionsDir(
+		getCollectionsDir(options.rootDir),
+	);
 	const normalizedCollectionId = normalizeCollectionId(collectionId);
 
 	if (!normalizedCollectionId) {
@@ -229,9 +262,14 @@ async function addStudyToCollection(collectionId, studyId, options = {}) {
 		throw new HttpError(404, "study_not_found", "Study not found.");
 	}
 
-	const rootDir = await ensureCollectionsDir(getCollectionsDir(options.rootDir));
+	const rootDir = await ensureCollectionsDir(
+		getCollectionsDir(options.rootDir),
+	);
 	const collection = await getCollection(collectionId, options);
-	const nextStudyIds = normalizeStudyIds([...collection.studyIds, normalizedStudyId]);
+	const nextStudyIds = normalizeStudyIds([
+		...collection.studyIds,
+		normalizedStudyId,
+	]);
 	const updatedCollection = {
 		...collection,
 		studyIds: nextStudyIds,
@@ -249,11 +287,15 @@ async function removeStudyFromCollection(collectionId, studyId, options = {}) {
 		throw new HttpError(400, "invalid_collection", "studyId is required.");
 	}
 
-	const rootDir = await ensureCollectionsDir(getCollectionsDir(options.rootDir));
+	const rootDir = await ensureCollectionsDir(
+		getCollectionsDir(options.rootDir),
+	);
 	const collection = await getCollection(collectionId, options);
 	const updatedCollection = {
 		...collection,
-		studyIds: collection.studyIds.filter((currentStudyId) => currentStudyId !== normalizedStudyId),
+		studyIds: collection.studyIds.filter(
+			(currentStudyId) => currentStudyId !== normalizedStudyId,
+		),
 		updatedAt: new Date().toISOString(),
 	};
 
@@ -268,7 +310,9 @@ async function removeStudyFromAllCollections(studyId, options = {}) {
 		return [];
 	}
 
-	const rootDir = await ensureCollectionsDir(getCollectionsDir(options.rootDir));
+	const rootDir = await ensureCollectionsDir(
+		getCollectionsDir(options.rootDir),
+	);
 	const collections = await listCollections(options);
 	const updatedCollections = [];
 
@@ -280,7 +324,9 @@ async function removeStudyFromAllCollections(studyId, options = {}) {
 		const collection = await getCollection(collectionSummary.id, options);
 		const updatedCollection = {
 			...collection,
-			studyIds: collection.studyIds.filter((currentStudyId) => currentStudyId !== normalizedStudyId),
+			studyIds: collection.studyIds.filter(
+				(currentStudyId) => currentStudyId !== normalizedStudyId,
+			),
 			updatedAt: new Date().toISOString(),
 		};
 		await writeCollectionRecord(rootDir, updatedCollection);

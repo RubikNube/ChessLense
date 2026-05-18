@@ -41,7 +41,9 @@ const squareStyle = {
 function getOrientedBoardRows(boardRows, orientation) {
   const rows = orientation === "black" ? [...boardRows].reverse() : boardRows;
 
-  return rows.map((row) => (orientation === "black" ? [...row].reverse() : row));
+  return rows.map((row) =>
+    orientation === "black" ? [...row].reverse() : row,
+  );
 }
 
 function getSquareColor(rowIndex, columnIndex) {

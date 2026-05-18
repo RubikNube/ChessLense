@@ -138,7 +138,7 @@ describe("persisted app state", () => {
           pageSize: "",
         },
         importedPgnData: {
-          rawPgn: "[Event \"Test\"] 1. e4",
+          rawPgn: '[Event "Test"] 1. e4',
           headers: [{ name: "Event", value: "Test" }, { foo: "bar" }],
           mainlineComments: [{ comment: "First note", ply: 1, moveNumber: 1 }],
           additionalComments: [{ text: "Variation note", inVariation: true }],
@@ -183,9 +183,14 @@ describe("persisted app state", () => {
 
     const loadedState = loadPersistedAppState(storage);
 
-    expect(getMoveHistoryForNode(loadedState.variantTree)).toEqual(["e4", "e5"]);
+    expect(getMoveHistoryForNode(loadedState.variantTree)).toEqual([
+      "e4",
+      "e5",
+    ]);
     expect(
-      buildGameToNode(redoInVariantTree(redoInVariantTree(loadedState.variantTree))).history(),
+      buildGameToNode(
+        redoInVariantTree(redoInVariantTree(loadedState.variantTree)),
+      ).history(),
     ).toEqual(["e4", "e5", "Nf3", "Nc6"]);
     expect(loadedState).toEqual({
       variantTree: expect.objectContaining({
@@ -231,7 +236,7 @@ describe("persisted app state", () => {
         pageSize: DEFAULT_OTB_SEARCH_FILTERS.pageSize,
       },
       importedPgnData: {
-        rawPgn: "[Event \"Test\"] 1. e4",
+        rawPgn: '[Event "Test"] 1. e4',
         headers: [{ name: "Event", value: "Test" }],
         mainlineComments: [
           {
@@ -399,7 +404,7 @@ describe("persisted app state", () => {
           pageSize: "",
         },
         importedPgnData: {
-          rawPgn: "[Event \"Test\"] 1. e4",
+          rawPgn: '[Event "Test"] 1. e4',
           headers: [{ name: "Event", value: "Test" }],
           mainlineComments: [{ comment: "First note", ply: 1, moveNumber: 1 }],
           additionalComments: [{ text: "Variation note", inVariation: true }],
@@ -467,7 +472,7 @@ describe("persisted app state", () => {
         pageSize: DEFAULT_OTB_SEARCH_FILTERS.pageSize,
       },
       importedPgnData: {
-        rawPgn: "[Event \"Test\"] 1. e4",
+        rawPgn: '[Event "Test"] 1. e4',
         headers: [{ name: "Event", value: "Test" }],
         mainlineComments: [
           {
@@ -540,15 +545,23 @@ describe("persisted app state", () => {
     const storage = createStorage();
     let variantTree = createVariantTreeFromMoves([{ from: "e2", to: "e4" }]);
 
-    variantTree = toggleBoardArrowAnnotation(variantTree, variantTree.currentNodeId, {
-      startSquare: "e2",
-      endSquare: "e4",
-      color: "#ffaa00",
-    });
-    variantTree = toggleBoardHighlightAnnotation(variantTree, variantTree.currentNodeId, {
-      square: "e4",
-      color: "#4caf50",
-    });
+    variantTree = toggleBoardArrowAnnotation(
+      variantTree,
+      variantTree.currentNodeId,
+      {
+        startSquare: "e2",
+        endSquare: "e4",
+        color: "#ffaa00",
+      },
+    );
+    variantTree = toggleBoardHighlightAnnotation(
+      variantTree,
+      variantTree.currentNodeId,
+      {
+        square: "e4",
+        color: "#4caf50",
+      },
+    );
 
     savePersistedAppState(
       {
@@ -558,7 +571,9 @@ describe("persisted app state", () => {
     );
 
     expect(
-      loadPersistedAppState(storage)?.variantTree.nodes[variantTree.currentNodeId].boardAnnotations,
+      loadPersistedAppState(storage)?.variantTree.nodes[
+        variantTree.currentNodeId
+      ].boardAnnotations,
     ).toEqual({
       arrows: [{ startSquare: "e2", endSquare: "e4", color: "#ffaa00" }],
       highlights: [{ square: "e4", color: "#4caf50" }],
@@ -566,7 +581,9 @@ describe("persisted app state", () => {
   });
 
   it("loads persisted training play snapshots alongside the exploratory board state", () => {
-    const resumeVariantTree = createVariantTreeFromMoves([{ from: "e2", to: "e4" }]);
+    const resumeVariantTree = createVariantTreeFromMoves([
+      { from: "e2", to: "e4" },
+    ]);
     const playVariantTree = createEmptyVariantTree(
       "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
     );
@@ -585,8 +602,10 @@ describe("persisted app state", () => {
               side: "white",
               san: "e4",
               move: { from: "e2", to: "e4" },
-              fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-              fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+              fenBefore:
+                "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+              fenAfter:
+                "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
             },
           ],
           attempts: [],
@@ -607,9 +626,11 @@ describe("persisted app state", () => {
               outcome: "mismatch",
               classification: "equal",
               deltaCp: -5,
-              resultingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+              resultingFen:
+                "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
             },
-            startingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+            startingFen:
+              "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
             resumeTrainingState: {
               mode: TRAINING_MODE_REPLAY_GAME,
               status: TRAINING_STATUS_ACTIVE,
@@ -622,8 +643,10 @@ describe("persisted app state", () => {
                   side: "white",
                   san: "e4",
                   move: { from: "e2", to: "e4" },
-                  fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-                  fenAfter: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+                  fenBefore:
+                    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                  fenAfter:
+                    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
                 },
               ],
               attempts: [],
@@ -641,7 +664,8 @@ describe("persisted app state", () => {
     expect(loadPersistedAppState(storage)?.trainingState.playSession).toEqual(
       expect.objectContaining({
         status: "active",
-        startingFen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+        startingFen:
+          "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
         resumeVariantTree,
       }),
     );
@@ -649,7 +673,9 @@ describe("persisted app state", () => {
 
   it("persists standalone computer-play sessions with their start snapshot", () => {
     const storage = createStorage();
-    const startVariantTree = createVariantTreeFromMoves([{ from: "e2", to: "e4" }]);
+    const startVariantTree = createVariantTreeFromMoves([
+      { from: "e2", to: "e4" },
+    ]);
     const { trainingState } = createComputerPlayTrainingState(
       startVariantTree,
       TRAINING_SIDE_WHITE,
@@ -715,7 +741,7 @@ describe("persisted app state", () => {
     const storage = createStorage(
       JSON.stringify({
         importedPgnData: {
-          rawPgn: "[Event \"Seed\"] 1. e4 {First note}",
+          rawPgn: '[Event "Seed"] 1. e4 {First note}',
           headers: [{ name: "Event", value: "Seed" }],
           mainlineComments: [
             {

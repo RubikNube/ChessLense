@@ -9,14 +9,18 @@ import {
 
 describe("normalizeEvaluationForWhite", () => {
   it("keeps white-to-move evaluations unchanged", () => {
-    expect(normalizeEvaluationForWhite({ type: "cp", value: 34 }, "w")).toEqual({
-      type: "cp",
-      value: 34,
-    });
+    expect(normalizeEvaluationForWhite({ type: "cp", value: 34 }, "w")).toEqual(
+      {
+        type: "cp",
+        value: 34,
+      },
+    );
   });
 
   it("flips black-to-move evaluations to white's perspective", () => {
-    expect(normalizeEvaluationForWhite({ type: "mate", value: 3 }, "b")).toEqual({
+    expect(
+      normalizeEvaluationForWhite({ type: "mate", value: 3 }, "b"),
+    ).toEqual({
       type: "mate",
       value: -3,
     });

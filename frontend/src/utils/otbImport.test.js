@@ -26,6 +26,8 @@ describe("formatOtbImportSummary", () => {
         importedGames: 10,
         skippedGames: 2,
       }),
-    ).toBe("Processed 12 games from masters.pgn: 10 imported, 2 duplicates skipped.");
+    ).toBe(
+      "Processed 12 games from masters.pgn: 10 imported, 2 duplicates skipped.",
+    );
   });
 });

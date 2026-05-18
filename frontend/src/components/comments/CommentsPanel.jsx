@@ -53,7 +53,9 @@ function CommentsPanel({
         <ul className="annotation-list">
           {currentPositionComments.map((commentEntry, index) => (
             <li
-              key={commentEntry.id ?? `${commentEntry.fen ?? "current"}-${index}`}
+              key={
+                commentEntry.id ?? `${commentEntry.fen ?? "current"}-${index}`
+              }
               className="annotation-item"
             >
               <div className="annotation-item-header">

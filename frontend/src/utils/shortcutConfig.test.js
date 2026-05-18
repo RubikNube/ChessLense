@@ -33,20 +33,20 @@ describe("normalizeShortcutConfig", () => {
       }),
     ).toEqual({
       ...DEFAULT_SHORTCUT_CONFIG,
-        undoMove: {
-          label: "Step back",
-          keys: ["Backspace"],
-        },
-        jumpToMainVariant: {
-          label: "Jump main line",
-          keys: ["Ctrl+M"],
-        },
-        toggleMoveHistory: {
-          label: "Toggle history",
-          keys: [],
-        },
-        redoMove: DEFAULT_SHORTCUT_CONFIG.redoMove,
-      });
+      undoMove: {
+        label: "Step back",
+        keys: ["Backspace"],
+      },
+      jumpToMainVariant: {
+        label: "Jump main line",
+        keys: ["Ctrl+M"],
+      },
+      toggleMoveHistory: {
+        label: "Toggle history",
+        keys: [],
+      },
+      redoMove: DEFAULT_SHORTCUT_CONFIG.redoMove,
+    });
   });
 
   it("filters unsafe bindings from view-toggle actions", () => {
@@ -126,17 +126,19 @@ describe("normalizeShortcutConfig", () => {
 
 describe("shortcut helpers", () => {
   it("matches configured keys against keyboard events", () => {
-    expect(matchesShortcut({ key: "ArrowLeft" }, ["ArrowRight", "ArrowLeft"])).toBe(
-      true,
-    );
+    expect(
+      matchesShortcut({ key: "ArrowLeft" }, ["ArrowRight", "ArrowLeft"]),
+    ).toBe(true);
     expect(matchesShortcut({ key: "x" }, ["ArrowRight", "ArrowLeft"])).toBe(
       false,
     );
     expect(matchesShortcut({ key: "m", ctrlKey: true }, ["Ctrl+M"])).toBe(true);
-    expect(matchesShortcut({ key: "M", ctrlKey: true, shiftKey: true }, ["Ctrl+M"])).toBe(
-      true,
+    expect(
+      matchesShortcut({ key: "M", ctrlKey: true, shiftKey: true }, ["Ctrl+M"]),
+    ).toBe(true);
+    expect(matchesShortcut({ key: "m", ctrlKey: false }, ["Ctrl+M"])).toBe(
+      false,
     );
-    expect(matchesShortcut({ key: "m", ctrlKey: false }, ["Ctrl+M"])).toBe(false);
   });
 
   it("returns display labels for special keys", () => {

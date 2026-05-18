@@ -25,9 +25,15 @@ export function formatOtbImportSummary(summary) {
     typeof summary?.fileName === "string" && summary.fileName.trim()
       ? summary.fileName.trim()
       : "selected file";
-  const totalGames = Number.isFinite(summary?.totalGames) ? summary.totalGames : 0;
-  const importedGames = Number.isFinite(summary?.importedGames) ? summary.importedGames : 0;
-  const skippedGames = Number.isFinite(summary?.skippedGames) ? summary.skippedGames : 0;
+  const totalGames = Number.isFinite(summary?.totalGames)
+    ? summary.totalGames
+    : 0;
+  const importedGames = Number.isFinite(summary?.importedGames)
+    ? summary.importedGames
+    : 0;
+  const skippedGames = Number.isFinite(summary?.skippedGames)
+    ? summary.skippedGames
+    : 0;
 
   return `Processed ${pluralize(totalGames, "game", "games")} from ${fileName}: ${pluralize(
     importedGames,

@@ -133,12 +133,14 @@ function EnginePanel({
             <strong>Best move:</strong> {formattedBestMove}
           </p>
           <p>
-            <strong>Evaluation:</strong> {formatEngineEvaluation(engineResult.evaluation)}
+            <strong>Evaluation:</strong>{" "}
+            {formatEngineEvaluation(engineResult.evaluation)}
           </p>
           {!engineVariants.length && (
             <p className="annotation-empty">
-              This backend is still returning the legacy single-variant response.
-              Restart the server once so the engine view can load the top three variants.
+              This backend is still returning the legacy single-variant
+              response. Restart the server once so the engine view can load the
+              top three variants.
             </p>
           )}
           {!!engineVariants.length && (

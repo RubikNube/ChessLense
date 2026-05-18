@@ -63,7 +63,9 @@ function normalizeReferenceMove(entry) {
 	return {
 		ply: Number.isInteger(entry.ply) && entry.ply > 0 ? entry.ply : null,
 		moveNumber:
-			Number.isInteger(entry.moveNumber) && entry.moveNumber > 0 ? entry.moveNumber : null,
+			Number.isInteger(entry.moveNumber) && entry.moveNumber > 0
+				? entry.moveNumber
+				: null,
 		side: entry.side === "white" || entry.side === "black" ? entry.side : null,
 		san,
 		move,
@@ -105,7 +107,9 @@ function normalizeAttempt(entry) {
 	return {
 		ply: Number.isInteger(entry.ply) && entry.ply > 0 ? entry.ply : null,
 		moveNumber:
-			Number.isInteger(entry.moveNumber) && entry.moveNumber > 0 ? entry.moveNumber : null,
+			Number.isInteger(entry.moveNumber) && entry.moveNumber > 0
+				? entry.moveNumber
+				: null,
 		side: entry.side === "white" || entry.side === "black" ? entry.side : null,
 		expectedSan,
 		userSan,
@@ -180,11 +184,16 @@ function normalizeGuessHistoryRecord(record) {
 	}
 
 	const gameKey = normalizeGameKey(record.gameKey);
-	const createdAt = normalizeIsoTimestamp(record.createdAt, new Date().toISOString());
+	const createdAt = normalizeIsoTimestamp(
+		record.createdAt,
+		new Date().toISOString(),
+	);
 	const updatedAt = normalizeIsoTimestamp(record.updatedAt, createdAt);
 	const rawPgn = normalizeString(record.rawPgn);
 	const entries = Array.isArray(record.entries)
-		? record.entries.map((entry) => normalizeGuessHistoryEntry(entry)).filter(Boolean)
+		? record.entries
+				.map((entry) => normalizeGuessHistoryEntry(entry))
+				.filter(Boolean)
 		: [];
 
 	if (!gameKey) {
@@ -318,11 +327,17 @@ async function getGuessHistoryGame(gameKey, options = {}) {
 		getGuessHistoryDir(options.guessHistoryRootDir ?? options.rootDir),
 	);
 	const record = normalizeGuessHistoryRecord(
-		await readStoredGuessHistory(getGuessHistoryFilePath(rootDir, normalizedGameKey)),
+		await readStoredGuessHistory(
+			getGuessHistoryFilePath(rootDir, normalizedGameKey),
+		),
 	);
 
 	if (!record?.rawPgn || !record.entries.length) {
-		throw new HttpError(404, "guess_history_not_found", "Guess history game not found.");
+		throw new HttpError(
+			404,
+			"guess_history_not_found",
+			"Guess history game not found.",
+		);
 	}
 
 	return {
@@ -363,7 +378,9 @@ async function listGuessHistoryGames(options = {}) {
 async function appendGuessHistory(rawPgn, entryPayload, options = {}) {
 	const normalizedRawPgn = normalizeString(rawPgn);
 	const gameKey = getGameKey(normalizedRawPgn);
-	const nextEntry = normalizeGuessHistoryEntry(entryPayload, { requireId: false });
+	const nextEntry = normalizeGuessHistoryEntry(entryPayload, {
+		requireId: false,
+	});
 
 	if (!nextEntry) {
 		throw new HttpError(
@@ -377,16 +394,16 @@ async function appendGuessHistory(rawPgn, entryPayload, options = {}) {
 		getGuessHistoryDir(options.guessHistoryRootDir ?? options.rootDir),
 	);
 	const filePath = getGuessHistoryFilePath(rootDir, gameKey);
-	const existingRecord =
-		normalizeGuessHistoryRecord(await readStoredGuessHistory(filePath)) ??
-		{
-			gameKey,
-			createdAt: new Date().toISOString(),
-			updatedAt: new Date().toISOString(),
-			rawPgn: normalizedRawPgn,
-			game: createGameSummary(normalizedRawPgn),
-			entries: [],
-		};
+	const existingRecord = normalizeGuessHistoryRecord(
+		await readStoredGuessHistory(filePath),
+	) ?? {
+		gameKey,
+		createdAt: new Date().toISOString(),
+		updatedAt: new Date().toISOString(),
+		rawPgn: normalizedRawPgn,
+		game: createGameSummary(normalizedRawPgn),
+		entries: [],
+	};
 	const now = new Date().toISOString();
 	const record = {
 		...existingRecord,
