@@ -118,6 +118,8 @@ body {
   width: 100%;
   max-width: 800px;
   min-width: 0;
+  aspect-ratio: 1 / 1;
+  align-self: flex-start;
 }
 
 .evaluation-bar-container {
