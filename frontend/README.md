@@ -24,6 +24,24 @@ The frontend now uses a thin `App.jsx` orchestration layer plus feature-focused 
 - One-click import of a selected OTB result into the existing PGN/annotation flow
 - Reset to starting position
 
+## Deployment
+
+For local development, leave the backend connection unset so frontend `/api`
+requests continue to use the Vite proxy to `http://localhost:3001`.
+
+For GitHub Pages or any other static hosting, configure:
+
+- `VITE_BASE_PATH`: optional asset base path for subpath hosting, for example
+  `/ChessLense/` for a repository GitHub Pages site
+
+After the app loads, open **Help -> Backend Connection** and save the absolute
+origin of the deployed backend, for example
+`https://chesslense-api.example.com`.
+
+GitHub Pages only hosts the frontend build. Engine analysis, saved
+studies/collections, puzzle progress, Lichess proxying, and OTB archive access
+still require the separately hosted backend.
+
 ## Project structure
 
 ```text

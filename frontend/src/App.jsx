@@ -6,6 +6,7 @@ import BoardWorkspace from "./components/board/BoardWorkspace.jsx";
 import PositionSetupPanel from "./components/board/PositionSetupPanel.jsx";
 import CommentsPanel from "./components/comments/CommentsPanel.jsx";
 import EnginePanel from "./components/engine/EnginePanel.jsx";
+import BackendConnectionModal from "./components/modals/BackendConnectionModal.jsx";
 import CreateCollectionModal from "./components/modals/CreateCollectionModal.jsx";
 import GuessHistoryBrowserModal from "./components/modals/GuessHistoryBrowserModal.jsx";
 import ImportPgnModal from "./components/modals/ImportPgnModal.jsx";
@@ -143,7 +144,12 @@ import {
   TRAINING_STATUS_COMPLETED,
   TRAINING_STATUS_ENDED,
 } from "./utils/training.js";
-import { fetchJson } from "./utils/api.js";
+import {
+  fetchJson,
+  loadConfiguredApiBaseUrl,
+  normalizeApiBaseUrl,
+  saveConfiguredApiBaseUrl,
+} from "./utils/api.js";
 import {
   applyPositionSetupTool,
   buildPositionSetupFen,
@@ -418,8 +424,14 @@ function App() {
   const [showManageCollectionsPopup, setShowManageCollectionsPopup] =
     useState(false);
   const [showLichessSearchPopup, setShowLichessSearchPopup] = useState(false);
+  const [showBackendConnectionPopup, setShowBackendConnectionPopup] =
+    useState(false);
   const [showLichessTokenPopup, setShowLichessTokenPopup] = useState(false);
   const [showOtbSearchPopup, setShowOtbSearchPopup] = useState(false);
+  const [backendApiBaseUrl, setBackendApiBaseUrl] = useState(() =>
+    loadConfiguredApiBaseUrl(),
+  );
+  const [backendConnectionError, setBackendConnectionError] = useState("");
   const [lichessApiToken, setLichessApiToken] = useState(
     () => persistedAppState?.lichessApiToken ?? "",
   );
@@ -3541,6 +3553,33 @@ function App() {
     setShowLichessTokenPopup(true);
   }, []);
 
+  const openBackendConnectionPopup = useCallback(() => {
+    setBackendConnectionError("");
+    setShowBackendConnectionPopup(true);
+  }, []);
+
+  const closeBackendConnectionPopup = useCallback(() => {
+    setBackendConnectionError("");
+    setShowBackendConnectionPopup(false);
+  }, []);
+
+  const saveBackendConnection = useCallback((nextUrl) => {
+    const trimmedUrl = nextUrl.trim();
+    const normalizedUrl = normalizeApiBaseUrl(trimmedUrl);
+
+    if (trimmedUrl && !normalizedUrl) {
+      setBackendConnectionError(
+        "Enter a full http:// or https:// backend URL.",
+      );
+      return;
+    }
+
+    saveConfiguredApiBaseUrl(normalizedUrl);
+    setBackendApiBaseUrl(normalizedUrl);
+    setBackendConnectionError("");
+    setShowBackendConnectionPopup(false);
+  }, []);
+
   const closeLichessTokenPopup = useCallback(() => {
     setShowLichessTokenPopup(false);
   }, []);
@@ -4315,6 +4354,7 @@ function App() {
       copyFenToClipboard,
       resetGame,
       openLichessSearchPopup,
+      openBackendConnectionPopup,
       openLichessTokenPopup,
       openOtbSearchPopup,
       openGuessHistoryBrowser,
@@ -4342,6 +4382,7 @@ function App() {
       openPositionSetup,
       openGuessHistoryBrowser,
       openLichessSearchPopup,
+      openBackendConnectionPopup,
       openLichessTokenPopup,
       openOtbSearchPopup,
       openSaveStudyPopup,
@@ -4376,6 +4417,7 @@ function App() {
       closeStudiesPopup,
       closeGuessHistoryBrowser,
       closeLichessSearchPopup,
+      closeBackendConnectionPopup,
       closeLichessTokenPopup,
       closeOtbSearchPopup,
       closeShortcutsPopup,
@@ -4404,6 +4446,7 @@ function App() {
       closeGuessHistoryBrowser,
       closeImportPgnPopup,
       closeLichessSearchPopup,
+      closeBackendConnectionPopup,
       closeLichessTokenPopup,
       closeManageCollectionsPopup,
       closeOtbSearchPopup,
@@ -4870,6 +4913,15 @@ function App() {
           currentToken={lichessApiToken}
           onClose={closeLichessTokenPopup}
           onSave={saveLichessToken}
+        />
+      )}
+
+      {showBackendConnectionPopup && (
+        <BackendConnectionModal
+          currentUrl={backendApiBaseUrl}
+          error={backendConnectionError}
+          onClose={closeBackendConnectionPopup}
+          onSave={saveBackendConnection}
         />
       )}
 

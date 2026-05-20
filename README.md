@@ -14,6 +14,28 @@ recommended way to run both together is:
 ./dev.sh
 ```
 
+## GitHub Pages deployment
+
+GitHub Pages can host the static frontend, but **not** the Express backend. To
+publish ChessLense with its current feature set, deploy the frontend to GitHub
+Pages and host the backend separately.
+
+The repository now includes `.github/workflows/deploy-github-pages.yml`, which:
+
+- builds the frontend from `frontend/`
+- publishes `frontend/dist` to GitHub Pages
+
+Before using the workflow:
+
+1. Deploy the backend somewhere that can run Node.js and Stockfish.
+2. In **Settings -> Pages**, set the source to **GitHub Actions**.
+3. After the site is deployed, open **Help -> Backend Connection** in the UI
+   and save your backend origin there, for example
+   `https://chesslense-api.example.com`.
+
+The workflow sets the Vite base path automatically to the repository Pages URL,
+so the deployed site works from `https://<owner>.github.io/<repo>/`.
+
 ## Formatting
 
 Install the repository formatting tool once from the project root:

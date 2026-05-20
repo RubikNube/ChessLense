@@ -402,6 +402,13 @@ function AppMenuBar({
             <button
               type="button"
               className="menu-entry"
+              onClick={() => onMenuAction(actions.openBackendConnectionPopup)}
+            >
+              Backend Connection
+            </button>
+            <button
+              type="button"
+              className="menu-entry"
               onClick={() => onMenuAction(actions.openLichessTokenPopup)}
             >
               Lichess Token
