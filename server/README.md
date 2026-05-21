@@ -38,6 +38,12 @@ npm install
 npm run dev
 ```
 
+For production:
+
+```bash
+npm start
+```
+
 The server starts on:
 
 ```text
@@ -60,6 +66,82 @@ If not set, the server uses:
 
 ```text
 stockfish
+```
+
+### `PORT`
+
+Optional port for the Express server.
+
+Example:
+
+```bash
+PORT=3001 npm start
+```
+
+### `TRUST_PROXY`
+
+Set this to `true` when the server runs behind a reverse proxy such as Caddy,
+Nginx, or Cloudflare. This allows Express to use the forwarded client IP for
+rate limiting and request metadata.
+
+Example:
+
+```bash
+TRUST_PROXY=true npm start
+```
+
+### `CHESSLENSE_API_TOKEN`
+
+Optional personal API token for protecting the backend. When set, every
+`/api/*` endpoint except `GET /api/health` requires either:
+
+- `Authorization: Bearer <token>`
+- or `X-ChessLense-Api-Token: <token>`
+
+Example:
+
+```bash
+CHESSLENSE_API_TOKEN=replace-with-a-long-random-token npm start
+```
+
+For the GitHub Pages frontend, save the same token in
+**Help -> Backend Connection**.
+
+### `CHESSLENSE_ALLOWED_ORIGINS`
+
+Optional comma-separated allowlist of browser origins permitted to call the
+backend. Use this in production to restrict cross-origin requests to your own
+frontend origins.
+
+Example:
+
+```bash
+CHESSLENSE_ALLOWED_ORIGINS=https://rubiknube.github.io,http://localhost:5173 npm start
+```
+
+### `ANALYZE_RATE_LIMIT_WINDOW_MS` and `ANALYZE_RATE_LIMIT_MAX`
+
+Optional rate-limit controls for the Stockfish-backed analysis endpoints:
+
+- `POST /api/analyze`
+- `POST /api/analyze/compare-moves`
+
+Defaults:
+
+```text
+ANALYZE_RATE_LIMIT_WINDOW_MS=60000
+ANALYZE_RATE_LIMIT_MAX=30
+```
+
+### `OTB_IMPORT_RATE_LIMIT_WINDOW_MS` and `OTB_IMPORT_RATE_LIMIT_MAX`
+
+Optional rate-limit controls for `POST /api/otb/import`.
+
+Defaults:
+
+```text
+OTB_IMPORT_RATE_LIMIT_WINDOW_MS=600000
+OTB_IMPORT_RATE_LIMIT_MAX=5
 ```
 
 ### `OTB_DB_PATH`
@@ -127,6 +209,47 @@ Example:
 ```bash
 COLLECTIONS_DIR=/path/to/chesslense-collections npm run dev
 ```
+
+## Health check
+
+Use the unauthenticated health endpoint for uptime checks:
+
+```text
+GET /api/health
+```
+
+Response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+## VPS deployment checklist
+
+Recommended target: a small Ubuntu or Debian VPS with a reverse proxy.
+
+1. Install Node.js LTS and Stockfish.
+2. Copy the repository to the server and run `cd server && npm install`.
+3. Set production environment variables such as:
+   - `PORT`
+   - `STOCKFISH_PATH`
+   - `TRUST_PROXY=true`
+   - `CHESSLENSE_API_TOKEN`
+   - `CHESSLENSE_ALLOWED_ORIGINS`
+   - storage paths like `OTB_DB_PATH`, `STUDIES_DIR`, `COLLECTIONS_DIR`, and `GUESS_HISTORY_DIR`
+4. Run the backend with `npm start` under `systemd`.
+5. Put Caddy or Nginx in front and expose only HTTPS.
+6. Point the frontend to the deployed backend in **Help -> Backend Connection**.
+
+Minimum security baseline for a private/personal deployment:
+
+- enable HTTPS at the reverse proxy
+- set `CHESSLENSE_API_TOKEN`
+- restrict `CHESSLENSE_ALLOWED_ORIGINS` to your frontend origins
+- enable `TRUST_PROXY=true` behind the reverse proxy
+- keep backups of the SQLite database and JSON-backed storage directories
 
 ## API
 

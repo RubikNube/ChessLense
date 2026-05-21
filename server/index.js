@@ -2,6 +2,19 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const {
+	DEFAULT_ANALYZE_RATE_LIMIT_MAX,
+	DEFAULT_ANALYZE_RATE_LIMIT_WINDOW_MS,
+	DEFAULT_IMPORT_RATE_LIMIT_MAX,
+	DEFAULT_IMPORT_RATE_LIMIT_WINDOW_MS,
+	createCorsOptions,
+	createOriginGateMiddleware,
+	createRateLimitMiddleware,
+	createTokenAuthMiddleware,
+	parseAllowedOrigins,
+	parsePositiveInteger,
+	readBooleanEnv,
+} = require("./requestProtection");
+const {
 	analyzePosition,
 	getComparableEvaluationScore,
 	normalizeMultiPv,
@@ -37,7 +50,7 @@ const {
 } = require("./guessHistory");
 const { deleteStudy, getStudy, listStudies, saveStudy } = require("./studies");
 
-const PORT = 3001;
+const DEFAULT_PORT = 3001;
 const STOCKFISH_PATH = process.env.STOCKFISH_PATH || "stockfish";
 const JSON_BODY_LIMIT = "25mb";
 
@@ -61,11 +74,53 @@ function sendApiError(res, error) {
 
 function createApp() {
 	const app = express();
+	const apiToken = process.env.CHESSLENSE_API_TOKEN || "";
+	const allowedOrigins = parseAllowedOrigins(
+		process.env.CHESSLENSE_ALLOWED_ORIGINS,
+	);
+	const trustProxy = readBooleanEnv(process.env.TRUST_PROXY);
+	const analyzeRateLimit = createRateLimitMiddleware({
+		windowMs: parsePositiveInteger(
+			process.env.ANALYZE_RATE_LIMIT_WINDOW_MS,
+			DEFAULT_ANALYZE_RATE_LIMIT_WINDOW_MS,
+		),
+		maxRequests: parsePositiveInteger(
+			process.env.ANALYZE_RATE_LIMIT_MAX,
+			DEFAULT_ANALYZE_RATE_LIMIT_MAX,
+		),
+		message: "Too many engine analysis requests. Try again later.",
+	});
+	const importRateLimit = createRateLimitMiddleware({
+		windowMs: parsePositiveInteger(
+			process.env.OTB_IMPORT_RATE_LIMIT_WINDOW_MS,
+			DEFAULT_IMPORT_RATE_LIMIT_WINDOW_MS,
+		),
+		maxRequests: parsePositiveInteger(
+			process.env.OTB_IMPORT_RATE_LIMIT_MAX,
+			DEFAULT_IMPORT_RATE_LIMIT_MAX,
+		),
+		message: "Too many PGN imports. Try again later.",
+	});
 
-	app.use(cors());
+	app.set("trust proxy", trustProxy);
+	app.use(createOriginGateMiddleware({ allowedOrigins }));
+	app.use(cors(createCorsOptions({ allowedOrigins })));
 	app.use(express.json({ limit: JSON_BODY_LIMIT }));
+	app.use(
+		"/api",
+		createTokenAuthMiddleware({
+			apiToken,
+			exemptPaths: ["/health"],
+		}),
+	);
 
-	app.post("/api/analyze", async (req, res) => {
+	app.get("/api/health", (_req, res) => {
+		res.json({
+			status: "ok",
+		});
+	});
+
+	app.post("/api/analyze", analyzeRateLimit, async (req, res) => {
 		const { fen, depth = 12, multipv = 1 } = req.body || {};
 		const requestedMultiPv = normalizeMultiPv(multipv);
 
@@ -96,7 +151,7 @@ function createApp() {
 		}
 	});
 
-	app.post("/api/analyze/compare-moves", async (req, res) => {
+	app.post("/api/analyze/compare-moves", analyzeRateLimit, async (req, res) => {
 		const { fen, referenceMove, userMove, depth = 12 } = req.body || {};
 
 		if (!fen) {
@@ -215,7 +270,7 @@ function createApp() {
 		}
 	});
 
-	app.post("/api/otb/import", async (req, res) => {
+	app.post("/api/otb/import", importRateLimit, async (req, res) => {
 		try {
 			const fileName = path.basename(normalizeString(req.body?.fileName));
 			const pgn = typeof req.body?.pgn === "string" ? req.body.pgn : "";
@@ -449,8 +504,10 @@ function createApp() {
 const app = createApp();
 
 if (require.main === module) {
-	app.listen(PORT, () => {
-		console.log(`Chess engine server running on http://localhost:${PORT}`);
+	const port = parsePositiveInteger(process.env.PORT, DEFAULT_PORT);
+
+	app.listen(port, () => {
+		console.log(`Chess engine server running on http://localhost:${port}`);
 	});
 }
 

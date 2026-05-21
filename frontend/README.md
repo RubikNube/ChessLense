@@ -38,6 +38,10 @@ After the app loads, open **Help -> Backend Connection** and save the absolute
 origin of the deployed backend, for example
 `https://chesslense-api.example.com`.
 
+For a private backend, save the same personal API token in
+**Help -> Backend Connection** that the server expects via
+`CHESSLENSE_API_TOKEN`. The token is stored only in this browser.
+
 GitHub Pages only hosts the frontend build. Engine analysis, saved
 studies/collections, puzzle progress, Lichess proxying, and OTB archive access
 still require the separately hosted backend.

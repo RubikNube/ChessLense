@@ -1,5 +1,6 @@
 export const BACKEND_API_BASE_URL_STORAGE_KEY =
   "chesslense.backend-api-base-url";
+export const BACKEND_API_TOKEN_STORAGE_KEY = "chesslense.backend-api-token";
 
 function getBrowserStorage() {
   if (typeof window === "undefined") {
@@ -43,6 +44,20 @@ export function loadConfiguredApiBaseUrl(storage = getBrowserStorage()) {
   );
 }
 
+export function normalizeApiToken(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+export function loadConfiguredApiToken(storage = getBrowserStorage()) {
+  if (!storage) {
+    return "";
+  }
+
+  return normalizeApiToken(
+    storage.getItem(BACKEND_API_TOKEN_STORAGE_KEY) ?? "",
+  );
+}
+
 export function saveConfiguredApiBaseUrl(value, storage = getBrowserStorage()) {
   if (!storage) {
     return false;
@@ -54,6 +69,22 @@ export function saveConfiguredApiBaseUrl(value, storage = getBrowserStorage()) {
     storage.setItem(BACKEND_API_BASE_URL_STORAGE_KEY, normalizedValue);
   } else {
     storage.removeItem(BACKEND_API_BASE_URL_STORAGE_KEY);
+  }
+
+  return true;
+}
+
+export function saveConfiguredApiToken(value, storage = getBrowserStorage()) {
+  if (!storage) {
+    return false;
+  }
+
+  const normalizedValue = normalizeApiToken(value);
+
+  if (normalizedValue) {
+    storage.setItem(BACKEND_API_TOKEN_STORAGE_KEY, normalizedValue);
+  } else {
+    storage.removeItem(BACKEND_API_TOKEN_STORAGE_KEY);
   }
 
   return true;
@@ -99,11 +130,24 @@ async function readJsonResponse(response) {
   }
 }
 
+export function createApiHeaders(headers, apiToken = loadConfiguredApiToken()) {
+  const resolvedHeaders = new Headers(headers ?? {});
+
+  if (apiToken && !resolvedHeaders.has("Authorization")) {
+    resolvedHeaders.set("Authorization", `Bearer ${apiToken}`);
+  }
+
+  return resolvedHeaders;
+}
+
 export async function fetchJson(path, options = {}) {
   let response;
 
   try {
-    response = await fetch(resolveApiUrl(path), options);
+    response = await fetch(resolveApiUrl(path), {
+      ...options,
+      headers: createApiHeaders(options.headers),
+    });
   } catch {
     throw new Error(getBackendUnavailableMessage());
   }

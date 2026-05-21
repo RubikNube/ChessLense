@@ -32,9 +32,32 @@ Before using the workflow:
 3. After the site is deployed, open **Help -> Backend Connection** in the UI
    and save your backend origin there, for example
    `https://chesslense-api.example.com`.
+4. If the backend is private, also save the same personal backend API token in
+   **Help -> Backend Connection** that you configured on the server with
+   `CHESSLENSE_API_TOKEN`.
 
 The workflow sets the Vite base path automatically to the repository Pages URL,
 so the deployed site works from `https://<owner>.github.io/<repo>/`.
+
+## Backend deployment recommendation
+
+For the current backend architecture, the recommended production target is a
+small Linux VPS:
+
+- Node.js backend runs as a normal long-lived process
+- Stockfish must be installed on the host
+- SQLite plus study/collection/history files need persistent storage
+
+Recommended stack:
+
+1. Ubuntu or Debian VPS
+2. Node.js LTS
+3. Stockfish installed on the server
+4. `npm run start` under `systemd`
+5. Caddy or Nginx in front for HTTPS
+
+See [ChessLense Server](./server/README.md) for the production configuration,
+security settings, and VPS setup checklist.
 
 ## Formatting
 

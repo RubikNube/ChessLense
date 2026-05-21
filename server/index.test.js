@@ -543,3 +543,104 @@ test("POST /api/lichess/puzzle/advance submits the puzzle result and returns the
 		await closeServer(server);
 	}
 });
+
+test("GET /api/health stays public while protected API routes require the configured token", async () => {
+	const previousApiToken = process.env.CHESSLENSE_API_TOKEN;
+	const previousGuessHistoryDir = process.env.GUESS_HISTORY_DIR;
+	const rootDir = await createTempGuessHistoryDir();
+	process.env.CHESSLENSE_API_TOKEN = "secret-token";
+	process.env.GUESS_HISTORY_DIR = rootDir;
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const healthResponse = await fetch(`${baseUrl}/api/health`);
+			const protectedResponse = await fetch(
+				`${baseUrl}/api/guess-history/games`,
+			);
+			const authorizedResponse = await fetch(
+				`${baseUrl}/api/guess-history/games`,
+				{
+					headers: {
+						Authorization: "Bearer secret-token",
+					},
+				},
+			);
+			const healthData = await healthResponse.json();
+			const protectedData = await protectedResponse.json();
+			const authorizedData = await authorizedResponse.json();
+
+			assert.equal(healthResponse.status, 200);
+			assert.deepEqual(healthData, { status: "ok" });
+			assert.equal(protectedResponse.status, 401);
+			assert.equal(protectedData.error, "unauthorized");
+			assert.equal(authorizedResponse.status, 200);
+			assert.deepEqual(authorizedData, { games: [] });
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousApiToken === "string") {
+			process.env.CHESSLENSE_API_TOKEN = previousApiToken;
+		} else {
+			delete process.env.CHESSLENSE_API_TOKEN;
+		}
+
+		if (typeof previousGuessHistoryDir === "string") {
+			process.env.GUESS_HISTORY_DIR = previousGuessHistoryDir;
+		} else {
+			delete process.env.GUESS_HISTORY_DIR;
+		}
+
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("POST /api/otb/import enforces the configured import rate limit", async () => {
+	const previousImportRateLimitMax = process.env.OTB_IMPORT_RATE_LIMIT_MAX;
+	process.env.OTB_IMPORT_RATE_LIMIT_MAX = "1";
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const firstResponse = await fetch(`${baseUrl}/api/otb/import`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					fileName: "masters.txt",
+					pgn: SAMPLE_PGN.trim(),
+				}),
+			});
+			const secondResponse = await fetch(`${baseUrl}/api/otb/import`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					fileName: "masters.txt",
+					pgn: SAMPLE_PGN.trim(),
+				}),
+			});
+			const secondData = await secondResponse.json();
+
+			assert.equal(firstResponse.status, 400);
+			assert.equal(secondResponse.status, 429);
+			assert.deepEqual(secondData, {
+				error: "rate_limited",
+				details: "Too many PGN imports. Try again later.",
+			});
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousImportRateLimitMax === "string") {
+			process.env.OTB_IMPORT_RATE_LIMIT_MAX = previousImportRateLimitMax;
+		} else {
+			delete process.env.OTB_IMPORT_RATE_LIMIT_MAX;
+		}
+	}
+});

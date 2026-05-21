@@ -147,8 +147,10 @@ import {
 import {
   fetchJson,
   loadConfiguredApiBaseUrl,
+  loadConfiguredApiToken,
   normalizeApiBaseUrl,
   saveConfiguredApiBaseUrl,
+  saveConfiguredApiToken,
 } from "./utils/api.js";
 import {
   applyPositionSetupTool,
@@ -430,6 +432,9 @@ function App() {
   const [showOtbSearchPopup, setShowOtbSearchPopup] = useState(false);
   const [backendApiBaseUrl, setBackendApiBaseUrl] = useState(() =>
     loadConfiguredApiBaseUrl(),
+  );
+  const [backendApiToken, setBackendApiToken] = useState(() =>
+    loadConfiguredApiToken(),
   );
   const [backendConnectionError, setBackendConnectionError] = useState("");
   const [lichessApiToken, setLichessApiToken] = useState(
@@ -3563,8 +3568,8 @@ function App() {
     setShowBackendConnectionPopup(false);
   }, []);
 
-  const saveBackendConnection = useCallback((nextUrl) => {
-    const trimmedUrl = nextUrl.trim();
+  const saveBackendConnection = useCallback(({ url, token }) => {
+    const trimmedUrl = url.trim();
     const normalizedUrl = normalizeApiBaseUrl(trimmedUrl);
 
     if (trimmedUrl && !normalizedUrl) {
@@ -3575,7 +3580,9 @@ function App() {
     }
 
     saveConfiguredApiBaseUrl(normalizedUrl);
+    saveConfiguredApiToken(token);
     setBackendApiBaseUrl(normalizedUrl);
+    setBackendApiToken(token.trim());
     setBackendConnectionError("");
     setShowBackendConnectionPopup(false);
   }, []);
@@ -4918,6 +4925,7 @@ function App() {
 
       {showBackendConnectionPopup && (
         <BackendConnectionModal
+          currentToken={backendApiToken}
           currentUrl={backendApiBaseUrl}
           error={backendConnectionError}
           onClose={closeBackendConnectionPopup}
