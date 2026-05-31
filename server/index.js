@@ -51,11 +51,15 @@ const {
 const { deleteStudy, getStudy, listStudies, saveStudy } = require("./studies");
 
 const DEFAULT_PORT = 3001;
-const STOCKFISH_PATH = process.env.STOCKFISH_PATH || "stockfish";
+const DEFAULT_STOCKFISH_PATH = "stockfish";
 const JSON_BODY_LIMIT = "25mb";
 
 function normalizeString(value) {
 	return typeof value === "string" ? value.trim() : "";
+}
+
+function getStockfishPath() {
+	return normalizeString(process.env.STOCKFISH_PATH) || DEFAULT_STOCKFISH_PATH;
 }
 
 function sendApiError(res, error) {
@@ -130,7 +134,7 @@ function createApp() {
 
 		try {
 			const analysis = await analyzePosition({
-				stockfishPath: STOCKFISH_PATH,
+				stockfishPath: getStockfishPath(),
 				fen,
 				depth,
 				multipv: requestedMultiPv,
@@ -169,14 +173,14 @@ function createApp() {
 		try {
 			const [referenceAnalysis, userAnalysis] = await Promise.all([
 				analyzePosition({
-					stockfishPath: STOCKFISH_PATH,
+					stockfishPath: getStockfishPath(),
 					fen,
 					depth,
 					multipv: 1,
 					searchMoves: [referenceMove.trim()],
 				}),
 				analyzePosition({
-					stockfishPath: STOCKFISH_PATH,
+					stockfishPath: getStockfishPath(),
 					fen,
 					depth,
 					multipv: 1,

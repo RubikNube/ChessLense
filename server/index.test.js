@@ -597,6 +597,47 @@ test("GET /api/health stays public while protected API routes require the config
 	}
 });
 
+test("POST /api/analyze returns an API error when Stockfish is unavailable without crashing the server", async () => {
+	const previousStockfishPath = process.env.STOCKFISH_PATH;
+	process.env.STOCKFISH_PATH = "/definitely/missing/stockfish";
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const analyzeResponse = await fetch(`${baseUrl}/api/analyze`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+				}),
+			});
+			const healthResponse = await fetch(`${baseUrl}/api/health`);
+			const analyzeData = await analyzeResponse.json();
+			const healthData = await healthResponse.json();
+
+			assert.equal(analyzeResponse.status, 500);
+			assert.equal(analyzeData.error, "engine_failed");
+			assert.match(
+				analyzeData.details,
+				/Stockfish executable not found.*Install Stockfish or set STOCKFISH_PATH\./,
+			);
+			assert.equal(healthResponse.status, 200);
+			assert.deepEqual(healthData, { status: "ok" });
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousStockfishPath === "string") {
+			process.env.STOCKFISH_PATH = previousStockfishPath;
+		} else {
+			delete process.env.STOCKFISH_PATH;
+		}
+	}
+});
+
 test("POST /api/otb/import enforces the configured import rate limit", async () => {
 	const previousImportRateLimitMax = process.env.OTB_IMPORT_RATE_LIMIT_MAX;
 	process.env.OTB_IMPORT_RATE_LIMIT_MAX = "1";

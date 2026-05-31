@@ -118,6 +118,18 @@ function getComparableEvaluationScore(evaluation) {
 	return null;
 }
 
+function createEngineProcessError(error, stockfishPath) {
+	if (error?.code === "ENOENT") {
+		const resolvedError = new Error(
+			`Stockfish executable not found at "${stockfishPath}". Install Stockfish or set STOCKFISH_PATH.`,
+		);
+		resolvedError.code = error.code;
+		return resolvedError;
+	}
+
+	return error;
+}
+
 async function analyzePosition({
 	stockfishPath,
 	fen,
@@ -129,6 +141,11 @@ async function analyzePosition({
 	const engine = spawn(stockfishPath, [], { stdio: "pipe" });
 	let stderr = "";
 	const output = [];
+	const engineError = new Promise((_, reject) => {
+		engine.once("error", (error) => {
+			reject(createEngineProcessError(error, stockfishPath));
+		});
+	});
 
 	engine.stderr.on("data", (data) => {
 		stderr += data.toString();
@@ -144,11 +161,11 @@ async function analyzePosition({
 
 	try {
 		send("uci");
-		await waitForLine(engine.stdout, "uciok");
+		await Promise.race([waitForLine(engine.stdout, "uciok"), engineError]);
 
 		send(`setoption name MultiPV value ${requestedMultiPv}`);
 		send("isready");
-		await waitForLine(engine.stdout, "readyok");
+		await Promise.race([waitForLine(engine.stdout, "readyok"), engineError]);
 
 		send(`position fen ${fen}`);
 		send(
@@ -157,11 +174,10 @@ async function analyzePosition({
 				: `go depth ${depth}`,
 		);
 
-		const bestMoveLine = await waitForLine(
-			engine.stdout,
-			(line) => line.startsWith("bestmove"),
-			15000,
-		);
+		const bestMoveLine = await Promise.race([
+			waitForLine(engine.stdout, (line) => line.startsWith("bestmove"), 15000),
+			engineError,
+		]);
 		const combinedOutput = output.join("");
 		const bestMoveMatch = bestMoveLine.match(/^bestmove\s+(\S+)/);
 		const bestmove = bestMoveMatch ? bestMoveMatch[1] : null;
@@ -183,7 +199,7 @@ async function analyzePosition({
 		};
 	} catch (error) {
 		engine.kill();
-		error.stderr = stderr;
+		error.stderr = typeof error.stderr === "string" ? error.stderr : stderr;
 		throw error;
 	}
 }

@@ -25,6 +25,13 @@ sudo apt update
 sudo apt install stockfish
 ```
 
+If `npm run dev` still reports `spawn stockfish ENOENT`, your shell may not
+include `/usr/games` in `PATH`. In that case, start the server with:
+
+```bash
+STOCKFISH_PATH=/usr/games/stockfish npm run dev
+```
+
 ## Install
 
 ```bash
