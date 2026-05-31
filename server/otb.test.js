@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs/promises");
 const os = require("os");
 const path = require("path");
+const { DatabaseSync } = require("node:sqlite");
 const { HttpError } = require("./httpError");
 const {
 	getGame,
@@ -122,6 +123,107 @@ async function createTempOtbWorkspace() {
 		dbPath,
 		rootDir,
 	};
+}
+
+function createLegacyOtbDatabase(dbPath) {
+	const database = new DatabaseSync(dbPath);
+
+	try {
+		database.exec(`
+			CREATE TABLE otb_players (
+				id INTEGER PRIMARY KEY,
+				name TEXT NOT NULL,
+				normalized_name TEXT NOT NULL,
+				UNIQUE(name, normalized_name)
+			);
+
+			CREATE TABLE otb_games (
+				id TEXT PRIMARY KEY,
+				raw_pgn TEXT NOT NULL,
+				event TEXT,
+				site TEXT,
+				round TEXT,
+				result TEXT,
+				variant TEXT,
+				date_label TEXT,
+				year INTEGER,
+				created_at INTEGER,
+				eco TEXT,
+				opening TEXT,
+				imported_at TEXT NOT NULL
+			);
+
+			CREATE TABLE otb_game_players (
+				game_id TEXT NOT NULL,
+				color TEXT NOT NULL CHECK(color IN ('white', 'black')),
+				player_id INTEGER NOT NULL,
+				PRIMARY KEY (game_id, color)
+			);
+		`);
+
+		const legacyGame = buildImportedGameRecord(SECOND_PGN.trim(), "legacy.pgn");
+		database
+			.prepare(
+				`
+				INSERT INTO otb_players (id, name, normalized_name)
+				VALUES (?, ?, ?), (?, ?, ?)
+			`,
+			)
+			.run(
+				1,
+				legacyGame.players.white.displayName,
+				legacyGame.players.white.normalizedName,
+				2,
+				legacyGame.players.black.displayName,
+				legacyGame.players.black.normalizedName,
+			);
+		database
+			.prepare(
+				`
+				INSERT INTO otb_games (
+					id,
+					raw_pgn,
+					event,
+					site,
+					round,
+					result,
+					variant,
+					date_label,
+					year,
+					created_at,
+					eco,
+					opening,
+					imported_at
+				)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`,
+			)
+			.run(
+				legacyGame.id,
+				legacyGame.rawPgn,
+				legacyGame.event,
+				legacyGame.site,
+				legacyGame.round,
+				legacyGame.result,
+				legacyGame.variant,
+				legacyGame.dateLabel,
+				legacyGame.year,
+				legacyGame.createdAt,
+				legacyGame.eco,
+				legacyGame.opening,
+				legacyGame.importedAt,
+			);
+		database
+			.prepare(
+				`
+				INSERT INTO otb_game_players (game_id, color, player_id)
+				VALUES (?, ?, ?), (?, ?, ?)
+			`,
+			)
+			.run(legacyGame.id, "white", 1, legacyGame.id, "black", 2);
+	} finally {
+		database.close();
+	}
 }
 
 test("normalizeEcoCode trims and uppercases valid ECO codes", () => {
@@ -370,6 +472,33 @@ test("searchGames returns pagination metadata and page slices", async () => {
 			hasPreviousPage: true,
 			hasNextPage: false,
 		});
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("searchGames migrates legacy OTB SQLite files before querying", async () => {
+	const rootDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), "chesslense-otb-legacy-"),
+	);
+	const dbPath = path.join(rootDir, "otb.sqlite");
+
+	try {
+		createLegacyOtbDatabase(dbPath);
+
+		const result = await searchGames(
+			{
+				player: "Karpov",
+				ecoFrom: "C60",
+				ecoTo: "C70",
+			},
+			{ dbPath },
+		);
+
+		assert.equal(result.games.length, 1);
+		assert.equal(result.games[0].players.black.name, "Anatoly Karpov");
+		assert.equal(result.games[0].source, "sqlite");
+		assert.equal(result.games[0].sourceFile, null);
 	} finally {
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}

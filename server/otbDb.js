@@ -9,6 +9,22 @@ function normalizeString(value) {
 	return typeof value === "string" ? value.trim() : "";
 }
 
+function splitNameTokens(value) {
+	return normalizeString(value)
+		.toLowerCase()
+		.split(/[^\p{L}\p{N}]+/u)
+		.filter(Boolean);
+}
+
+function normalizeNameForSearch(value) {
+	const tokens = splitNameTokens(value);
+
+	return {
+		normalizedName: tokens.join(" "),
+		searchName: tokens.length > 0 ? ` ${tokens.join(" ")} ` : " ",
+	};
+}
+
 async function pathExists(targetPath) {
 	try {
 		await fs.access(targetPath);
@@ -24,6 +40,118 @@ function getOtbDbPath(dbPath = process.env.OTB_DB_PATH) {
 
 async function ensureOtbDbDirectory(dbPath) {
 	await fs.mkdir(path.dirname(dbPath), { recursive: true });
+}
+
+function ensureTableColumns(database, tableName, columnDefinitions) {
+	const existingColumns = new Set(
+		database
+			.prepare(`PRAGMA table_info(${tableName})`)
+			.all()
+			.map((column) => column.name),
+	);
+
+	for (const columnDefinition of columnDefinitions) {
+		if (!existingColumns.has(columnDefinition.name)) {
+			database.exec(
+				`ALTER TABLE ${tableName} ADD COLUMN ${columnDefinition.definition}`,
+			);
+		}
+	}
+}
+
+function backfillPlayerSearchColumns(database) {
+	const rows = database
+		.prepare(
+			`
+			SELECT id, name, normalized_name AS normalizedName, search_name AS searchName
+			FROM otb_players
+		`,
+		)
+		.all();
+	const updateStatement = database.prepare(`
+		UPDATE otb_players
+		SET normalized_name = ?, search_name = ?
+		WHERE id = ?
+	`);
+
+	for (const row of rows) {
+		const normalizedName = normalizeString(row.normalizedName);
+		const currentSearchName = normalizeString(row.searchName);
+		const normalizedPlayer = normalizeNameForSearch(
+			normalizedName || row.name || "",
+		);
+
+		if (
+			normalizedName === normalizedPlayer.normalizedName &&
+			currentSearchName === normalizeString(normalizedPlayer.searchName)
+		) {
+			continue;
+		}
+
+		updateStatement.run(
+			normalizedPlayer.normalizedName,
+			normalizedPlayer.searchName,
+			row.id,
+		);
+	}
+}
+
+function backfillGameDerivedColumns(database) {
+	database.exec(`
+		UPDATE otb_games
+		SET source = 'sqlite'
+		WHERE source IS NULL OR TRIM(source) = '';
+
+		UPDATE otb_games
+		SET eco_normalized = NULL
+		WHERE eco_normalized IS NOT NULL AND TRIM(eco_normalized) = '';
+
+		UPDATE otb_games
+		SET eco_normalized = UPPER(TRIM(eco))
+		WHERE (eco_normalized IS NULL OR TRIM(eco_normalized) = '')
+			AND UPPER(TRIM(COALESCE(eco, ''))) GLOB '[A-E][0-9][0-9]';
+
+		UPDATE otb_games
+		SET ply_count = 0
+		WHERE ply_count IS NULL;
+
+		UPDATE otb_games
+		SET move_count = CAST((ply_count + 1) / 2 AS INTEGER)
+		WHERE move_count IS NULL OR move_count < 1;
+
+		UPDATE otb_games
+		SET imported_at = '1970-01-01T00:00:00.000Z'
+		WHERE imported_at IS NULL OR TRIM(imported_at) = '';
+	`);
+}
+
+function migrateOtbSchema(database) {
+	ensureTableColumns(database, "otb_players", [
+		{
+			name: "normalized_name",
+			definition: "normalized_name TEXT NOT NULL DEFAULT ''",
+		},
+		{
+			name: "search_name",
+			definition: "search_name TEXT NOT NULL DEFAULT ' '",
+		},
+	]);
+	ensureTableColumns(database, "otb_games", [
+		{ name: "source", definition: "source TEXT NOT NULL DEFAULT 'sqlite'" },
+		{ name: "source_file", definition: "source_file TEXT" },
+		{ name: "variant", definition: "variant TEXT" },
+		{ name: "date_label", definition: "date_label TEXT" },
+		{ name: "eco_normalized", definition: "eco_normalized TEXT" },
+		{ name: "ply_count", definition: "ply_count INTEGER NOT NULL DEFAULT 0" },
+		{ name: "move_count", definition: "move_count INTEGER NOT NULL DEFAULT 0" },
+		{
+			name: "imported_at",
+			definition:
+				"imported_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z'",
+		},
+	]);
+	backfillPlayerSearchColumns(database);
+	backfillGameDerivedColumns(database);
 }
 
 function initializeOtbSchema(database) {
@@ -63,7 +191,9 @@ function initializeOtbSchema(database) {
 			player_id INTEGER NOT NULL REFERENCES otb_players(id),
 			PRIMARY KEY (game_id, color)
 		);
-
+	`);
+	migrateOtbSchema(database);
+	database.exec(`
 		CREATE INDEX IF NOT EXISTS otb_players_name_idx
 			ON otb_players(name COLLATE NOCASE);
 		CREATE INDEX IF NOT EXISTS otb_players_search_name_idx
