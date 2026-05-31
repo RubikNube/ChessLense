@@ -151,6 +151,7 @@ import {
   normalizeApiBaseUrl,
   saveConfiguredApiBaseUrl,
   saveConfiguredApiToken,
+  saveUseLocalApiBaseUrl,
 } from "./utils/api.js";
 import {
   applyPositionSetupTool,
@@ -3568,24 +3569,32 @@ function App() {
     setShowBackendConnectionPopup(false);
   }, []);
 
-  const saveBackendConnection = useCallback(({ url, token }) => {
-    const trimmedUrl = url.trim();
-    const normalizedUrl = normalizeApiBaseUrl(trimmedUrl);
+  const saveBackendConnection = useCallback(
+    ({ url, token, useLocalApiRoutes = false }) => {
+      const trimmedUrl = url.trim();
+      const normalizedUrl = normalizeApiBaseUrl(trimmedUrl);
 
-    if (trimmedUrl && !normalizedUrl) {
-      setBackendConnectionError(
-        "Enter a full http:// or https:// backend URL.",
-      );
-      return;
-    }
+      if (trimmedUrl && !normalizedUrl) {
+        setBackendConnectionError(
+          "Enter a full http:// or https:// backend URL.",
+        );
+        return;
+      }
 
-    saveConfiguredApiBaseUrl(normalizedUrl);
-    saveConfiguredApiToken(token);
-    setBackendApiBaseUrl(normalizedUrl);
-    setBackendApiToken(token.trim());
-    setBackendConnectionError("");
-    setShowBackendConnectionPopup(false);
-  }, []);
+      if (useLocalApiRoutes) {
+        saveUseLocalApiBaseUrl();
+      } else {
+        saveConfiguredApiBaseUrl(normalizedUrl);
+      }
+
+      saveConfiguredApiToken(token);
+      setBackendApiBaseUrl(loadConfiguredApiBaseUrl());
+      setBackendApiToken(token.trim());
+      setBackendConnectionError("");
+      setShowBackendConnectionPopup(false);
+    },
+    [],
+  );
 
   const closeLichessTokenPopup = useCallback(() => {
     setShowLichessTokenPopup(false);

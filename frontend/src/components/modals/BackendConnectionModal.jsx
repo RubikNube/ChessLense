@@ -27,8 +27,13 @@ function BackendConnectionModal({
     >
       <p>
         Configure the backend used for analysis, studies, collections, Lichess
-        proxying, and OTB search. Leave this blank to use the current site
-        origin and its <code>/api</code> routes.
+        proxying, and OTB search.
+      </p>
+      <p>
+        Leave the backend URL blank to clear the saved backend for this browser.
+        On local development hosts, ChessLense then uses the current site origin
+        and its <code>/api</code> routes. On hosted sites, enter your backend
+        URL here unless this site already reverse-proxies the backend.
       </p>
       <p>
         For a private backend, save the same personal API token here that you
@@ -71,7 +76,9 @@ function BackendConnectionModal({
         <button
           type="button"
           style={modalButtonStyle}
-          onClick={() => onSave({ url: "", token: draftToken })}
+          onClick={() =>
+            onSave({ url: "", token: draftToken, useLocalApiRoutes: true })
+          }
         >
           Use local /api
         </button>

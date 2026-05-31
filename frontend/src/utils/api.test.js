@@ -3,7 +3,9 @@ import {
   BACKEND_API_BASE_URL_STORAGE_KEY,
   BACKEND_API_TOKEN_STORAGE_KEY,
   createApiHeaders,
+  getApiBaseUrlSource,
   getBackendUnavailableMessage,
+  isLocalApiOrigin,
   loadConfiguredApiBaseUrl,
   loadConfiguredApiToken,
   normalizeApiBaseUrl,
@@ -11,6 +13,8 @@ import {
   resolveApiUrl,
   saveConfiguredApiBaseUrl,
   saveConfiguredApiToken,
+  saveUseLocalApiBaseUrl,
+  shouldRequireConfiguredApiBaseUrl,
 } from "./api.js";
 
 function createStorage(initialValue = null) {
@@ -93,6 +97,54 @@ describe("api helpers", () => {
     expect(saveConfiguredApiBaseUrl("", storage)).toBe(true);
     expect(storage.readValue(BACKEND_API_BASE_URL_STORAGE_KEY)).toBeNull();
     expect(loadConfiguredApiBaseUrl(storage)).toBe("");
+    expect(getApiBaseUrlSource(storage)).toBe("unset");
+  });
+
+  it("prefers a saved browser backend when one exists", () => {
+    const storage = createStorage("https://saved.example.com");
+
+    expect(loadConfiguredApiBaseUrl(storage)).toBe("https://saved.example.com");
+    expect(getApiBaseUrlSource(storage)).toBe("configured");
+  });
+
+  it("can force local /api explicitly", () => {
+    const storage = createStorage();
+
+    expect(saveUseLocalApiBaseUrl(storage)).toBe(true);
+    expect(loadConfiguredApiBaseUrl(storage)).toBe("");
+    expect(getApiBaseUrlSource(storage)).toBe("local");
+  });
+
+  it("detects local development origins", () => {
+    expect(isLocalApiOrigin({ hostname: "localhost" })).toBe(true);
+    expect(isLocalApiOrigin({ hostname: "127.0.0.1" })).toBe(true);
+    expect(isLocalApiOrigin({ hostname: "192.168.1.25" })).toBe(true);
+    expect(isLocalApiOrigin({ hostname: "rubiknube.de" })).toBe(false);
+  });
+
+  it("requires a configured backend on hosted sites when no override exists", () => {
+    expect(
+      shouldRequireConfiguredApiBaseUrl("/api/analyze", "unset", {
+        hostname: "rubiknube.de",
+      }),
+    ).toBe(true);
+    expect(
+      shouldRequireConfiguredApiBaseUrl("/api/analyze", "unset", {
+        hostname: "localhost",
+      }),
+    ).toBe(false);
+    expect(
+      shouldRequireConfiguredApiBaseUrl("/api/analyze", "local", {
+        hostname: "rubiknube.de",
+      }),
+    ).toBe(false);
+    expect(
+      shouldRequireConfiguredApiBaseUrl(
+        "https://api.example.com/analyze",
+        "unset",
+        { hostname: "rubiknube.de" },
+      ),
+    ).toBe(false);
   });
 
   it("loads and saves the configured backend token in browser storage", () => {
@@ -133,11 +185,14 @@ describe("api helpers", () => {
   });
 
   it("explains how to recover when backend requests fail", () => {
-    expect(getBackendUnavailableMessage("https://api.example.com")).toContain(
-      "Backend Connection",
-    );
-    expect(getBackendUnavailableMessage("")).toContain(
-      "Start the server on port 3001",
-    );
+    expect(
+      getBackendUnavailableMessage("https://api.example.com", "configured"),
+    ).toContain("configured backend");
+    expect(
+      getBackendUnavailableMessage("", "unset", { hostname: "rubiknube.de" }),
+    ).toContain("Configure a backend");
+    expect(
+      getBackendUnavailableMessage("", "local", { hostname: "localhost" }),
+    ).toContain("Start the server on port 3001");
   });
 });

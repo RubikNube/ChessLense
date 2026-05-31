@@ -34,9 +34,14 @@ For GitHub Pages or any other static hosting, configure:
 - `VITE_BASE_PATH`: optional asset base path for subpath hosting, for example
   `/ChessLense/` for a repository GitHub Pages site
 
-After the app loads, open **Help -> Backend Connection** and save the absolute
-origin of the deployed backend, for example
-`https://chesslense-api.example.com`.
+For local development, leaving the backend connection unset keeps frontend
+`/api` requests on the current site origin so the Vite proxy can forward them to
+`http://localhost:3001`.
+
+On hosted sites, configure the backend in **Help -> Backend Connection** and
+save the absolute backend origin there, for example
+`https://chesslense-api.example.com`. If the hosted site already reverse-proxies
+the backend on the same origin, use **Use local /api** instead.
 
 For a private backend, save the same personal API token in
 **Help -> Backend Connection** that the server expects via

@@ -32,7 +32,9 @@ Before using the workflow:
 3. After the site is deployed, open **Help -> Backend Connection** in the UI
    and save your backend origin there, for example
    `https://chesslense-api.example.com`.
-4. If the backend is private, also save the same personal backend API token in
+4. If this site already reverse-proxies the backend on the same origin, use
+   **Help -> Backend Connection -> Use local /api** instead.
+5. If the backend is private, also save the same personal backend API token in
    **Help -> Backend Connection** that you configured on the server with
    `CHESSLENSE_API_TOKEN`.
 
