@@ -70,6 +70,53 @@ function BoardWorkspace({
             />
           )}
         </div>
+
+        <div
+          className="mobile-move-nav"
+          role="group"
+          aria-label="Move navigation"
+        >
+          <button
+            type="button"
+            className="mobile-move-nav-button"
+            onClick={onGoToStart}
+            disabled={!canUndo}
+            aria-label="Go to start"
+            title="Go to start"
+          >
+            ⏮
+          </button>
+          <button
+            type="button"
+            className="mobile-move-nav-button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            aria-label="Back"
+            title="Back"
+          >
+            ◀
+          </button>
+          <button
+            type="button"
+            className="mobile-move-nav-button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            aria-label="Forward"
+            title="Forward"
+          >
+            ▶
+          </button>
+          <button
+            type="button"
+            className="mobile-move-nav-button"
+            onClick={onGoToEnd}
+            disabled={!canRedo}
+            aria-label="Go to end"
+            title="Go to end"
+          >
+            ⏭
+          </button>
+        </div>
       </div>
 
       {!isTrainingFocusMode && (

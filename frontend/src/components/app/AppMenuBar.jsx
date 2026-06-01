@@ -55,6 +55,27 @@ function HamburgerIcon() {
   );
 }
 
+function FlipBoardIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+      style={menuIconStyle}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M7 7h12" />
+      <path d="m17 5 2 2-2 2" />
+      <path d="M17 17H5" />
+      <path d="m7 15-2 2 2 2" />
+    </svg>
+  );
+}
+
 function AppMenuBar({
   openMenu,
   onToggleMenu,
@@ -375,21 +396,35 @@ function AppMenuBar({
           )}
         </div>
 
-        <div className="menu-group">
-          <button
-            type="button"
-            className="menu-trigger menu-trigger-icon"
-            aria-pressed={!boardSoundsEnabled}
-            aria-label={
-              boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"
-            }
-            title={
-              boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"
-            }
-            onClick={() => onMenuAction(actions.toggleBoardSounds)}
-          >
-            <BoardSoundIcon muted={!boardSoundsEnabled} />
-          </button>
+        <div className="menu-mobile-icons" aria-label="Mobile menu actions">
+          <div className="menu-group">
+            <button
+              type="button"
+              className="menu-trigger menu-trigger-icon"
+              aria-label="Flip board"
+              title="Flip board"
+              onClick={() => onMenuAction(actions.toggleBoardOrientation)}
+            >
+              <FlipBoardIcon />
+            </button>
+          </div>
+
+          <div className="menu-group">
+            <button
+              type="button"
+              className="menu-trigger menu-trigger-icon"
+              aria-pressed={!boardSoundsEnabled}
+              aria-label={
+                boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"
+              }
+              title={
+                boardSoundsEnabled ? "Mute board sounds" : "Unmute board sounds"
+              }
+              onClick={() => onMenuAction(actions.toggleBoardSounds)}
+            >
+              <BoardSoundIcon muted={!boardSoundsEnabled} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -762,6 +797,18 @@ function AppMenuBar({
               </button>
             </div>
           )}
+        </div>
+
+        <div className="menu-group">
+          <button
+            type="button"
+            className="menu-trigger menu-trigger-icon"
+            aria-label="Flip board"
+            title="Flip board"
+            onClick={() => onMenuAction(actions.toggleBoardOrientation)}
+          >
+            <FlipBoardIcon />
+          </button>
         </div>
 
         <div className="menu-group">
