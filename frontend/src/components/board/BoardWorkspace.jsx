@@ -1,6 +1,7 @@
 import { Chessboard } from "react-chessboard";
 import EvaluationBar from "../EvaluationBar.jsx";
 import MoveHistory from "../MoveHistory.jsx";
+import MobileMoveStrip from "./MobileMoveStrip.jsx";
 
 function BoardWorkspace({
   boardRenderKey,
@@ -40,6 +41,14 @@ function BoardWorkspace({
       className={`workspace${isTrainingFocusMode ? " workspace-training-focus" : ""}`}
     >
       <div className="board-panel" ref={boardPanelRef}>
+        {showMoveHistory && (
+          <MobileMoveStrip
+            moveHistoryItems={moveHistoryItems}
+            currentMoveIndex={currentMoveIndex}
+            onSelectMove={onSelectMove}
+          />
+        )}
+
         <div className="board-and-evaluation">
           <div className="chessboard-wrapper">
             <Chessboard
