@@ -57,6 +57,7 @@ import {
   DEFAULT_LICHESS_SEARCH_FILTERS,
 } from "./utils/lichessSearch.js";
 import {
+  buildOtbImportPath,
   formatOtbImportSummary,
   validateOtbImportFile,
 } from "./utils/otbImport.js";
@@ -3885,15 +3886,12 @@ function App() {
 
     try {
       const pgn = await file.text();
-      const summary = await fetchJson("/api/otb/import", {
+      const summary = await fetchJson(buildOtbImportPath(file), {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "text/plain",
         },
-        body: JSON.stringify({
-          fileName: file.name,
-          pgn,
-        }),
+        body: pgn,
       });
       setOtbFileImportStatus(formatOtbImportSummary(summary));
     } catch (error) {

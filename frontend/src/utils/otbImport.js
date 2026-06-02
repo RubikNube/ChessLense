@@ -2,6 +2,18 @@ function normalizeFileName(file) {
   return typeof file?.name === "string" ? file.name.trim() : "";
 }
 
+export function buildOtbImportPath(file) {
+  const fileName = normalizeFileName(file);
+  const params = new URLSearchParams();
+
+  if (fileName) {
+    params.set("fileName", fileName);
+  }
+
+  const query = params.toString();
+  return query ? `/api/otb/import?${query}` : "/api/otb/import";
+}
+
 export function validateOtbImportFile(file) {
   const fileName = normalizeFileName(file);
 

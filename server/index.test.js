@@ -122,6 +122,47 @@ test("POST /api/otb/import imports a PGN file into the SQLite database", async (
 	}
 });
 
+test("POST /api/otb/import accepts text/plain uploads with the file name in the query", async () => {
+	const previousDbPath = process.env.OTB_DB_PATH;
+	const { dbPath, rootDir } = await createTempDbPath();
+	process.env.OTB_DB_PATH = dbPath;
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const response = await fetch(
+				`${baseUrl}/api/otb/import?fileName=masters%20archive.pgn`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "text/plain; charset=utf-8",
+					},
+					body: SAMPLE_PGN.trim(),
+				},
+			);
+			const data = await response.json();
+
+			assert.equal(response.status, 201);
+			assert.equal(data.fileName, "masters archive.pgn");
+			assert.equal(data.fileCount, 1);
+			assert.equal(data.totalGames, 2);
+			assert.equal(data.importedGames, 2);
+			assert.equal(data.skippedGames, 0);
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousDbPath === "string") {
+			process.env.OTB_DB_PATH = previousDbPath;
+		} else {
+			delete process.env.OTB_DB_PATH;
+		}
+
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
 test("POST /api/otb/import rejects invalid uploads", async () => {
 	const previousDbPath = process.env.OTB_DB_PATH;
 	const { dbPath, rootDir } = await createTempDbPath();
@@ -146,6 +187,79 @@ test("POST /api/otb/import rejects invalid uploads", async () => {
 			assert.equal(response.status, 400);
 			assert.equal(data.error, "invalid_import");
 			assert.equal(data.details, "fileName must end with .pgn.");
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousDbPath === "string") {
+			process.env.OTB_DB_PATH = previousDbPath;
+		} else {
+			delete process.env.OTB_DB_PATH;
+		}
+
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("POST /api/otb/import rejects text/plain uploads without a file name", async () => {
+	const previousDbPath = process.env.OTB_DB_PATH;
+	const { dbPath, rootDir } = await createTempDbPath();
+	process.env.OTB_DB_PATH = dbPath;
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const response = await fetch(`${baseUrl}/api/otb/import`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "text/plain; charset=utf-8",
+				},
+				body: SAMPLE_PGN.trim(),
+			});
+			const data = await response.json();
+
+			assert.equal(response.status, 400);
+			assert.equal(data.error, "invalid_import");
+			assert.equal(data.details, "fileName is required.");
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousDbPath === "string") {
+			process.env.OTB_DB_PATH = previousDbPath;
+		} else {
+			delete process.env.OTB_DB_PATH;
+		}
+
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("POST /api/otb/import rejects empty text/plain uploads", async () => {
+	const previousDbPath = process.env.OTB_DB_PATH;
+	const { dbPath, rootDir } = await createTempDbPath();
+	process.env.OTB_DB_PATH = dbPath;
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const response = await fetch(
+				`${baseUrl}/api/otb/import?fileName=masters.pgn`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "text/plain; charset=utf-8",
+					},
+					body: "   ",
+				},
+			);
+			const data = await response.json();
+
+			assert.equal(response.status, 400);
+			assert.equal(data.error, "invalid_import");
+			assert.equal(data.details, "PGN file content is required.");
 		} finally {
 			await closeServer(server);
 		}

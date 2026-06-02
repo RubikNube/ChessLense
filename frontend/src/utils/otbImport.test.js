@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatOtbImportSummary, validateOtbImportFile } from "./otbImport.js";
+import {
+  buildOtbImportPath,
+  formatOtbImportSummary,
+  validateOtbImportFile,
+} from "./otbImport.js";
 
 describe("validateOtbImportFile", () => {
   it("requires a selected file", () => {
@@ -29,5 +33,17 @@ describe("formatOtbImportSummary", () => {
     ).toBe(
       "Processed 12 games from masters.pgn: 10 imported, 2 duplicates skipped.",
     );
+  });
+});
+
+describe("buildOtbImportPath", () => {
+  it("adds the file name as an encoded query parameter", () => {
+    expect(buildOtbImportPath({ name: "My Games #1.pgn" })).toBe(
+      "/api/otb/import?fileName=My+Games+%231.pgn",
+    );
+  });
+
+  it("falls back to the route path when the file name is missing", () => {
+    expect(buildOtbImportPath(null)).toBe("/api/otb/import");
   });
 });

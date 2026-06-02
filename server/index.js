@@ -53,6 +53,10 @@ const { deleteStudy, getStudy, listStudies, saveStudy } = require("./studies");
 const DEFAULT_PORT = 3001;
 const DEFAULT_STOCKFISH_PATH = "stockfish";
 const JSON_BODY_LIMIT = "25mb";
+const PGN_TEXT_BODY_PARSER = express.text({
+	type: "text/plain",
+	limit: JSON_BODY_LIMIT,
+});
 
 function normalizeString(value) {
 	return typeof value === "string" ? value.trim() : "";
@@ -274,33 +278,47 @@ function createApp() {
 		}
 	});
 
-	app.post("/api/otb/import", importRateLimit, async (req, res) => {
-		try {
-			const fileName = path.basename(normalizeString(req.body?.fileName));
-			const pgn = typeof req.body?.pgn === "string" ? req.body.pgn : "";
-
-			if (!fileName) {
-				throw new HttpError(400, "invalid_import", "fileName is required.");
-			}
-
-			if (!pgn.trim()) {
-				throw new HttpError(
-					400,
-					"invalid_import",
-					"PGN file content is required.",
+	app.post(
+		"/api/otb/import",
+		importRateLimit,
+		PGN_TEXT_BODY_PARSER,
+		async (req, res) => {
+			try {
+				const isPlainTextUpload = typeof req.body === "string";
+				const fileName = path.basename(
+					normalizeString(
+						isPlainTextUpload ? req.query?.fileName : req.body?.fileName,
+					),
 				);
+				const pgn = isPlainTextUpload
+					? req.body
+					: typeof req.body?.pgn === "string"
+						? req.body.pgn
+						: "";
+
+				if (!fileName) {
+					throw new HttpError(400, "invalid_import", "fileName is required.");
+				}
+
+				if (!pgn.trim()) {
+					throw new HttpError(
+						400,
+						"invalid_import",
+						"PGN file content is required.",
+					);
+				}
+
+				const summary = await importOtbPgnFile({
+					sourceFile: fileName,
+					content: pgn,
+				});
+
+				return res.status(201).json(summary);
+			} catch (error) {
+				return sendApiError(res, error);
 			}
-
-			const summary = await importOtbPgnFile({
-				sourceFile: fileName,
-				content: pgn,
-			});
-
-			return res.status(201).json(summary);
-		} catch (error) {
-			return sendApiError(res, error);
-		}
-	});
+		},
+	);
 
 	app.get("/api/otb/games", async (req, res) => {
 		try {

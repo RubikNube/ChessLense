@@ -183,7 +183,9 @@ Optional flags:
 If no PGN directory argument is provided, the importer uses `OTB_PGN_DIR` or `server/data/otb`.
 
 For single-file imports, the frontend can also upload one `.pgn` file at a time through the
-**Import PGN** modal and store its games in the same OTB SQLite database.
+**Import PGN** modal and store its games in the same OTB SQLite database. The hosted frontend
+now sends the raw PGN as `text/plain` to reduce upload overhead, but your reverse proxy body-size
+limit still needs to be larger than the original `.pgn` file.
 
 ### `STUDIES_DIR`
 

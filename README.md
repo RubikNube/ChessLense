@@ -108,7 +108,9 @@ OTB_DB_PATH=/path/to/otb.sqlite npm run otb:import -- /path/to/master-pgn-archiv
 ```
 
 You can also import a single `.pgn` file into the OTB database directly from the app via
-**Import PGN**. The CLI importer remains the better option for bulk archive loads.
+**Import PGN**. The app uploads the raw PGN text instead of wrapping it in JSON, which reduces
+request overhead for hosted deployments. The CLI importer remains the better option for bulk
+archive loads.
 
 ## Frontend
 
