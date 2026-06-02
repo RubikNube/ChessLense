@@ -5,6 +5,7 @@ import {
   modalInputStyle,
   modalPrimaryButtonStyle,
 } from "../modals/modalStyles.js";
+import { THEME_CSS_VARS } from "../../utils/theme.js";
 
 const engineVariantListStyle = {
   listStyle: "none",
@@ -17,18 +18,18 @@ const engineVariantListStyle = {
 const engineVariantButtonStyle = {
   width: "100%",
   padding: "0.85rem 0.9rem",
-  border: "1px solid #d1d5db",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "0.6rem",
-  backgroundColor: "#f9fafb",
-  color: "#111827",
+  backgroundColor: THEME_CSS_VARS.modalSurface,
+  color: THEME_CSS_VARS.modalText,
   textAlign: "left",
   cursor: "pointer",
 };
 
 const selectedEngineVariantButtonStyle = {
-  borderColor: "#2563eb",
-  backgroundColor: "#eff6ff",
-  boxShadow: "0 0 0 1px #2563eb inset",
+  borderColor: THEME_CSS_VARS.accent,
+  backgroundColor: THEME_CSS_VARS.accentSoft,
+  boxShadow: `0 0 0 1px ${THEME_CSS_VARS.accent} inset`,
 };
 
 const engineVariantHeaderStyle = {
@@ -40,7 +41,7 @@ const engineVariantHeaderStyle = {
 
 const engineVariantMovesStyle = {
   margin: "0.5rem 0 0",
-  color: "#374151",
+  color: THEME_CSS_VARS.modalTextMuted,
   lineHeight: 1.5,
   fontSize: "0.95rem",
 };

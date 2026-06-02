@@ -1,7 +1,9 @@
+import { THEME_CSS_VARS } from "../../utils/theme.js";
+
 export const shortcutOverlayStyle = {
   position: "fixed",
   inset: 0,
-  backgroundColor: "rgba(15, 23, 42, 0.7)",
+  backgroundColor: THEME_CSS_VARS.overlay,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -11,10 +13,10 @@ export const shortcutOverlayStyle = {
 
 export const shortcutModalStyle = {
   width: "min(100%, 28rem)",
-  backgroundColor: "#ffffff",
-  color: "#111827",
+  backgroundColor: THEME_CSS_VARS.modalBackground,
+  color: THEME_CSS_VARS.modalText,
   borderRadius: "0.75rem",
-  boxShadow: "0 20px 45px rgba(15, 23, 42, 0.35)",
+  boxShadow: `0 20px 45px ${THEME_CSS_VARS.shadow}`,
   padding: "1.5rem",
 };
 
@@ -44,10 +46,10 @@ export const modalIconCloseButtonStyle = {
   width: "2.25rem",
   minWidth: "2.25rem",
   height: "2.25rem",
-  border: "1px solid #d1d5db",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "999px",
-  backgroundColor: "#f9fafb",
-  color: "#111827",
+  backgroundColor: THEME_CSS_VARS.modalSurface,
+  color: THEME_CSS_VARS.modalText,
   cursor: "pointer",
   fontSize: "1.35rem",
   lineHeight: 1,
@@ -76,8 +78,8 @@ export const shortcutKeyStyle = {
   fontWeight: 700,
   padding: "0.35rem 0.6rem",
   borderRadius: "0.45rem",
-  border: "1px solid #d1d5db",
-  backgroundColor: "#f9fafb",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
+  backgroundColor: THEME_CSS_VARS.modalSurface,
   minWidth: "4.5rem",
   textAlign: "center",
 };
@@ -85,10 +87,10 @@ export const shortcutKeyStyle = {
 export const shortcutCloseButtonStyle = {
   marginTop: "1.25rem",
   padding: "0.65rem 1rem",
-  border: "1px solid #d1d5db",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "0.5rem",
-  backgroundColor: "#f3f4f6",
-  color: "#111827",
+  backgroundColor: THEME_CSS_VARS.modalSurface,
+  color: THEME_CSS_VARS.modalText,
   cursor: "pointer",
   fontWeight: 600,
 };
@@ -99,12 +101,14 @@ export const importPgnTextAreaStyle = {
   marginTop: "1rem",
   padding: "0.75rem",
   borderRadius: "0.5rem",
-  border: "1px solid #d1d5db",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   boxSizing: "border-box",
   fontFamily: "ui-monospace, SFMono-Regular, monospace",
   fontSize: "0.95rem",
   lineHeight: 1.5,
   resize: "vertical",
+  backgroundColor: THEME_CSS_VARS.modalBackground,
+  color: THEME_CSS_VARS.modalText,
 };
 
 export const modalActionRowStyle = {
@@ -117,43 +121,43 @@ export const modalActionRowStyle = {
 
 export const modalButtonStyle = {
   padding: "0.65rem 1rem",
-  border: "1px solid #d1d5db",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "0.5rem",
-  backgroundColor: "#f3f4f6",
-  color: "#111827",
+  backgroundColor: THEME_CSS_VARS.modalSurface,
+  color: THEME_CSS_VARS.modalText,
   cursor: "pointer",
   fontWeight: 600,
 };
 
 export const modalPrimaryButtonStyle = {
   ...modalButtonStyle,
-  borderColor: "#2563eb",
-  backgroundColor: "#2563eb",
-  color: "#ffffff",
+  borderColor: THEME_CSS_VARS.accent,
+  backgroundColor: THEME_CSS_VARS.accent,
+  color: THEME_CSS_VARS.accentText,
 };
 
 export const modalDangerButtonStyle = {
   ...modalButtonStyle,
-  borderColor: "#dc2626",
-  backgroundColor: "#fef2f2",
-  color: "#b91c1c",
+  borderColor: THEME_CSS_VARS.danger,
+  backgroundColor: THEME_CSS_VARS.dangerSoft,
+  color: THEME_CSS_VARS.danger,
 };
 
 export const modalErrorStyle = {
   marginTop: "0.75rem",
-  color: "#dc2626",
+  color: THEME_CSS_VARS.danger,
 };
 
 export const modalSuccessStyle = {
   marginTop: "0.75rem",
-  color: "#15803d",
+  color: THEME_CSS_VARS.success,
 };
 
 export const modalFieldLabelStyle = {
   display: "block",
   marginTop: "1rem",
   fontWeight: 600,
-  color: "#111827",
+  color: THEME_CSS_VARS.modalText,
 };
 
 export const modalInputStyle = {
@@ -161,10 +165,12 @@ export const modalInputStyle = {
   marginTop: "0.5rem",
   padding: "0.75rem",
   borderRadius: "0.5rem",
-  border: "1px solid #d1d5db",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   boxSizing: "border-box",
   fontSize: "0.95rem",
   lineHeight: 1.4,
+  backgroundColor: THEME_CSS_VARS.modalBackground,
+  color: THEME_CSS_VARS.modalText,
 };
 
 export const studyListStyle = {
@@ -176,10 +182,10 @@ export const studyListStyle = {
 };
 
 export const studyListItemStyle = {
-  border: "1px solid #d1d5db",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "0.65rem",
   padding: "0.9rem",
-  backgroundColor: "#f9fafb",
+  backgroundColor: THEME_CSS_VARS.modalSurface,
 };
 
 export const studyHeaderStyle = {
@@ -191,7 +197,7 @@ export const studyHeaderStyle = {
 
 export const studyMetaStyle = {
   marginTop: "0.45rem",
-  color: "#4b5563",
+  color: THEME_CSS_VARS.modalTextMuted,
   fontSize: "0.92rem",
   lineHeight: 1.5,
 };
@@ -211,8 +217,8 @@ export const collectionRowStyle = {
   gap: "0.75rem",
   padding: "0.75rem 0.9rem",
   borderRadius: "0.65rem",
-  border: "1px solid #d1d5db",
-  backgroundColor: "#f9fafb",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
+  backgroundColor: THEME_CSS_VARS.modalSurface,
 };
 
 export const collectionSelectButtonStyle = {
@@ -233,8 +239,8 @@ export const collectionTagStyle = {
   alignItems: "center",
   padding: "0.25rem 0.55rem",
   borderRadius: "999px",
-  backgroundColor: "#e5e7eb",
-  color: "#374151",
+  backgroundColor: THEME_CSS_VARS.modalBorder,
+  color: THEME_CSS_VARS.modalTextMuted,
   fontSize: "0.82rem",
   fontWeight: 600,
 };

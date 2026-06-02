@@ -2,6 +2,7 @@ import { Chessboard } from "react-chessboard";
 import EvaluationBar from "../EvaluationBar.jsx";
 import MoveHistory from "../MoveHistory.jsx";
 import MobileMoveStrip from "./MobileMoveStrip.jsx";
+import { THEME_CSS_VARS } from "../../utils/theme.js";
 
 function BoardWorkspace({
   boardRenderKey,
@@ -66,6 +67,12 @@ function BoardWorkspace({
                 boardOrientation,
                 arrows: boardArrows,
                 squareStyles: boardSquareStyles,
+                darkSquareStyle: {
+                  backgroundColor: THEME_CSS_VARS.boardDarkSquare,
+                },
+                lightSquareStyle: {
+                  backgroundColor: THEME_CSS_VARS.boardLightSquare,
+                },
                 onSquareMouseDown,
                 onSquareMouseUp,
               }}

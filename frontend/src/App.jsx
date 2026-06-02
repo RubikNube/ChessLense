@@ -17,6 +17,7 @@ import OtbSearchModal from "./components/modals/OtbSearchModal.jsx";
 import SaveStudyModal from "./components/modals/SaveStudyModal.jsx";
 import ShortcutsModal from "./components/modals/ShortcutsModal.jsx";
 import StudiesModal from "./components/modals/StudiesModal.jsx";
+import ThemeSettingsModal from "./components/modals/ThemeSettingsModal.jsx";
 import PositionPreviewBoard from "./components/PositionPreviewBoard.jsx";
 import OpeningTreePanel from "./components/opening/OpeningTreePanel.jsx";
 import ImportedPgnPanel from "./components/pgn/ImportedPgnPanel.jsx";
@@ -166,6 +167,13 @@ import {
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts.js";
 import useBoardSounds from "./hooks/useBoardSounds.js";
 import useTrainingController from "./hooks/useTrainingController.js";
+import {
+  createThemeCssVariables,
+  getThemePresetById,
+  getThemeOverrideValue,
+  normalizeThemeOverrides,
+  resolveTheme,
+} from "./utils/theme.js";
 import "./App.css";
 
 const PUZZLE_FETCH_RETRY_ATTEMPTS = 5;
@@ -432,6 +440,7 @@ function App() {
     useState(false);
   const [showLichessTokenPopup, setShowLichessTokenPopup] = useState(false);
   const [showOtbSearchPopup, setShowOtbSearchPopup] = useState(false);
+  const [showThemeSettingsPopup, setShowThemeSettingsPopup] = useState(false);
   const [backendApiBaseUrl, setBackendApiBaseUrl] = useState(() =>
     loadConfiguredApiBaseUrl(),
   );
@@ -444,6 +453,9 @@ function App() {
   );
   const [boardOrientation, setBoardOrientation] = useState(
     () => persistedAppState?.boardOrientation ?? "white",
+  );
+  const [themeOverrides, setThemeOverrides] = useState(
+    () => persistedAppState?.themeOverrides ?? {},
   );
   const [shortcutConfig, setShortcutConfig] = useState(DEFAULT_SHORTCUT_CONFIG);
   const [copyNotification, setCopyNotification] = useState("");
@@ -1108,6 +1120,14 @@ function App() {
       color: getGuessAttemptArrowColor(attempt),
     };
   }, [guessBrowseMoveEntry?.sourceAttempt, isGuessResultBrowsing]);
+  const resolvedTheme = useMemo(
+    () => resolveTheme(themeOverrides),
+    [themeOverrides],
+  );
+  const themeCssVariables = useMemo(
+    () => createThemeCssVariables(themeOverrides),
+    [themeOverrides],
+  );
 
   const effectiveBoardArrows = useMemo(
     () =>
@@ -1117,6 +1137,16 @@ function App() {
       ),
     [boardArrows, guessBrowseArrow],
   );
+
+  useEffect(() => {
+    const rootStyle = document.documentElement.style;
+
+    Object.entries(themeCssVariables).forEach(
+      ([propertyName, propertyValue]) => {
+        rootStyle.setProperty(propertyName, propertyValue);
+      },
+    );
+  }, [themeCssVariables]);
 
   const effectiveBoardPosition = useMemo(
     () =>
@@ -3767,6 +3797,14 @@ function App() {
     setShowBackendConnectionPopup(true);
   }, []);
 
+  const openThemeSettingsPopup = useCallback(() => {
+    setShowThemeSettingsPopup(true);
+  }, []);
+
+  const closeThemeSettingsPopup = useCallback(() => {
+    setShowThemeSettingsPopup(false);
+  }, []);
+
   const closeBackendConnectionPopup = useCallback(() => {
     setBackendConnectionError("");
     setShowBackendConnectionPopup(false);
@@ -4187,6 +4225,7 @@ function App() {
         showImportedPgn: persistedRightSideViews.showImportedPgn,
         showVariants: persistedRightSideViews.showVariants,
         showVariantArrows,
+        themeOverrides,
         lichessSearchFilters,
         lichessPuzzleFilters,
         otbSearchFilters,
@@ -4220,6 +4259,7 @@ function App() {
     showPlayComputerPanel,
     showVariants,
     showVariantArrows,
+    themeOverrides,
     trainingState,
     trainingFocusRestoreRef,
     variantTree,
@@ -4562,6 +4602,21 @@ function App() {
     );
   }, []);
 
+  const updateThemeColor = useCallback((tokenName, nextColor) => {
+    setThemeOverrides((currentOverrides) =>
+      getThemeOverrideValue(currentOverrides, tokenName, nextColor),
+    );
+  }, []);
+
+  const resetTheme = useCallback(() => {
+    setThemeOverrides({});
+  }, []);
+
+  const applyThemePreset = useCallback((presetId) => {
+    const themePreset = getThemePresetById(presetId);
+    setThemeOverrides(normalizeThemeOverrides(themePreset.values));
+  }, []);
+
   const menuActions = useMemo(
     () => ({
       analyzePosition,
@@ -4593,6 +4648,7 @@ function App() {
       toggleImportedPgn,
       toggleVariants,
       openShortcutsPopup,
+      openThemeSettingsPopup,
     }),
     [
       analyzePosition,
@@ -4607,6 +4663,7 @@ function App() {
       openSaveStudyPopup,
       openShortcutsPopup,
       openStudiesPopup,
+      openThemeSettingsPopup,
       redoMove,
       resetGame,
       toggleBoardOrientation,
@@ -4713,6 +4770,7 @@ function App() {
       showLichessTokenPopup,
       showOtbSearchPopup,
       showShortcutsPopup,
+      showThemeSettingsPopup,
     }),
     [
       showCreateCollectionPopup,
@@ -4725,6 +4783,7 @@ function App() {
       showSaveStudyPopup,
       showShortcutsPopup,
       showStudiesPopup,
+      showThemeSettingsPopup,
     ],
   );
 
@@ -5190,6 +5249,17 @@ function App() {
           onPageSizeChange={changeOtbPageSize}
           onImport={importOtbGame}
           onClose={closeOtbSearchPopup}
+        />
+      )}
+
+      {showThemeSettingsPopup && (
+        <ThemeSettingsModal
+          themeOverrides={themeOverrides}
+          resolvedTheme={resolvedTheme}
+          onChangeThemeColor={updateThemeColor}
+          onApplyThemePreset={applyThemePreset}
+          onResetTheme={resetTheme}
+          onClose={closeThemeSettingsPopup}
         />
       )}
 

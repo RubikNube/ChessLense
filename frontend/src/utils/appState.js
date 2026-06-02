@@ -12,6 +12,7 @@ import {
   DEFAULT_OTB_SEARCH_FILTERS,
   normalizeOtbSearchFilters,
 } from "./otbSearch.js";
+import { normalizeThemeOverrides } from "./theme.js";
 import { normalizeTrainingState } from "./training.js";
 import {
   createEmptyVariantTree,
@@ -629,6 +630,7 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showVariantArrows === "boolean"
           ? parsedState.showVariantArrows
           : false,
+      themeOverrides: normalizeThemeOverrides(parsedState.themeOverrides),
       lichessSearchFilters,
       lichessPuzzleFilters,
       otbSearchFilters,
@@ -677,6 +679,7 @@ export function serializePersistedAppState({
   showImportedPgn,
   showVariants,
   showVariantArrows,
+  themeOverrides,
   lichessSearchFilters,
   lichessPuzzleFilters,
   otbSearchFilters,
@@ -702,6 +705,7 @@ export function serializePersistedAppState({
     showImportedPgn,
     showVariants,
     showVariantArrows,
+    themeOverrides: normalizeThemeOverrides(themeOverrides),
     lichessSearchFilters: normalizeLichessSearchFilters(
       lichessSearchFilters ?? DEFAULT_LICHESS_SEARCH_FILTERS,
     ),

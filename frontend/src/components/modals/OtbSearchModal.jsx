@@ -14,6 +14,7 @@ import {
   modalErrorStyle,
   modalPrimaryButtonStyle,
 } from "./modalStyles.js";
+import { THEME_CSS_VARS } from "../../utils/theme.js";
 
 function formatPlayerLabel(player) {
   const prefix = player?.title ? `${player.title} ` : "";
@@ -399,7 +400,7 @@ function OtbSearchModal({
                       key={`${item}-${index}`}
                       style={{
                         padding: "0.65rem 0.25rem",
-                        color: "#6b7280",
+                        color: THEME_CSS_VARS.modalTextMuted,
                         fontWeight: 600,
                       }}
                     >

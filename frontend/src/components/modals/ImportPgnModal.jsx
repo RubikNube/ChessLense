@@ -9,6 +9,7 @@ import {
   modalPrimaryButtonStyle,
   modalSuccessStyle,
 } from "./modalStyles.js";
+import { THEME_CSS_VARS } from "../../utils/theme.js";
 
 function ImportPgnModal({
   importPgnValue,
@@ -69,7 +70,7 @@ function ImportPgnModal({
         style={{
           marginTop: "1.5rem",
           paddingTop: "1rem",
-          borderTop: "1px solid #e5e7eb",
+          borderTop: `1px solid ${THEME_CSS_VARS.modalBorder}`,
         }}
       >
         <p>

@@ -1,3 +1,5 @@
+import { THEME_CSS_VARS } from "../utils/theme.js";
+
 const actionRowStyle = {
   display: "flex",
   justifyContent: "flex-end",
@@ -8,10 +10,10 @@ const actionRowStyle = {
 
 const actionButtonStyle = {
   padding: "0.6rem 1rem",
-  border: "1px solid #d0d7de",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "0.5rem",
-  backgroundColor: "#f6f8fa",
-  color: "#24292f",
+  backgroundColor: THEME_CSS_VARS.modalSurface,
+  color: THEME_CSS_VARS.modalText,
   fontWeight: 600,
   fontSize: "1rem",
   lineHeight: 1,
@@ -21,9 +23,9 @@ const actionButtonStyle = {
 };
 
 const disabledActionButtonStyle = {
-  backgroundColor: "#eaeef2",
-  color: "#8c959f",
-  borderColor: "#d8dee4",
+  backgroundColor: THEME_CSS_VARS.modalBorder,
+  color: THEME_CSS_VARS.modalTextMuted,
+  borderColor: THEME_CSS_VARS.modalBorder,
   cursor: "not-allowed",
   opacity: 0.75,
 };

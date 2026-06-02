@@ -6,6 +6,7 @@ import {
   getLichessPuzzleThemeOption,
 } from "../../utils/lichessPuzzles.js";
 import { LICHESS_PUZZLE_THEME_OPTIONS } from "../../utils/lichessPuzzleThemes.js";
+import { THEME_CSS_VARS } from "../../utils/theme.js";
 
 const dropdownRootStyle = {
   position: "relative",
@@ -32,9 +33,9 @@ const dropdownToggleStyle = {
   width: "100%",
   minHeight: 40,
   borderRadius: 8,
-  border: "1px solid #334155",
-  backgroundColor: "#0f172a",
-  color: "#e2e8f0",
+  border: `1px solid ${THEME_CSS_VARS.border}`,
+  backgroundColor: THEME_CSS_VARS.surfaceAlt,
+  color: THEME_CSS_VARS.surfaceText,
   padding: "0.65rem 0.75rem",
   font: "inherit",
   display: "flex",
@@ -52,9 +53,9 @@ const dropdownMenuStyle = {
   right: 0,
   zIndex: 10,
   borderRadius: 10,
-  border: "1px solid #334155",
-  backgroundColor: "#020617",
-  boxShadow: "0 10px 30px rgba(15, 23, 42, 0.5)",
+  border: `1px solid ${THEME_CSS_VARS.border}`,
+  backgroundColor: THEME_CSS_VARS.surface,
+  boxShadow: `0 10px 30px ${THEME_CSS_VARS.shadowStrong}`,
   padding: "0.75rem",
   display: "grid",
   gap: "0.75rem",
@@ -64,9 +65,9 @@ const dropdownSearchStyle = {
   width: "100%",
   minHeight: 40,
   borderRadius: 8,
-  border: "1px solid #334155",
-  backgroundColor: "#0f172a",
-  color: "#e2e8f0",
+  border: `1px solid ${THEME_CSS_VARS.border}`,
+  backgroundColor: THEME_CSS_VARS.surfaceAlt,
+  color: THEME_CSS_VARS.surfaceText,
   padding: "0.65rem 0.75rem",
   font: "inherit",
 };
@@ -81,9 +82,9 @@ const dropdownOptionsStyle = {
 const optionButtonStyle = {
   width: "100%",
   borderRadius: 8,
-  border: "1px solid #1e293b",
-  backgroundColor: "#0f172a",
-  color: "#e2e8f0",
+  border: `1px solid ${THEME_CSS_VARS.border}`,
+  backgroundColor: THEME_CSS_VARS.surfaceAlt,
+  color: THEME_CSS_VARS.surfaceText,
   padding: "0.65rem 0.75rem",
   font: "inherit",
   textAlign: "left",
@@ -94,7 +95,7 @@ const optionButtonStyle = {
 
 const helperTextStyle = {
   margin: "0.45rem 0 0",
-  color: "#94a3b8",
+  color: THEME_CSS_VARS.surfaceTextMuted,
   fontSize: "0.9rem",
   lineHeight: 1.4,
 };
@@ -108,30 +109,30 @@ const glossaryListStyle = {
 };
 
 const glossaryItemStyle = {
-  border: "1px solid #d1d5db",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "0.65rem",
   padding: "0.9rem",
-  backgroundColor: "#f9fafb",
+  backgroundColor: THEME_CSS_VARS.modalSurface,
 };
 
 const glossaryItemTitleStyle = {
   margin: 0,
-  color: "#111827",
+  color: THEME_CSS_VARS.modalText,
 };
 
 const glossaryItemDescriptionStyle = {
   margin: "0.4rem 0 0",
-  color: "#4b5563",
+  color: THEME_CSS_VARS.modalTextMuted,
   lineHeight: 1.5,
 };
 
 const glossaryCloseButtonStyle = {
   marginTop: "1.25rem",
   padding: "0.65rem 1rem",
-  border: "1px solid #d1d5db",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "0.5rem",
-  backgroundColor: "#f3f4f6",
-  color: "#111827",
+  backgroundColor: THEME_CSS_VARS.modalSurface,
+  color: THEME_CSS_VARS.modalText,
   cursor: "pointer",
   fontWeight: 600,
 };

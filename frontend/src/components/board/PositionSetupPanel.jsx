@@ -4,6 +4,7 @@ import {
   POSITION_SETUP_MOVE_TOOL,
   POSITION_SETUP_PIECE_OPTIONS,
 } from "../../utils/positionSetup.js";
+import { THEME_CSS_VARS } from "../../utils/theme.js";
 
 const toolSectionStyle = {
   display: "grid",
@@ -19,7 +20,7 @@ const toolGridStyle = {
 const metaCardStyle = {
   padding: "10px 12px",
   borderRadius: "8px",
-  background: "#111827",
+  background: THEME_CSS_VARS.surfaceAlt,
 };
 
 const castlingGridStyle = {
@@ -34,8 +35,8 @@ const castlingOptionStyle = {
   gap: "0.5rem",
   padding: "10px 12px",
   borderRadius: "8px",
-  background: "#111827",
-  color: "#e5e7eb",
+  background: THEME_CSS_VARS.surfaceAlt,
+  color: THEME_CSS_VARS.surfaceText,
 };
 
 const pieceButtonContentStyle = {

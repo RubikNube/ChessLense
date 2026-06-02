@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchJson } from "../../utils/api.js";
+import { THEME_CSS_VARS } from "../../utils/theme.js";
 
 const openingTreeHintStyle = {
   marginTop: "0.75rem",
@@ -10,21 +11,21 @@ const openingTreeTableStyle = {
   borderCollapse: "collapse",
   marginTop: "0.75rem",
   fontSize: "0.95rem",
-  color: "#020617",
+  color: THEME_CSS_VARS.surfaceText,
 };
 
 const openingTreeHeaderCellStyle = {
   textAlign: "left",
   padding: "0.5rem 0.4rem",
-  borderBottom: "1px solid #e5e7eb",
-  color: "#e5e7eb",
+  borderBottom: `1px solid ${THEME_CSS_VARS.border}`,
+  color: THEME_CSS_VARS.surfaceText,
   fontWeight: 700,
 };
 
 const openingTreeCellStyle = {
   padding: "0.6rem 0.4rem",
-  borderBottom: "1px solid #f3f4f6",
-  color: "#9ca3af",
+  borderBottom: `1px solid ${THEME_CSS_VARS.border}`,
+  color: THEME_CSS_VARS.surfaceTextMuted,
 };
 
 const openingTreeNumericCellStyle = {

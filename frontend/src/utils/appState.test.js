@@ -22,6 +22,7 @@ import {
   seedPositionCommentsFromImportedPgnData,
   serializeMove,
 } from "./appState.js";
+import { DEFAULT_THEME } from "./theme.js";
 import {
   createComputerPlayTrainingState,
   createEmptyTrainingState,
@@ -116,6 +117,11 @@ describe("persisted app state", () => {
         showImportedPgn: false,
         showVariants: false,
         showVariantArrows: true,
+        themeOverrides: {
+          accent: "#ff00aa",
+          boardLightSquare: "#abc",
+          invalidToken: "#000000",
+        },
         lichessSearchFilters: {
           player: "  MagnusCarlsen  ",
           opponent: " Hikaru ",
@@ -213,6 +219,10 @@ describe("persisted app state", () => {
       showImportedPgn: false,
       showVariants: false,
       showVariantArrows: true,
+      themeOverrides: {
+        accent: "#ff00aa",
+        boardLightSquare: "#aabbcc",
+      },
       lichessPuzzleFilters: DEFAULT_LICHESS_PUZZLE_FILTERS,
       lichessSearchFilters: {
         player: "MagnusCarlsen",
@@ -376,6 +386,11 @@ describe("persisted app state", () => {
         showImportedPgn: false,
         showVariants: false,
         showVariantArrows: true,
+        themeOverrides: {
+          accent: "#ABCDEF",
+          appBackground: DEFAULT_THEME.appBackground,
+          bogus: "#123456",
+        },
         lichessPuzzleFilters: {
           theme: "fork",
           opening: " italianGame ",
@@ -444,6 +459,9 @@ describe("persisted app state", () => {
       showImportedPgn: false,
       showVariants: false,
       showVariantArrows: true,
+      themeOverrides: {
+        accent: "#abcdef",
+      },
       lichessPuzzleFilters: {
         theme: "fork",
         opening: "",
@@ -500,6 +518,22 @@ describe("persisted app state", () => {
         },
       ],
       trainingState: createEmptyTrainingState(),
+    });
+  });
+
+  it("normalizes invalid theme overrides while loading persisted state", () => {
+    const storage = createStorage(
+      JSON.stringify({
+        themeOverrides: {
+          accent: "#123456",
+          border: "bad-value",
+          modalText: DEFAULT_THEME.modalText,
+        },
+      }),
+    );
+
+    expect(loadPersistedAppState(storage)?.themeOverrides).toEqual({
+      accent: "#123456",
     });
   });
 
@@ -728,6 +762,7 @@ describe("persisted app state", () => {
       showImportedPgn: true,
       showVariants: true,
       showVariantArrows: false,
+      themeOverrides: {},
       lichessPuzzleFilters: DEFAULT_LICHESS_PUZZLE_FILTERS,
       lichessSearchFilters: DEFAULT_LICHESS_SEARCH_FILTERS,
       otbSearchFilters: DEFAULT_OTB_SEARCH_FILTERS,

@@ -286,6 +286,16 @@ function AppMenuBar({
         ],
       },
       {
+        id: "theme",
+        label: "Theme",
+        items: [
+          {
+            label: "Theme Settings",
+            action: actions.openThemeSettingsPopup,
+          },
+        ],
+      },
+      {
         id: "help",
         label: "Help",
         items: [
@@ -747,6 +757,16 @@ function AppMenuBar({
               </button>
             </div>
           )}
+        </div>
+
+        <div className="menu-group">
+          <button
+            type="button"
+            className="menu-trigger"
+            onClick={() => onMenuAction(actions.openThemeSettingsPopup)}
+          >
+            Theme
+          </button>
         </div>
 
         <div className="menu-group">

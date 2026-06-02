@@ -9,6 +9,7 @@ import {
   TRAINING_STATUS_COMPLETED,
   TRAINING_STATUS_ENDED,
 } from "../../utils/training.js";
+import { THEME_CSS_VARS } from "../../utils/theme.js";
 
 const puzzleFilterGridStyle = {
   display: "grid",
@@ -26,16 +27,16 @@ const puzzleTextInputStyle = {
   width: "100%",
   minHeight: 40,
   borderRadius: 8,
-  border: "1px solid #334155",
-  backgroundColor: "#0f172a",
-  color: "#e2e8f0",
+  border: `1px solid ${THEME_CSS_VARS.border}`,
+  backgroundColor: THEME_CSS_VARS.surfaceAlt,
+  color: THEME_CSS_VARS.surfaceText,
   padding: "0.65rem 0.75rem",
   font: "inherit",
 };
 
 const puzzleFilterHintStyle = {
   margin: "0.5rem 0 0",
-  color: "#94a3b8",
+  color: THEME_CSS_VARS.surfaceTextMuted,
   fontSize: "0.9rem",
   lineHeight: 1.4,
 };

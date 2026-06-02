@@ -1,4 +1,5 @@
 import { Chess } from "chess.js";
+import { THEME_CSS_VARS } from "../utils/theme.js";
 
 const PIECE_SYMBOLS = {
   wp: "\u2659",
@@ -21,10 +22,10 @@ const boardStyle = {
   gridTemplateRows: "repeat(8, 1fr)",
   borderRadius: "0.5rem",
   overflow: "hidden",
-  border: "1px solid rgba(148, 163, 184, 0.35)",
+  border: `1px solid ${THEME_CSS_VARS.border}`,
   width: "100%",
   aspectRatio: "1 / 1",
-  backgroundColor: "#111827",
+  backgroundColor: THEME_CSS_VARS.surfaceAlt,
 };
 
 const squareStyle = {
@@ -47,7 +48,9 @@ function getOrientedBoardRows(boardRows, orientation) {
 }
 
 function getSquareColor(rowIndex, columnIndex) {
-  return (rowIndex + columnIndex) % 2 === 0 ? "#f0d9b5" : "#b58863";
+  return (rowIndex + columnIndex) % 2 === 0
+    ? THEME_CSS_VARS.boardLightSquare
+    : THEME_CSS_VARS.boardDarkSquare;
 }
 
 function getPieceStyle(square) {
@@ -60,17 +63,15 @@ function getPieceStyle(square) {
 
   if (square.color === "w") {
     return {
-      color: "#f9fafb",
-      textShadow:
-        "0 1px 0 rgba(17, 24, 39, 0.95), 0 -1px 0 rgba(17, 24, 39, 0.95), 1px 0 0 rgba(17, 24, 39, 0.95), -1px 0 0 rgba(17, 24, 39, 0.95), 0 0 4px rgba(17, 24, 39, 0.45)",
-      WebkitTextStroke: "0.35px rgba(17, 24, 39, 0.9)",
+      color: THEME_CSS_VARS.boardWhitePiece,
+      textShadow: `0 1px 0 ${THEME_CSS_VARS.boardWhitePieceShadowStrong}, 0 -1px 0 ${THEME_CSS_VARS.boardWhitePieceShadowStrong}, 1px 0 0 ${THEME_CSS_VARS.boardWhitePieceShadowStrong}, -1px 0 0 ${THEME_CSS_VARS.boardWhitePieceShadowStrong}, 0 0 4px ${THEME_CSS_VARS.boardWhitePieceShadowSoft}`,
+      WebkitTextStroke: `0.35px ${THEME_CSS_VARS.boardWhitePieceStroke}`,
     };
   }
 
   return {
-    color: "#111827",
-    textShadow:
-      "0 1px 0 rgba(255, 255, 255, 0.55), 0 0 3px rgba(255, 255, 255, 0.2)",
+    color: THEME_CSS_VARS.boardBlackPiece,
+    textShadow: `0 1px 0 ${THEME_CSS_VARS.boardBlackPieceShadowStrong}, 0 0 3px ${THEME_CSS_VARS.boardBlackPieceShadowSoft}`,
   };
 }
 

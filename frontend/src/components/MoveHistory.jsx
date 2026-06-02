@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { THEME_CSS_VARS } from "../utils/theme.js";
 
 const actionRowStyle = {
   display: "flex",
@@ -10,10 +11,10 @@ const actionRowStyle = {
 
 const actionButtonStyle = {
   padding: "0.6rem 1rem",
-  border: "1px solid #d0d7de",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "0.5rem",
-  backgroundColor: "#f6f8fa",
-  color: "#24292f",
+  backgroundColor: THEME_CSS_VARS.modalSurface,
+  color: THEME_CSS_VARS.modalText,
   fontWeight: 600,
   fontSize: "1rem",
   lineHeight: 1,
@@ -23,9 +24,9 @@ const actionButtonStyle = {
 };
 
 const disabledActionButtonStyle = {
-  backgroundColor: "#eaeef2",
-  color: "#8c959f",
-  borderColor: "#d8dee4",
+  backgroundColor: THEME_CSS_VARS.modalBorder,
+  color: THEME_CSS_VARS.modalTextMuted,
+  borderColor: THEME_CSS_VARS.modalBorder,
   cursor: "not-allowed",
   opacity: 0.75,
 };
@@ -35,10 +36,10 @@ const contextMenuStyle = {
   zIndex: 1100,
   minWidth: "13rem",
   padding: "0.35rem",
-  border: "1px solid #d0d7de",
+  border: `1px solid ${THEME_CSS_VARS.modalBorder}`,
   borderRadius: "0.65rem",
-  backgroundColor: "#ffffff",
-  boxShadow: "0 12px 30px rgba(15, 23, 42, 0.16)",
+  backgroundColor: THEME_CSS_VARS.modalBackground,
+  boxShadow: `0 12px 30px ${THEME_CSS_VARS.shadow}`,
 };
 
 const contextMenuButtonStyle = {
@@ -47,7 +48,7 @@ const contextMenuButtonStyle = {
   border: "none",
   borderRadius: "0.45rem",
   backgroundColor: "transparent",
-  color: "#111827",
+  color: THEME_CSS_VARS.modalText,
   textAlign: "left",
   fontWeight: 600,
   cursor: "pointer",
@@ -55,13 +56,13 @@ const contextMenuButtonStyle = {
 
 const disabledContextMenuButtonStyle = {
   ...contextMenuButtonStyle,
-  color: "#9ca3af",
+  color: THEME_CSS_VARS.modalTextMuted,
   cursor: "not-allowed",
 };
 
 const contextMenuSectionTitleStyle = {
   padding: "0.35rem 0.75rem 0.25rem",
-  color: "#6b7280",
+  color: THEME_CSS_VARS.modalTextMuted,
   fontSize: "0.78rem",
   fontWeight: 700,
   textTransform: "uppercase",
@@ -71,13 +72,13 @@ const contextMenuSectionTitleStyle = {
 const contextMenuDividerStyle = {
   height: "1px",
   margin: "0.35rem 0",
-  backgroundColor: "#e5e7eb",
+  backgroundColor: THEME_CSS_VARS.modalBorder,
 };
 
 const contextMenuMetaStyle = {
   display: "block",
   marginTop: "0.15rem",
-  color: "#6b7280",
+  color: THEME_CSS_VARS.modalTextMuted,
   fontSize: "0.8rem",
   fontWeight: 500,
 };
