@@ -1118,6 +1118,30 @@ export function getGuessTheMovePoints(attempt) {
   return 0;
 }
 
+export function getGuessAttemptArrowColor(attempt) {
+  if (!attempt || typeof attempt !== "object") {
+    return "#9ca3af";
+  }
+
+  if (attempt.outcome === REPLAY_RESULT_MATCH) {
+    return "#2563eb";
+  }
+
+  if (attempt.classification === REPLAY_RESULT_BETTER) {
+    return "#4caf50";
+  }
+
+  if (attempt.classification === REPLAY_RESULT_EQUAL) {
+    return "#facc15";
+  }
+
+  if (attempt.classification === REPLAY_RESULT_WORSE) {
+    return attempt.isCritical ? "#7f1d1d" : "#f44336";
+  }
+
+  return "#9ca3af";
+}
+
 function getGuessTheMoveEvaluationLabel(scoreRatio) {
   if (!Number.isFinite(scoreRatio)) {
     return "No score yet";

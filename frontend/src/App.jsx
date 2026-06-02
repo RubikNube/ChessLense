@@ -122,6 +122,7 @@ import {
   getCurrentGuessTheMove,
   getCurrentPuzzleMove,
   getCurrentReplayMove,
+  getGuessAttemptArrowColor,
   getPuzzleTerminalOutcome,
   normalizeGuessHistoryBrowseEntries,
   normalizeGuessHistoryEntries,
@@ -520,6 +521,7 @@ function App() {
   const [guessHistoryError, setGuessHistoryError] = useState("");
   const [activeGuessHistoryEntryId, setActiveGuessHistoryEntryId] =
     useState("");
+  const [guessResultBrowse, setGuessResultBrowse] = useState(null);
   const [guessHistoryBrowserGames, setGuessHistoryBrowserGames] = useState([]);
   const [guessHistoryBrowserLoading, setGuessHistoryBrowserLoading] =
     useState(false);
@@ -923,6 +925,207 @@ function App() {
       ) ?? null,
     [activeGuessHistoryEntryId, guessHistoryEntries],
   );
+
+  const isViewingHistoricalGuessResult =
+    !isTrainingPlayActive && !!activeGuessHistoryEntry;
+  const canBrowseGuessResults =
+    !isTrainingPlayActive &&
+    (isViewingHistoricalGuessResult ||
+      (normalizedTrainingState.mode === TRAINING_MODE_GUESS_THE_MOVE &&
+        (normalizedTrainingState.status === TRAINING_STATUS_COMPLETED ||
+          normalizedTrainingState.status === TRAINING_STATUS_ENDED)));
+  const guessBrowseSourceKey = isViewingHistoricalGuessResult
+    ? `entry:${activeGuessHistoryEntry.id}`
+    : "current";
+  const displayedGuessSummary = useMemo(
+    () =>
+      isViewingHistoricalGuessResult
+        ? (activeGuessHistoryEntry?.summary ?? guessTheMoveSummary)
+        : guessTheMoveSummary,
+    [
+      activeGuessHistoryEntry?.summary,
+      guessTheMoveSummary,
+      isViewingHistoricalGuessResult,
+    ],
+  );
+  const guessBrowseMoveHistory = Array.isArray(
+    displayedGuessSummary?.moveHistory,
+  )
+    ? displayedGuessSummary.moveHistory
+    : [];
+  const guessBrowseMoveCount = guessBrowseMoveHistory.length;
+  const guessBrowseReferenceMoves = useMemo(
+    () =>
+      isViewingHistoricalGuessResult
+        ? (activeGuessHistoryEntry?.referenceMoves ?? [])
+        : normalizedTrainingState.referenceMoves,
+    [
+      activeGuessHistoryEntry?.referenceMoves,
+      isViewingHistoricalGuessResult,
+      normalizedTrainingState.referenceMoves,
+    ],
+  );
+  const rawGuessBrowseIndex =
+    guessResultBrowse?.sourceKey === guessBrowseSourceKey
+      ? guessResultBrowse.index
+      : null;
+  const boundedGuessBrowseIndex =
+    typeof rawGuessBrowseIndex === "number" && guessBrowseMoveCount
+      ? Math.max(0, Math.min(rawGuessBrowseIndex, guessBrowseMoveCount - 1))
+      : null;
+  const guessBrowseMoveEntry =
+    boundedGuessBrowseIndex === null
+      ? null
+      : (guessBrowseMoveHistory[boundedGuessBrowseIndex] ?? null);
+  const isGuessResultBrowsing =
+    canBrowseGuessResults && boundedGuessBrowseIndex !== null;
+
+  useEffect(() => {
+    if (
+      guessResultBrowse?.sourceKey &&
+      guessResultBrowse.sourceKey !== guessBrowseSourceKey
+    ) {
+      setGuessResultBrowse(null);
+    }
+  }, [guessBrowseSourceKey, guessResultBrowse?.sourceKey]);
+
+  useEffect(() => {
+    if (!canBrowseGuessResults) {
+      setGuessResultBrowse(null);
+      return;
+    }
+
+    if (guessBrowseMoveCount === 0) {
+      setGuessResultBrowse(null);
+      return;
+    }
+
+    if (
+      guessResultBrowse?.sourceKey === guessBrowseSourceKey &&
+      typeof boundedGuessBrowseIndex === "number" &&
+      guessResultBrowse.index !== boundedGuessBrowseIndex
+    ) {
+      setGuessResultBrowse({
+        sourceKey: guessBrowseSourceKey,
+        index: boundedGuessBrowseIndex,
+      });
+    }
+  }, [
+    boundedGuessBrowseIndex,
+    canBrowseGuessResults,
+    guessBrowseMoveCount,
+    guessBrowseSourceKey,
+    guessResultBrowse,
+  ]);
+
+  useEffect(() => {
+    if (isTrainingPlayActive) {
+      setGuessResultBrowse(null);
+    }
+  }, [isTrainingPlayActive]);
+
+  const selectGuessBrowseIndex = useCallback(
+    (nextIndex) => {
+      if (!canBrowseGuessResults || !Number.isInteger(nextIndex)) {
+        return;
+      }
+
+      if (!guessBrowseMoveCount) {
+        return;
+      }
+
+      const boundedIndex = Math.max(
+        0,
+        Math.min(nextIndex, guessBrowseMoveCount - 1),
+      );
+      setGuessResultBrowse({
+        sourceKey: guessBrowseSourceKey,
+        index: boundedIndex,
+      });
+    },
+    [canBrowseGuessResults, guessBrowseMoveCount, guessBrowseSourceKey],
+  );
+  const stopGuessBrowse = useCallback(() => {
+    setGuessResultBrowse(null);
+  }, []);
+  const goGuessBrowseStart = useCallback(() => {
+    selectGuessBrowseIndex(0);
+  }, [selectGuessBrowseIndex]);
+  const goGuessBrowseEnd = useCallback(() => {
+    selectGuessBrowseIndex(Math.max(0, guessBrowseMoveCount - 1));
+  }, [guessBrowseMoveCount, selectGuessBrowseIndex]);
+  const goGuessBrowsePrev = useCallback(() => {
+    if (typeof boundedGuessBrowseIndex !== "number") {
+      return;
+    }
+
+    selectGuessBrowseIndex(boundedGuessBrowseIndex - 1);
+  }, [boundedGuessBrowseIndex, selectGuessBrowseIndex]);
+  const goGuessBrowseNext = useCallback(() => {
+    if (typeof boundedGuessBrowseIndex !== "number") {
+      return;
+    }
+
+    selectGuessBrowseIndex(boundedGuessBrowseIndex + 1);
+  }, [boundedGuessBrowseIndex, selectGuessBrowseIndex]);
+
+  const guessBrowseFenBefore = useMemo(() => {
+    if (!isGuessResultBrowsing) {
+      return null;
+    }
+
+    const ply = guessBrowseMoveEntry?.ply;
+
+    if (!Number.isInteger(ply)) {
+      return null;
+    }
+
+    return (
+      guessBrowseReferenceMoves.find((move) => move.ply === ply)?.fenBefore ??
+      null
+    );
+  }, [
+    guessBrowseMoveEntry?.ply,
+    guessBrowseReferenceMoves,
+    isGuessResultBrowsing,
+  ]);
+
+  const guessBrowseArrow = useMemo(() => {
+    if (!isGuessResultBrowsing) {
+      return null;
+    }
+
+    const attempt = guessBrowseMoveEntry?.sourceAttempt;
+    const userMove = attempt?.userMove;
+
+    if (!userMove?.from || !userMove?.to) {
+      return null;
+    }
+
+    return {
+      startSquare: userMove.from,
+      endSquare: userMove.to,
+      color: getGuessAttemptArrowColor(attempt),
+    };
+  }, [guessBrowseMoveEntry?.sourceAttempt, isGuessResultBrowsing]);
+
+  const effectiveBoardArrows = useMemo(
+    () =>
+      mergeBoardArrowCollections(
+        boardArrows,
+        guessBrowseArrow ? [guessBrowseArrow] : [],
+      ),
+    [boardArrows, guessBrowseArrow],
+  );
+
+  const effectiveBoardPosition = useMemo(
+    () =>
+      isPositionSetupMode
+        ? boardPosition
+        : (guessBrowseFenBefore ?? boardPosition),
+    [boardPosition, guessBrowseFenBefore, isPositionSetupMode],
+  );
+
   const currentReplayMoveNumber = useMemo(
     () =>
       currentReplayMove
@@ -4424,8 +4627,10 @@ function App() {
     ],
   );
 
-  const keyboardActions = useMemo(
-    () => ({
+  const keyboardActions = useMemo(() => {
+    const shouldBrowseGuessResults = isGuessResultBrowsing;
+
+    return {
       closeImportPgnPopup,
       closeSaveStudyPopup,
       closeCreateCollectionPopup,
@@ -4439,12 +4644,13 @@ function App() {
       closeShortcutsPopup,
       openShortcutsPopup,
       setOpenMenu,
-      goToStart,
-      undoMove,
-      redoMove,
+      onEscape: shouldBrowseGuessResults ? stopGuessBrowse : undefined,
+      goToStart: shouldBrowseGuessResults ? goGuessBrowseStart : goToStart,
+      undoMove: shouldBrowseGuessResults ? goGuessBrowsePrev : undoMove,
+      redoMove: shouldBrowseGuessResults ? goGuessBrowseNext : redoMove,
       jumpToMainVariant,
       jumpBackToSideline,
-      goToEnd,
+      goToEnd: shouldBrowseGuessResults ? goGuessBrowseEnd : goToEnd,
       toggleBoardOrientation,
       toggleMoveHistory,
       toggleOpeningTreePanel,
@@ -4456,39 +4662,44 @@ function App() {
       toggleComments,
       toggleImportedPgn,
       toggleVariants,
-    }),
-    [
-      closeCreateCollectionPopup,
-      closeGuessHistoryBrowser,
-      closeImportPgnPopup,
-      closeLichessSearchPopup,
-      closeBackendConnectionPopup,
-      closeLichessTokenPopup,
-      closeManageCollectionsPopup,
-      closeOtbSearchPopup,
-      closeSaveStudyPopup,
-      closeShortcutsPopup,
-      closeStudiesPopup,
-      goToEnd,
-      goToStart,
-      jumpBackToSideline,
-      jumpToMainVariant,
-      openShortcutsPopup,
-      redoMove,
-      toggleBoardOrientation,
-      toggleComments,
-      toggleEngineWindow,
-      toggleImportedPgn,
-      toggleMoveHistory,
-      toggleOpeningTreePanel,
-      togglePuzzleTrainingPanel,
-      toggleReplayTrainingPanel,
-      toggleGuessTrainingPanel,
-      togglePlayComputerPanel,
-      toggleVariants,
-      undoMove,
-    ],
-  );
+    };
+  }, [
+    closeBackendConnectionPopup,
+    closeCreateCollectionPopup,
+    closeGuessHistoryBrowser,
+    closeImportPgnPopup,
+    closeLichessSearchPopup,
+    closeLichessTokenPopup,
+    closeManageCollectionsPopup,
+    closeOtbSearchPopup,
+    closeSaveStudyPopup,
+    closeShortcutsPopup,
+    closeStudiesPopup,
+    goGuessBrowseEnd,
+    goGuessBrowseNext,
+    goGuessBrowsePrev,
+    goGuessBrowseStart,
+    goToEnd,
+    goToStart,
+    isGuessResultBrowsing,
+    jumpBackToSideline,
+    jumpToMainVariant,
+    openShortcutsPopup,
+    redoMove,
+    stopGuessBrowse,
+    toggleBoardOrientation,
+    toggleComments,
+    toggleEngineWindow,
+    toggleImportedPgn,
+    toggleMoveHistory,
+    toggleOpeningTreePanel,
+    togglePlayComputerPanel,
+    togglePuzzleTrainingPanel,
+    toggleReplayTrainingPanel,
+    toggleGuessTrainingPanel,
+    toggleVariants,
+    undoMove,
+  ]);
 
   const keyboardModalState = useMemo(
     () => ({
@@ -4550,21 +4761,28 @@ function App() {
         boardRenderKey={boardRenderKey}
         isTrainingFocusMode={boardWorkspaceFocusMode}
         boardPanelRef={boardPanelRef}
-        position={boardPosition}
-        onPieceDrop={handlePieceDrop}
+        position={effectiveBoardPosition}
+        onPieceDrop={isGuessResultBrowsing ? undefined : handlePieceDrop}
         onSquareClick={
           isPositionSetupMode ? handlePositionSetupSquareClick : undefined
         }
         allowDragging={
-          !isPositionSetupMode ||
-          positionSetupState?.selectedTool === POSITION_SETUP_MOVE_TOOL
+          (!isPositionSetupMode ||
+            positionSetupState?.selectedTool === POSITION_SETUP_MOVE_TOOL) &&
+          !isGuessResultBrowsing
         }
         boardOrientation={boardOrientation}
-        boardArrows={isPositionSetupMode ? [] : boardArrows}
+        boardArrows={isPositionSetupMode ? [] : effectiveBoardArrows}
         boardSquareStyles={isPositionSetupMode ? {} : boardSquareStyles}
-        onSquareMouseDown={handleBoardSquareMouseDown}
-        onSquareMouseUp={handleBoardSquareMouseUp}
-        showEvaluationBar={showEvaluationBar && !isPositionSetupMode}
+        onSquareMouseDown={
+          isGuessResultBrowsing ? undefined : handleBoardSquareMouseDown
+        }
+        onSquareMouseUp={
+          isGuessResultBrowsing ? undefined : handleBoardSquareMouseUp
+        }
+        showEvaluationBar={
+          showEvaluationBar && !isPositionSetupMode && !isGuessResultBrowsing
+        }
         evaluation={evaluationResult?.evaluation}
         turn={game.turn()}
         showMoveHistory={showMoveHistory && !isPositionSetupMode}
@@ -4732,6 +4950,14 @@ function App() {
                 endGuessTraining={endGuessTraining}
                 viewGuessHistoryEntry={viewGuessHistoryEntry}
                 closeGuessHistoryView={closeGuessHistoryView}
+                isGuessResultBrowsing={isGuessResultBrowsing}
+                guessBrowseIndex={boundedGuessBrowseIndex}
+                onSelectGuessBrowseIndex={selectGuessBrowseIndex}
+                onGuessBrowseStart={goGuessBrowseStart}
+                onGuessBrowseEnd={goGuessBrowseEnd}
+                onGuessBrowsePrev={goGuessBrowsePrev}
+                onGuessBrowseNext={goGuessBrowseNext}
+                onStopGuessBrowsing={stopGuessBrowse}
                 resetTrainingSession={resetTrainingSession}
               />
             )}

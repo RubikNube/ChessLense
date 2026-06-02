@@ -569,6 +569,39 @@ code {
   background: #111827;
 }
 
+.training-summary-history-entry-browsable {
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.training-summary-history-entry-browsable:hover {
+  background: #0f172a;
+  border-color: #374151;
+}
+
+.training-summary-history-entry-selected {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
+.training-history-browser {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.training-history-browser-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.training-history-browser-status {
+  margin: 0;
+  color: #d1d5db;
+  font-size: 0.9rem;
+}
+
 .training-summary-history-header {
   display: flex;
   align-items: center;

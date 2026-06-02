@@ -11,6 +11,7 @@ import {
   getCurrentGuessTheMove,
   getCurrentPuzzleMove,
   getPuzzleTerminalOutcome,
+  getGuessAttemptArrowColor,
   getGuessTheMovePoints,
   getCurrentReplayMove,
   normalizeGuessHistoryBrowseEntries,
@@ -346,6 +347,39 @@ describe("training helpers", () => {
     expect(classifyReplayDelta(-31)).toBe(REPLAY_RESULT_WORSE);
     expect(isCriticalReplayDelta(-150)).toBe(true);
     expect(isCriticalReplayDelta(-149)).toBe(false);
+  });
+
+  it("maps guess attempts to arrow colors", () => {
+    expect(getGuessAttemptArrowColor({ outcome: REPLAY_RESULT_MATCH })).toBe(
+      "#2563eb",
+    );
+    expect(
+      getGuessAttemptArrowColor({
+        outcome: "mismatch",
+        classification: REPLAY_RESULT_BETTER,
+      }),
+    ).toBe("#4caf50");
+    expect(
+      getGuessAttemptArrowColor({
+        outcome: "mismatch",
+        classification: REPLAY_RESULT_EQUAL,
+      }),
+    ).toBe("#facc15");
+    expect(
+      getGuessAttemptArrowColor({
+        outcome: "mismatch",
+        classification: REPLAY_RESULT_WORSE,
+        isCritical: false,
+      }),
+    ).toBe("#f44336");
+    expect(
+      getGuessAttemptArrowColor({
+        outcome: "mismatch",
+        classification: REPLAY_RESULT_WORSE,
+        isCritical: true,
+      }),
+    ).toBe("#7f1d1d");
+    expect(getGuessAttemptArrowColor(null)).toBe("#9ca3af");
   });
 
   it("records an exact match without engine comparison data", () => {

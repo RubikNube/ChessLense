@@ -189,7 +189,22 @@ function GuessSummarySection({
   isTrainingPlayActive,
   trainingLoading,
   allowPlayVsComputer,
+  isGuessResultBrowsing,
+  guessBrowseIndex,
+  onSelectGuessBrowseIndex,
+  onGuessBrowsePrev,
+  onGuessBrowseNext,
+  onGuessBrowseStart,
+  onGuessBrowseEnd,
+  onStopGuessBrowsing,
 }) {
+  const moveHistory = Array.isArray(summary?.moveHistory)
+    ? summary.moveHistory
+    : [];
+  const canBrowse =
+    moveHistory.length > 0 && typeof onSelectGuessBrowseIndex === "function";
+  const hasBrowseSelection = Number.isInteger(guessBrowseIndex);
+
   return (
     <>
       <div ref={summaryRef} className="annotation-section">
@@ -224,105 +239,200 @@ function GuessSummarySection({
       <p>{getEvaluationText(summary)}</p>
       <div className="annotation-section">
         <h3>Move history</h3>
-        {summary.moveHistory.length > 0 ? (
-          <ol className="training-summary-history">
-            {summary.moveHistory.map((moveEntry) => (
-              <li
-                key={`${moveEntry.ply}-${moveEntry.expectedSan}`}
-                className="training-summary-history-entry"
+        {canBrowse && (
+          <div className="training-history-browser">
+            <div className="training-history-browser-controls">
+              <button
+                type="button"
+                className="annotation-secondary-button"
+                onClick={onGuessBrowseStart}
+                disabled={trainingLoading}
+                title="Go to first scored move"
               >
-                <div className="training-summary-history-header">
-                  <span className="annotation-label">
-                    {formatMoveLabel({
-                      moveNumber: moveEntry.moveNumber,
-                      side: moveEntry.side,
-                      san: moveEntry.expectedSan,
-                    })}
-                  </span>
-                  <strong
-                    className={
-                      moveEntry.expectedResultingFen
-                        ? "training-preview-trigger"
-                        : undefined
-                    }
-                    tabIndex={moveEntry.expectedResultingFen ? 0 : undefined}
+                ⏮
+              </button>
+              <button
+                type="button"
+                className="annotation-secondary-button"
+                onClick={onGuessBrowsePrev}
+                disabled={trainingLoading || !hasBrowseSelection}
+                title="Previous scored move"
+              >
+                ◀
+              </button>
+              <button
+                type="button"
+                className="annotation-secondary-button"
+                onClick={onGuessBrowseNext}
+                disabled={trainingLoading || !hasBrowseSelection}
+                title="Next scored move"
+              >
+                ▶
+              </button>
+              <button
+                type="button"
+                className="annotation-secondary-button"
+                onClick={onGuessBrowseEnd}
+                disabled={trainingLoading}
+                title="Go to last scored move"
+              >
+                ⏭
+              </button>
+              <button
+                type="button"
+                className="annotation-secondary-button"
+                onClick={onStopGuessBrowsing}
+                disabled={trainingLoading || !isGuessResultBrowsing}
+                title="Return to current position"
+              >
+                Stop browsing
+              </button>
+            </div>
+            <p className="training-history-browser-status">
+              {hasBrowseSelection
+                ? `Browsing move ${guessBrowseIndex + 1} of ${moveHistory.length}.`
+                : "Click a move below to browse it on the board."}
+            </p>
+          </div>
+        )}
+        {moveHistory.length > 0 ? (
+          <ol className="training-summary-history">
+            {moveHistory.map((moveEntry, index) => {
+              const isSelected =
+                hasBrowseSelection && guessBrowseIndex === index;
+
+              return (
+                <li
+                  key={`${moveEntry.ply}-${moveEntry.expectedSan}`}
+                  className={
+                    "training-summary-history-entry" +
+                    (canBrowse
+                      ? " training-summary-history-entry-browsable"
+                      : "") +
+                    (isSelected
+                      ? " training-summary-history-entry-selected"
+                      : "")
+                  }
+                  onClick={
+                    canBrowse
+                      ? (event) => {
+                          if (event.target.closest("button")) {
+                            return;
+                          }
+
+                          onSelectGuessBrowseIndex(index);
+                        }
+                      : undefined
+                  }
+                  role={canBrowse ? "button" : undefined}
+                  tabIndex={canBrowse ? 0 : undefined}
+                  onKeyDown={
+                    canBrowse
+                      ? (event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            onSelectGuessBrowseIndex(index);
+                          }
+                        }
+                      : undefined
+                  }
+                  aria-label={
+                    canBrowse ? `Browse scored move ${index + 1}` : undefined
+                  }
+                >
+                  <div className="training-summary-history-header">
+                    <span className="annotation-label">
+                      {formatMoveLabel({
+                        moveNumber: moveEntry.moveNumber,
+                        side: moveEntry.side,
+                        san: moveEntry.expectedSan,
+                      })}
+                    </span>
+                    <strong
+                      className={
+                        moveEntry.expectedResultingFen
+                          ? "training-preview-trigger"
+                          : undefined
+                      }
+                      tabIndex={moveEntry.expectedResultingFen ? 0 : undefined}
+                      onMouseEnter={(event) =>
+                        showTrainingPreview(
+                          { resultingFen: moveEntry.expectedResultingFen },
+                          event.currentTarget,
+                        )
+                      }
+                      onMouseLeave={hideTrainingPreview}
+                      onFocus={(event) =>
+                        showTrainingPreview(
+                          { resultingFen: moveEntry.expectedResultingFen },
+                          event.currentTarget,
+                        )
+                      }
+                      onBlur={hideTrainingPreview}
+                    >
+                      {moveEntry.expectedSan}
+                    </strong>
+                  </div>
+                  <div
+                    className={`training-summary-history-attempt${moveEntry.resultingFen ? " training-preview-trigger" : ""}`}
+                    tabIndex={moveEntry.resultingFen ? 0 : undefined}
                     onMouseEnter={(event) =>
                       showTrainingPreview(
-                        { resultingFen: moveEntry.expectedResultingFen },
+                        { resultingFen: moveEntry.resultingFen },
                         event.currentTarget,
                       )
                     }
                     onMouseLeave={hideTrainingPreview}
                     onFocus={(event) =>
                       showTrainingPreview(
-                        { resultingFen: moveEntry.expectedResultingFen },
+                        { resultingFen: moveEntry.resultingFen },
                         event.currentTarget,
                       )
                     }
                     onBlur={hideTrainingPreview}
                   >
-                    {moveEntry.expectedSan}
-                  </strong>
-                </div>
-                <div
-                  className={`training-summary-history-attempt${moveEntry.resultingFen ? " training-preview-trigger" : ""}`}
-                  tabIndex={moveEntry.resultingFen ? 0 : undefined}
-                  onMouseEnter={(event) =>
-                    showTrainingPreview(
-                      { resultingFen: moveEntry.resultingFen },
-                      event.currentTarget,
-                    )
-                  }
-                  onMouseLeave={hideTrainingPreview}
-                  onFocus={(event) =>
-                    showTrainingPreview(
-                      { resultingFen: moveEntry.resultingFen },
-                      event.currentTarget,
-                    )
-                  }
-                  onBlur={hideTrainingPreview}
-                >
-                  <span
-                    className={getAttemptClassName({
-                      outcome: moveEntry.outcome,
-                      classification: moveEntry.classification,
-                      isCritical: moveEntry.isCritical,
-                    })}
-                  >
-                    {getAttemptLabel({
-                      outcome: moveEntry.outcome,
-                      classification: moveEntry.classification,
-                      isCritical: moveEntry.isCritical,
-                    })}
-                  </span>
-                  <span>
-                    Played {moveEntry.userSan} ({formatPoints(moveEntry.points)}
-                    )
-                  </span>
-                  {moveEntry.outcome !== "match" && (
-                    <>
-                      <span className="training-feedback-detail">
-                        Delta {formatReplayDelta(moveEntry.deltaCp)}
-                        {moveEntry.isCritical ? " - critical" : ""}
-                      </span>
-                      {allowPlayVsComputer &&
-                        moveEntry.sourceAttempt?.resultingFen && (
-                          <button
-                            type="button"
-                            className="annotation-secondary-button"
-                            onClick={() =>
-                              startTrainingPlayMode(moveEntry.sourceAttempt)
-                            }
-                            disabled={isTrainingPlayActive || trainingLoading}
-                          >
-                            Play vs computer
-                          </button>
-                        )}
-                    </>
-                  )}
-                </div>
-              </li>
-            ))}
+                    <span
+                      className={getAttemptClassName({
+                        outcome: moveEntry.outcome,
+                        classification: moveEntry.classification,
+                        isCritical: moveEntry.isCritical,
+                      })}
+                    >
+                      {getAttemptLabel({
+                        outcome: moveEntry.outcome,
+                        classification: moveEntry.classification,
+                        isCritical: moveEntry.isCritical,
+                      })}
+                    </span>
+                    <span>
+                      Played {moveEntry.userSan} (
+                      {formatPoints(moveEntry.points)})
+                    </span>
+                    {moveEntry.outcome !== "match" && (
+                      <>
+                        <span className="training-feedback-detail">
+                          Delta {formatReplayDelta(moveEntry.deltaCp)}
+                          {moveEntry.isCritical ? " - critical" : ""}
+                        </span>
+                        {allowPlayVsComputer &&
+                          moveEntry.sourceAttempt?.resultingFen && (
+                            <button
+                              type="button"
+                              className="annotation-secondary-button"
+                              onClick={() =>
+                                startTrainingPlayMode(moveEntry.sourceAttempt)
+                              }
+                              disabled={isTrainingPlayActive || trainingLoading}
+                            >
+                              Play vs computer
+                            </button>
+                          )}
+                      </>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         ) : (
           <p className="annotation-empty">No scored moves to list yet.</p>
@@ -436,6 +546,14 @@ function GuessTheMoveTrainingPanel({
   endGuessTraining,
   viewGuessHistoryEntry,
   closeGuessHistoryView,
+  isGuessResultBrowsing,
+  guessBrowseIndex,
+  onSelectGuessBrowseIndex,
+  onGuessBrowsePrev,
+  onGuessBrowseNext,
+  onGuessBrowseStart,
+  onGuessBrowseEnd,
+  onStopGuessBrowsing,
   resetTrainingSession,
 }) {
   const isGuessMode =
@@ -668,6 +786,14 @@ function GuessTheMoveTrainingPanel({
                 isTrainingPlayActive={isTrainingPlayActive}
                 trainingLoading={trainingLoading}
                 allowPlayVsComputer={!isViewingHistoricalResult}
+                isGuessResultBrowsing={isGuessResultBrowsing}
+                guessBrowseIndex={guessBrowseIndex}
+                onSelectGuessBrowseIndex={onSelectGuessBrowseIndex}
+                onGuessBrowsePrev={onGuessBrowsePrev}
+                onGuessBrowseNext={onGuessBrowseNext}
+                onGuessBrowseStart={onGuessBrowseStart}
+                onGuessBrowseEnd={onGuessBrowseEnd}
+                onStopGuessBrowsing={onStopGuessBrowsing}
               />
             )}
             {!isTrainingPlayActive && !isGuessTrainingActive && (

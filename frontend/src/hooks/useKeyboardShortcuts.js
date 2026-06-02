@@ -113,6 +113,12 @@ function useKeyboardShortcuts({ shortcutConfig, modalState, actions }) {
         }
       }
 
+      if (event.key === "Escape" && typeof actions.onEscape === "function") {
+        event.preventDefault();
+        actions.onEscape();
+        return;
+      }
+
       if (matchesShortcut(event, shortcutConfig.openShortcutsPopup.keys)) {
         event.preventDefault();
         actions.setOpenMenu(null);
