@@ -9,6 +9,8 @@ export const DEFAULT_OTB_SEARCH_FILTERS = {
   ecoFrom: "",
   ecoTo: "",
   opening: "",
+  moveCountMin: "",
+  moveCountMax: "",
   pageSize: "25",
 };
 
@@ -51,11 +53,29 @@ export function normalizeOtbSearchFilters(filters) {
     ecoFrom: normalizeString(filters?.ecoFrom).toUpperCase(),
     ecoTo: normalizeString(filters?.ecoTo).toUpperCase(),
     opening: normalizeString(filters?.opening),
+    moveCountMin: normalizeString(filters?.moveCountMin),
+    moveCountMax: normalizeString(filters?.moveCountMax),
     pageSize:
       normalizeString(filters?.pageSize) ||
       normalizeString(filters?.max) ||
       DEFAULT_OTB_SEARCH_FILTERS.pageSize,
   };
+}
+
+function getMoveCountError(value, label) {
+  if (!value) {
+    return "";
+  }
+
+  if (!/^\d+$/.test(value)) {
+    return `${label} must be a whole number.`;
+  }
+
+  if (Number(value) < 1) {
+    return `${label} must be at least 1.`;
+  }
+
+  return "";
 }
 
 export function buildOtbSearchQuery(filters, page = 1) {
@@ -77,7 +97,9 @@ export function buildOtbSearchQuery(filters, page = 1) {
     normalized.result ||
     normalized.ecoFrom ||
     normalized.ecoTo ||
-    normalized.opening;
+    normalized.opening ||
+    normalized.moveCountMin ||
+    normalized.moveCountMax;
 
   if (!hasQueryFilter) {
     return {
@@ -133,6 +155,41 @@ export function buildOtbSearchQuery(filters, page = 1) {
     return {
       query: "",
       error: "ECO from cannot be greater than ECO to.",
+    };
+  }
+
+  const moveCountMinError = getMoveCountError(
+    normalized.moveCountMin,
+    "Minimum moves",
+  );
+
+  if (moveCountMinError) {
+    return {
+      query: "",
+      error: moveCountMinError,
+    };
+  }
+
+  const moveCountMaxError = getMoveCountError(
+    normalized.moveCountMax,
+    "Maximum moves",
+  );
+
+  if (moveCountMaxError) {
+    return {
+      query: "",
+      error: moveCountMaxError,
+    };
+  }
+
+  if (
+    normalized.moveCountMin &&
+    normalized.moveCountMax &&
+    Number(normalized.moveCountMin) > Number(normalized.moveCountMax)
+  ) {
+    return {
+      query: "",
+      error: "Minimum moves cannot be greater than maximum moves.",
     };
   }
 

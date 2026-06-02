@@ -22,7 +22,7 @@ const {
 	splitGames,
 } = __testing;
 
-function createGame(eco) {
+function createGame(eco, options = {}) {
 	return {
 		headers: {
 			White: "Paul Morphy",
@@ -35,6 +35,7 @@ function createGame(eco) {
 		date: {
 			year: 1858,
 		},
+		moveCount: options.moveCount ?? null,
 	};
 }
 
@@ -75,7 +76,7 @@ const SECOND_PGN = `
 [ECO "C65"]
 [Opening "Ruy Lopez, Berlin Defense"]
 
-1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 1/2-1/2
+1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Be7 1/2-1/2
 `;
 
 const SMALL_WHITESPACE_SEPARATED_PGN = `
@@ -242,6 +243,8 @@ test("normalizeSearchQuery accepts ECO-only range searches", () => {
 		result: "",
 		yearFrom: null,
 		yearTo: null,
+		moveCountMin: null,
+		moveCountMax: null,
 		page: 1,
 		pageSize: 25,
 	});
@@ -267,6 +270,16 @@ test("normalizeSearchQuery rejects reversed ECO ranges", () => {
 	);
 });
 
+test("normalizeSearchQuery rejects reversed move-count ranges", () => {
+	assert.throws(
+		() => normalizeSearchQuery({ moveCountMin: "40", moveCountMax: "20" }),
+		(error) =>
+			error instanceof HttpError &&
+			error.code === "invalid_query" &&
+			error.message === "moveCountMin cannot be greater than moveCountMax",
+	);
+});
+
 test("matchesEcoRange supports partial and bounded ranges", () => {
 	assert.equal(matchesEcoRange("C50", { ecoFrom: "C20", ecoTo: "C99" }), true);
 	assert.equal(matchesEcoRange("B99", { ecoFrom: "C20", ecoTo: "" }), false);
@@ -280,6 +293,20 @@ test("matchesSearch applies the ECO range against PGN headers", () => {
 	assert.equal(matchesSearch(createGame("C51"), search), false);
 	assert.equal(matchesSearch(createGame(""), search), false);
 	assert.equal(matchesSearch(createGame("not-an-eco"), search), false);
+});
+
+test("matchesSearch applies move-count bounds", () => {
+	const search = normalizeSearchQuery({ moveCountMin: "4", moveCountMax: "6" });
+
+	assert.equal(
+		matchesSearch(createGame("C42", { moveCount: 5 }), search),
+		true,
+	);
+	assert.equal(
+		matchesSearch(createGame("C42", { moveCount: 3 }), search),
+		false,
+	);
+	assert.equal(matchesSearch(createGame("C42"), search), false);
 });
 
 test("buildImportedGameRecord creates a stable database id", () => {
@@ -396,6 +423,32 @@ test("searchGames filters SQLite-backed OTB results by ECO, year, event, opening
 			filtered.games[0].sourceFile,
 			path.join("nested", "championship.pgn"),
 		);
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("searchGames filters SQLite-backed OTB results by move-count range", async () => {
+	const { archiveDir, dbPath, rootDir } = await createTempOtbWorkspace();
+
+	try {
+		await importPgnDirectory({
+			rootDir: archiveDir,
+			dbPath,
+		});
+
+		const filtered = await searchGames(
+			{
+				moveCountMin: "4",
+				moveCountMax: "4",
+				pageSize: 10,
+			},
+			{ dbPath },
+		);
+
+		assert.equal(filtered.games.length, 1);
+		assert.equal(filtered.games[0].event, "World Championship");
+		assert.equal(filtered.games[0].moveCount, 4);
 	} finally {
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}

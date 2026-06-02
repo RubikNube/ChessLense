@@ -252,6 +252,40 @@ function OtbSearchModal({
             />
           </label>
           <label className="modal-field">
+            <span>Minimum moves</span>
+            <input
+              className="modal-input"
+              type="number"
+              min="1"
+              value={filters.moveCountMin}
+              onChange={(event) => {
+                setFilters((currentValue) => ({
+                  ...currentValue,
+                  moveCountMin: event.target.value,
+                }));
+                setSearchError("");
+              }}
+              placeholder="20"
+            />
+          </label>
+          <label className="modal-field">
+            <span>Maximum moves</span>
+            <input
+              className="modal-input"
+              type="number"
+              min="1"
+              value={filters.moveCountMax}
+              onChange={(event) => {
+                setFilters((currentValue) => ({
+                  ...currentValue,
+                  moveCountMax: event.target.value,
+                }));
+                setSearchError("");
+              }}
+              placeholder="80"
+            />
+          </label>
+          <label className="modal-field">
             <span>Results per page</span>
             <select
               className="modal-input"

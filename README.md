@@ -82,7 +82,7 @@ npm run format:check
 - Import a PGN directly into the board
 - Import one local `.pgn` file into the OTB SQLite database from the app
 - Search public Lichess games by player with optional filters such as opponent, year, color, and speed
-- Search historical OTB master games from a local SQLite archive with player, opponent, optional player color, event, year range, result, ECO, and opening filters
+- Search historical OTB master games from a local SQLite archive with player, opponent, optional player color, event, year range, result, ECO, opening, and move-count range filters
 - Import a selected Lichess game back into the existing PGN/annotation flow
 - Import a selected OTB game back into the existing PGN/annotation flow
 

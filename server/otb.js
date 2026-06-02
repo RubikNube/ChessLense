@@ -90,6 +90,24 @@ function normalizePageSize(value) {
 	return pageSize;
 }
 
+function normalizeMoveCount(value, fieldName) {
+	const moveCount = normalizePositiveInteger(value, fieldName);
+
+	if (moveCount === null) {
+		return null;
+	}
+
+	if (moveCount < 1) {
+		throw new HttpError(
+			400,
+			"invalid_query",
+			`${fieldName} must be at least 1`,
+		);
+	}
+
+	return moveCount;
+}
+
 function normalizeResult(value) {
 	const normalized = normalizeString(value);
 
@@ -228,6 +246,8 @@ function normalizeSearchQuery(query) {
 		result: normalizeResult(query.result),
 		yearFrom: normalizeOptionalYear(query.yearFrom, "yearFrom"),
 		yearTo: normalizeOptionalYear(query.yearTo, "yearTo"),
+		moveCountMin: normalizeMoveCount(query.moveCountMin, "moveCountMin"),
+		moveCountMax: normalizeMoveCount(query.moveCountMax, "moveCountMax"),
 		page: normalizePage(query.page),
 		pageSize: normalizePageSize(query.pageSize ?? query.max),
 	};
@@ -241,6 +261,18 @@ function normalizeSearchQuery(query) {
 	}
 
 	if (
+		search.moveCountMin &&
+		search.moveCountMax &&
+		search.moveCountMin > search.moveCountMax
+	) {
+		throw new HttpError(
+			400,
+			"invalid_query",
+			"moveCountMin cannot be greater than moveCountMax",
+		);
+	}
+
+	if (
 		!(
 			search.player ||
 			search.opponent ||
@@ -250,7 +282,9 @@ function normalizeSearchQuery(query) {
 			search.opening ||
 			search.result ||
 			search.yearFrom ||
-			search.yearTo
+			search.yearTo ||
+			search.moveCountMin ||
+			search.moveCountMax
 		)
 	) {
 		throw new HttpError(
@@ -478,6 +512,14 @@ function matchesSearch(game, search) {
 	const opening = normalizeString(game.headers.Opening);
 	const result = normalizeString(game.headers.Result);
 	const year = game.date.year;
+	const moveCount = Number.isInteger(game.moveCount)
+		? game.moveCount
+		: (() => {
+				const plyCount = parsePlyCount(game.headers.PlyCount);
+				return Number.isInteger(plyCount) && plyCount > 0
+					? Math.ceil(plyCount / 2)
+					: null;
+			})();
 	const isPairSearch = search.player && search.opponent;
 	const matchesWhitePlayer = search.player
 		? isPairSearch
@@ -565,6 +607,14 @@ function matchesSearch(game, search) {
 	}
 
 	if (search.yearTo && (!year || year > search.yearTo)) {
+		return false;
+	}
+
+	if (search.moveCountMin && (!moveCount || moveCount < search.moveCountMin)) {
+		return false;
+	}
+
+	if (search.moveCountMax && (!moveCount || moveCount > search.moveCountMax)) {
 		return false;
 	}
 
@@ -793,6 +843,16 @@ function buildSearchQueryDefinition(search) {
 	if (search.yearTo) {
 		clauses.push("g.year <= ?");
 		params.push(search.yearTo);
+	}
+
+	if (search.moveCountMin) {
+		clauses.push("g.move_count >= ?");
+		params.push(search.moveCountMin);
+	}
+
+	if (search.moveCountMax) {
+		clauses.push("g.move_count <= ?");
+		params.push(search.moveCountMax);
 	}
 
 	return {

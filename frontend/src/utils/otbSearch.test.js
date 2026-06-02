@@ -24,6 +24,8 @@ describe("normalizeOtbSearchFilters", () => {
         ecoFrom: " c20 ",
         ecoTo: " c99 ",
         opening: " Italian ",
+        moveCountMin: " 20 ",
+        moveCountMax: " 80 ",
         pageSize: "",
       }),
     ).toEqual({
@@ -37,6 +39,8 @@ describe("normalizeOtbSearchFilters", () => {
       ecoFrom: "C20",
       ecoTo: "C99",
       opening: "Italian",
+      moveCountMin: "20",
+      moveCountMax: "80",
       pageSize: "25",
     });
   });
@@ -84,6 +88,24 @@ describe("buildOtbSearchQuery", () => {
     });
   });
 
+  it("rejects invalid move-count ranges", () => {
+    expect(buildOtbSearchQuery({ moveCountMin: "0" })).toEqual({
+      query: "",
+      error: "Minimum moves must be at least 1.",
+    });
+
+    expect(
+      buildOtbSearchQuery({
+        player: "Morphy",
+        moveCountMin: "80",
+        moveCountMax: "20",
+      }),
+    ).toEqual({
+      query: "",
+      error: "Minimum moves cannot be greater than maximum moves.",
+    });
+  });
+
   it("builds a query string from populated filters", () => {
     expect(
       buildOtbSearchQuery({
@@ -96,11 +118,13 @@ describe("buildOtbSearchQuery", () => {
         result: "1-0",
         ecoFrom: "c20",
         ecoTo: "c99",
+        moveCountMin: "20",
+        moveCountMax: "80",
         pageSize: "50",
       }),
     ).toEqual({
       query:
-        "player=Morphy&opponent=Anderssen&color=black&event=Paris&yearFrom=1858&yearTo=1858&result=1-0&ecoFrom=C20&ecoTo=C99&pageSize=50&page=1",
+        "player=Morphy&opponent=Anderssen&color=black&event=Paris&yearFrom=1858&yearTo=1858&result=1-0&ecoFrom=C20&ecoTo=C99&moveCountMin=20&moveCountMax=80&pageSize=50&page=1",
       error: "",
     });
   });

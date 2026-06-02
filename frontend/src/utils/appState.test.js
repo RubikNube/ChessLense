@@ -141,6 +141,8 @@ describe("persisted app state", () => {
           ecoFrom: " c20 ",
           ecoTo: " c99 ",
           opening: " Italian ",
+          moveCountMin: " 20 ",
+          moveCountMax: " 80 ",
           pageSize: "",
         },
         importedPgnData: {
@@ -243,6 +245,8 @@ describe("persisted app state", () => {
         ecoFrom: "C20",
         ecoTo: "C99",
         opening: "Italian",
+        moveCountMin: "20",
+        moveCountMax: "80",
         pageSize: DEFAULT_OTB_SEARCH_FILTERS.pageSize,
       },
       importedPgnData: {
@@ -416,6 +420,8 @@ describe("persisted app state", () => {
           ecoFrom: " c20 ",
           ecoTo: " c99 ",
           opening: " Italian ",
+          moveCountMin: " 24 ",
+          moveCountMax: " 60 ",
           pageSize: "",
         },
         importedPgnData: {
@@ -487,6 +493,8 @@ describe("persisted app state", () => {
         ecoFrom: "C20",
         ecoTo: "C99",
         opening: "Italian",
+        moveCountMin: "24",
+        moveCountMax: "60",
         pageSize: DEFAULT_OTB_SEARCH_FILTERS.pageSize,
       },
       importedPgnData: {
