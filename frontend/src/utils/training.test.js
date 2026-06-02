@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildGuessReviewArrows,
   buildReplayAttempt,
   classifyReplayDelta,
   createComputerPlayTrainingState,
@@ -380,6 +381,73 @@ describe("training helpers", () => {
       }),
     ).toBe("#7f1d1d");
     expect(getGuessAttemptArrowColor(null)).toBe("#9ca3af");
+  });
+
+  it("builds review arrows for both the game move and the player move", () => {
+    expect(
+      buildGuessReviewArrows(
+        {
+          ply: 7,
+          sourceAttempt: {
+            expectedMove: { from: "g1", to: "f3" },
+            userMove: { from: "c2", to: "c4" },
+            outcome: "mismatch",
+            classification: REPLAY_RESULT_BETTER,
+          },
+        },
+        [
+          {
+            ply: 7,
+            moveNumber: 4,
+            side: "white",
+            san: "Bb5",
+            move: { from: "f1", to: "b5" },
+            fenBefore:
+              "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
+            fenAfter:
+              "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+          },
+        ],
+      ),
+    ).toEqual([
+      {
+        startSquare: "f1",
+        endSquare: "b5",
+        color: "#2563eb",
+      },
+      {
+        startSquare: "c2",
+        endSquare: "c4",
+        color: "#4caf50",
+      },
+    ]);
+  });
+
+  it("falls back to the attempt expected move when no reference move is available", () => {
+    expect(
+      buildGuessReviewArrows(
+        {
+          sourceAttempt: {
+            expectedMove: { from: "e2", to: "e4" },
+            userMove: { from: "d2", to: "d4" },
+            outcome: "mismatch",
+            classification: REPLAY_RESULT_EQUAL,
+          },
+        },
+        [],
+      ),
+    ).toEqual([
+      {
+        startSquare: "e2",
+        endSquare: "e4",
+        color: "#2563eb",
+      },
+      {
+        startSquare: "d2",
+        endSquare: "d4",
+        color: "#facc15",
+      },
+    ]);
   });
 
   it("records an exact match without engine comparison data", () => {

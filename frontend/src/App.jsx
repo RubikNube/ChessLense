@@ -114,6 +114,7 @@ import {
   undoInVariantTree,
 } from "./utils/variantTree.js";
 import {
+  buildGuessReviewArrows,
   buildReplayAttempt,
   createGuessHistoryEntryPayload,
   createComputerPlayTrainingState,
@@ -124,7 +125,6 @@ import {
   getCurrentGuessTheMove,
   getCurrentPuzzleMove,
   getCurrentReplayMove,
-  getGuessAttemptArrowColor,
   getPuzzleTerminalOutcome,
   normalizeGuessHistoryBrowseEntries,
   normalizeGuessHistoryEntries,
@@ -1103,24 +1103,15 @@ function App() {
     isGuessResultBrowsing,
   ]);
 
-  const guessBrowseArrow = useMemo(() => {
+  const guessBrowseArrows = useMemo(() => {
     if (!isGuessResultBrowsing) {
-      return null;
+      return [];
     }
-
-    const attempt = guessBrowseMoveEntry?.sourceAttempt;
-    const userMove = attempt?.userMove;
-
-    if (!userMove?.from || !userMove?.to) {
-      return null;
-    }
-
-    return {
-      startSquare: userMove.from,
-      endSquare: userMove.to,
-      color: getGuessAttemptArrowColor(attempt),
-    };
-  }, [guessBrowseMoveEntry?.sourceAttempt, isGuessResultBrowsing]);
+    return buildGuessReviewArrows(
+      guessBrowseMoveEntry,
+      guessBrowseReferenceMoves,
+    );
+  }, [guessBrowseMoveEntry, guessBrowseReferenceMoves, isGuessResultBrowsing]);
   const resolvedTheme = useMemo(
     () => resolveTheme(themeOverrides),
     [themeOverrides],
@@ -1131,12 +1122,8 @@ function App() {
   );
 
   const effectiveBoardArrows = useMemo(
-    () =>
-      mergeBoardArrowCollections(
-        boardArrows,
-        guessBrowseArrow ? [guessBrowseArrow] : [],
-      ),
-    [boardArrows, guessBrowseArrow],
+    () => mergeBoardArrowCollections(boardArrows, guessBrowseArrows),
+    [boardArrows, guessBrowseArrows],
   );
 
   useEffect(() => {

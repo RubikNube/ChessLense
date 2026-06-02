@@ -1142,6 +1142,38 @@ export function getGuessAttemptArrowColor(attempt) {
   return "#9ca3af";
 }
 
+export function buildGuessReviewArrows(moveEntry, referenceMoves) {
+  const referenceMove =
+    Number.isInteger(moveEntry?.ply) && Array.isArray(referenceMoves)
+      ? normalizeReferenceMove(
+          referenceMoves.find((move) => move?.ply === moveEntry.ply),
+        )
+      : null;
+  const reviewedMove =
+    referenceMove?.move ??
+    normalizeMove(moveEntry?.sourceAttempt?.expectedMove);
+  const userMove = normalizeMove(moveEntry?.sourceAttempt?.userMove);
+  const reviewArrows = [];
+
+  if (reviewedMove?.from && reviewedMove?.to) {
+    reviewArrows.push({
+      startSquare: reviewedMove.from,
+      endSquare: reviewedMove.to,
+      color: "#2563eb",
+    });
+  }
+
+  if (userMove?.from && userMove?.to) {
+    reviewArrows.push({
+      startSquare: userMove.from,
+      endSquare: userMove.to,
+      color: getGuessAttemptArrowColor(moveEntry?.sourceAttempt),
+    });
+  }
+
+  return reviewArrows;
+}
+
 function getGuessTheMoveEvaluationLabel(scoreRatio) {
   if (!Number.isFinite(scoreRatio)) {
     return "No score yet";

@@ -281,17 +281,25 @@ function GuessSummarySection({
               <button
                 type="button"
                 className="annotation-secondary-button"
-                onClick={onStopGuessBrowsing}
-                disabled={trainingLoading || !isGuessResultBrowsing}
-                title="Return to current position"
+                onClick={
+                  isGuessResultBrowsing
+                    ? onStopGuessBrowsing
+                    : onGuessBrowseStart
+                }
+                disabled={trainingLoading}
+                title={
+                  isGuessResultBrowsing
+                    ? "Return to current position"
+                    : "Start browsing scored moves"
+                }
               >
-                Stop browsing
+                {isGuessResultBrowsing ? "Stop browsing" : "Start browsing"}
               </button>
             </div>
             <p className="training-history-browser-status">
               {hasBrowseSelection
                 ? `Browsing move ${guessBrowseIndex + 1} of ${moveHistory.length}.`
-                : "Click a move below to browse it on the board."}
+                : "Click Start browsing or a move below to browse it on the board."}
             </p>
           </div>
         )}
