@@ -4789,14 +4789,18 @@ function App() {
         moveHistoryItems={moveHistoryItems}
         currentMoveIndex={currentMoveIndex}
         boardPanelHeight={boardPanelHeight}
-        canUndo={canUndo}
-        canRedo={canRedo}
+        canUndo={isGuessResultBrowsing ? boundedGuessBrowseIndex > 0 : canUndo}
+        canRedo={
+          isGuessResultBrowsing
+            ? boundedGuessBrowseIndex < guessBrowseMoveCount - 1
+            : canRedo
+        }
         onCloseMoveHistory={closeMoveHistory}
         onSelectMove={goToMoveHistoryNode}
-        onUndo={undoMove}
-        onRedo={redoMove}
-        onGoToStart={goToStart}
-        onGoToEnd={goToEnd}
+        onUndo={isGuessResultBrowsing ? goGuessBrowsePrev : undoMove}
+        onRedo={isGuessResultBrowsing ? goGuessBrowseNext : redoMove}
+        onGoToStart={isGuessResultBrowsing ? goGuessBrowseStart : goToStart}
+        onGoToEnd={isGuessResultBrowsing ? goGuessBrowseEnd : goToEnd}
         onRevertMovesUntil={revertMoveHistoryToNode}
         getVariantOptionsForMove={getMoveHistoryVariantOptions}
         onSelectVariant={selectVariant}
