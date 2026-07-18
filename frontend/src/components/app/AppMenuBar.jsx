@@ -220,6 +220,10 @@ function AppMenuBar({
             action: actions.toggleBoardOrientation,
           },
           {
+            label: "Reset View Layout",
+            action: actions.resetViewLayout,
+          },
+          {
             label: showMoveHistory ? "Hide Move History" : "Show Move History",
             action: actions.toggleMoveHistory,
           },
@@ -656,6 +660,13 @@ function AppMenuBar({
                 onClick={() => onMenuAction(actions.toggleBoardOrientation)}
               >
                 Flip Board
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => onMenuAction(actions.resetViewLayout)}
+              >
+                Reset View Layout
               </button>
               <button
                 type="button"

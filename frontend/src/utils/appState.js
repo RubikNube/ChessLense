@@ -167,6 +167,34 @@ export const DEFAULT_ENGINE_SEARCH_DEPTH = 12;
 export const MIN_ENGINE_SEARCH_DEPTH = 1;
 export const MAX_ENGINE_SEARCH_DEPTH = 30;
 export const DEFAULT_BOARD_SOUNDS_ENABLED = true;
+export const VIEW_LAYOUT_NAVIGATION_COLUMN = "navigation";
+export const VIEW_LAYOUT_REFERENCE_COLUMN = "reference";
+export const VIEW_LAYOUT_VIEW_IDS = [
+  "move-history",
+  "play-computer",
+  "puzzle-training",
+  "replay-training",
+  "guess-training",
+  "opening-tree",
+  "engine",
+  "comments",
+  "variants",
+  "imported-pgn",
+];
+export const DEFAULT_VIEW_LAYOUT = {
+  [VIEW_LAYOUT_NAVIGATION_COLUMN]: ["move-history"],
+  [VIEW_LAYOUT_REFERENCE_COLUMN]: [
+    "play-computer",
+    "puzzle-training",
+    "replay-training",
+    "guess-training",
+    "opening-tree",
+    "engine",
+    "comments",
+    "variants",
+    "imported-pgn",
+  ],
+};
 const POSITION_COMMENT_SOURCE_IMPORTED = "imported-mainline";
 const POSITION_COMMENT_SOURCE_USER = "user";
 
@@ -201,6 +229,42 @@ export function normalizeEngineSearchDepth(value) {
     MAX_ENGINE_SEARCH_DEPTH,
     Math.max(MIN_ENGINE_SEARCH_DEPTH, parsedValue),
   );
+}
+
+export function normalizeViewLayout(value) {
+  const normalizedLayout = {
+    [VIEW_LAYOUT_NAVIGATION_COLUMN]: [],
+    [VIEW_LAYOUT_REFERENCE_COLUMN]: [],
+  };
+  const seenViewIds = new Set();
+
+  for (const columnId of [
+    VIEW_LAYOUT_NAVIGATION_COLUMN,
+    VIEW_LAYOUT_REFERENCE_COLUMN,
+  ]) {
+    const viewIds = Array.isArray(value?.[columnId]) ? value[columnId] : [];
+
+    for (const viewId of viewIds) {
+      if (VIEW_LAYOUT_VIEW_IDS.includes(viewId) && !seenViewIds.has(viewId)) {
+        normalizedLayout[columnId].push(viewId);
+        seenViewIds.add(viewId);
+      }
+    }
+  }
+
+  for (const columnId of [
+    VIEW_LAYOUT_NAVIGATION_COLUMN,
+    VIEW_LAYOUT_REFERENCE_COLUMN,
+  ]) {
+    for (const viewId of DEFAULT_VIEW_LAYOUT[columnId]) {
+      if (!seenViewIds.has(viewId)) {
+        normalizedLayout[columnId].push(viewId);
+        seenViewIds.add(viewId);
+      }
+    }
+  }
+
+  return normalizedLayout;
 }
 
 function normalizePositionComment(entry, index = 0) {
@@ -630,6 +694,7 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showVariantArrows === "boolean"
           ? parsedState.showVariantArrows
           : false,
+      viewLayout: normalizeViewLayout(parsedState.viewLayout),
       themeOverrides: normalizeThemeOverrides(parsedState.themeOverrides),
       lichessSearchFilters,
       lichessPuzzleFilters,
@@ -679,6 +744,7 @@ export function serializePersistedAppState({
   showImportedPgn,
   showVariants,
   showVariantArrows,
+  viewLayout,
   themeOverrides,
   lichessSearchFilters,
   lichessPuzzleFilters,
@@ -705,6 +771,7 @@ export function serializePersistedAppState({
     showImportedPgn,
     showVariants,
     showVariantArrows,
+    viewLayout: normalizeViewLayout(viewLayout),
     themeOverrides: normalizeThemeOverrides(themeOverrides),
     lichessSearchFilters: normalizeLichessSearchFilters(
       lichessSearchFilters ?? DEFAULT_LICHESS_SEARCH_FILTERS,

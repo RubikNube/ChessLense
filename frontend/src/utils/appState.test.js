@@ -10,11 +10,13 @@ import {
   cloneGame,
   createGameFromPgn,
   DEFAULT_BOARD_SOUNDS_ENABLED,
+  DEFAULT_VIEW_LAYOUT,
   getPositionCommentsForFen,
   loadPersistedAppState,
   MAX_ENGINE_SEARCH_DEPTH,
   MIN_ENGINE_SEARCH_DEPTH,
   normalizeEngineSearchDepth,
+  normalizeViewLayout,
   parseGameFromPgn,
   removePositionCommentEntry,
   savePositionCommentEntry,
@@ -89,6 +91,32 @@ describe("parseGameFromPgn", () => {
 });
 
 describe("persisted app state", () => {
+  it("normalizes persisted view layouts and restores missing views", () => {
+    expect(
+      normalizeViewLayout({
+        navigation: ["comments", "comments", "unknown"],
+        reference: ["move-history", "engine"],
+      }),
+    ).toEqual({
+      navigation: ["comments"],
+      reference: [
+        "move-history",
+        "engine",
+        "play-computer",
+        "puzzle-training",
+        "replay-training",
+        "guess-training",
+        "opening-tree",
+        "variants",
+        "imported-pgn",
+      ],
+    });
+  });
+
+  it("uses the default view layout when no layout was saved", () => {
+    expect(normalizeViewLayout()).toEqual(DEFAULT_VIEW_LAYOUT);
+  });
+
   it("normalizes engine search depth values", () => {
     expect(normalizeEngineSearchDepth("16")).toBe(16);
     expect(normalizeEngineSearchDepth("0")).toBe(MIN_ENGINE_SEARCH_DEPTH);
@@ -221,6 +249,7 @@ describe("persisted app state", () => {
       showImportedPgn: false,
       showVariants: false,
       showVariantArrows: true,
+      viewLayout: DEFAULT_VIEW_LAYOUT,
       themeOverrides: {
         accent: "#ff00aa",
         boardLightSquare: "#aabbcc",
@@ -465,6 +494,7 @@ describe("persisted app state", () => {
       showImportedPgn: false,
       showVariants: false,
       showVariantArrows: true,
+      viewLayout: DEFAULT_VIEW_LAYOUT,
       themeOverrides: {
         accent: "#abcdef",
       },
@@ -770,6 +800,7 @@ describe("persisted app state", () => {
       showImportedPgn: true,
       showVariants: true,
       showVariantArrows: false,
+      viewLayout: DEFAULT_VIEW_LAYOUT,
       themeOverrides: {},
       lichessPuzzleFilters: DEFAULT_LICHESS_PUZZLE_FILTERS,
       lichessSearchFilters: DEFAULT_LICHESS_SEARCH_FILTERS,

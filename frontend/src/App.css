@@ -392,6 +392,38 @@ body {
   min-width: 0;
 }
 
+.sortable-view-column {
+  min-height: 72px;
+  border-radius: 12px;
+}
+
+.sortable-view {
+  position: relative;
+  border-radius: 12px;
+  cursor: grab;
+  touch-action: manipulation;
+}
+
+.sortable-view-dragging {
+  opacity: 0.35;
+  cursor: grabbing;
+}
+
+.sortable-view:focus-visible {
+  outline: 2px solid var(--theme-accent);
+  outline-offset: 2px;
+}
+
+.sortable-view-overlay {
+  padding: 10px 14px;
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+  background: var(--theme-surface);
+  color: var(--theme-surface-text);
+  box-shadow: 0 12px 30px var(--theme-shadow);
+  font-weight: 700;
+}
+
 .card {
   background: var(--theme-surface);
   border-radius: 12px;

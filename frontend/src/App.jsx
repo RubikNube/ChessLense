@@ -28,6 +28,7 @@ import ReplayTrainingPanel from "./components/training/ReplayTrainingPanel.jsx";
 import VariantsView from "./components/VariantsView.jsx";
 import {
   DEFAULT_BOARD_SOUNDS_ENABLED,
+  DEFAULT_VIEW_LAYOUT,
   createUserPositionComment,
   DEFAULT_ENGINE_SEARCH_DEPTH,
   MAX_ENGINE_SEARCH_DEPTH,
@@ -38,6 +39,7 @@ import {
   getPositionCommentsForFen,
   loadPersistedAppState,
   normalizeEngineSearchDepth,
+  normalizeViewLayout,
   normalizeShortcutConfig,
   removePositionCommentEntry,
   savePositionCommentEntry,
@@ -424,6 +426,9 @@ function App() {
   );
   const [showVariantArrows, setShowVariantArrows] = useState(
     () => persistedAppState?.showVariantArrows ?? false,
+  );
+  const [viewLayout, setViewLayout] = useState(
+    () => persistedAppState?.viewLayout ?? DEFAULT_VIEW_LAYOUT,
   );
   const [hoveredOpeningTreeMove, setHoveredOpeningTreeMove] = useState(null);
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
@@ -4210,6 +4215,7 @@ function App() {
         showImportedPgn: persistedRightSideViews.showImportedPgn,
         showVariants: persistedRightSideViews.showVariants,
         showVariantArrows,
+        viewLayout,
         themeOverrides,
         lichessSearchFilters,
         lichessPuzzleFilters,
@@ -4244,6 +4250,7 @@ function App() {
     showPlayComputerPanel,
     showVariants,
     showVariantArrows,
+    viewLayout,
     themeOverrides,
     trainingState,
     trainingFocusRestoreRef,
@@ -4587,6 +4594,10 @@ function App() {
     );
   }, []);
 
+  const resetViewLayout = useCallback(() => {
+    setViewLayout(normalizeViewLayout());
+  }, []);
+
   const updateThemeColor = useCallback((tokenName, nextColor) => {
     setThemeOverrides((currentOverrides) =>
       getThemeOverrideValue(currentOverrides, tokenName, nextColor),
@@ -4620,6 +4631,7 @@ function App() {
       openSaveStudyPopup,
       openStudiesPopup,
       toggleBoardOrientation,
+      resetViewLayout,
       toggleMoveHistory,
       toggleOpeningTreePanel,
       togglePuzzleTrainingPanel,
@@ -4648,6 +4660,7 @@ function App() {
       openSaveStudyPopup,
       openShortcutsPopup,
       openStudiesPopup,
+      resetViewLayout,
       openThemeSettingsPopup,
       redoMove,
       resetGame,
@@ -4848,6 +4861,9 @@ function App() {
         onRevertMovesUntil={revertMoveHistoryToNode}
         getVariantOptionsForMove={getMoveHistoryVariantOptions}
         onSelectVariant={selectVariant}
+        viewLayout={viewLayout}
+        onViewLayoutChange={setViewLayout}
+        showViewLayout={!isPositionSetupMode}
       >
         {isPositionSetupMode ? (
           <PositionSetupPanel
@@ -4870,6 +4886,7 @@ function App() {
             {showPlayComputerPanel && !effectiveTrainingFocusMode && (
               <>
                 <PlayComputerPanel
+                  viewId="play-computer"
                   panelHeight={boardPanelHeight}
                   onClose={closePlayComputerPanel}
                   normalizedTrainingState={normalizedTrainingState}
@@ -4908,6 +4925,7 @@ function App() {
             )}
             {showPuzzleTrainingPanel && (
               <PuzzleTrainingPanel
+                viewId="puzzle-training"
                 panelHeight={boardPanelHeight}
                 onClose={closePuzzleTrainingPanel}
                 filters={lichessPuzzleFilters}
@@ -4928,6 +4946,7 @@ function App() {
             {showReplayTrainingPanel && (
               <>
                 <ReplayTrainingPanel
+                  viewId="replay-training"
                   panelHeight={boardPanelHeight}
                   onClose={closeReplayTrainingPanel}
                   hasReplaySource={hasReplaySource}
@@ -4966,6 +4985,7 @@ function App() {
             )}
             {showGuessTrainingPanel && (
               <GuessTheMoveTrainingPanel
+                viewId="guess-training"
                 panelHeight={boardPanelHeight}
                 onClose={closeGuessTrainingPanel}
                 hasReplaySource={hasReplaySource}
@@ -5012,6 +5032,7 @@ function App() {
 
             {!effectiveTrainingFocusMode && showOpeningTreePanel && (
               <OpeningTreePanel
+                viewId="opening-tree"
                 fen={fen}
                 currentMoveLabel={currentMoveLabel}
                 lichessApiToken={lichessApiToken}
@@ -5024,6 +5045,7 @@ function App() {
 
             {!effectiveTrainingFocusMode && showEngineWindow && (
               <EnginePanel
+                viewId="engine"
                 onClose={closeEngineWindow}
                 engineSearchDepth={engineSearchDepth}
                 minEngineSearchDepth={MIN_ENGINE_SEARCH_DEPTH}
@@ -5047,6 +5069,7 @@ function App() {
 
             {!effectiveTrainingFocusMode && showComments && (
               <CommentsPanel
+                viewId="comments"
                 onClose={closeComments}
                 currentMoveLabel={currentMoveLabel}
                 currentPositionComments={currentPositionComments}
@@ -5063,6 +5086,7 @@ function App() {
 
             {!effectiveTrainingFocusMode && showVariants && (
               <VariantsView
+                viewId="variants"
                 variantLines={variantLines}
                 canUndo={canUndo}
                 canRedo={canRedo}
@@ -5084,6 +5108,7 @@ function App() {
               showImportedPgn &&
               hasImportedPgnDetails && (
                 <ImportedPgnPanel
+                  viewId="imported-pgn"
                   onClose={closeImportedPgn}
                   importedPgnData={importedPgnData}
                   importedMainlineComments={importedMainlineComments}
