@@ -38,7 +38,14 @@ const radioStyle = {
   margin: 0,
 };
 
-function RadioGroup({ label, name, options, value, onChange, disabled = false }) {
+function RadioGroup({
+  label,
+  name,
+  options,
+  value,
+  onChange,
+  disabled = false,
+}) {
   return (
     <fieldset style={fieldsetStyle}>
       <legend style={legendStyle}>{label}</legend>
