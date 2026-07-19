@@ -93,6 +93,19 @@ const optionButtonStyle = {
   gap: "0.2rem",
 };
 
+const truncatedThemeLabelStyle = {
+  display: "block",
+  minWidth: 0,
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const selectedThemeLabelStyle = {
+  ...truncatedThemeLabelStyle,
+  flex: "1 1 auto",
+};
+
 const helperTextStyle = {
   margin: "0.45rem 0 0",
   color: THEME_CSS_VARS.surfaceTextMuted,
@@ -142,6 +155,52 @@ const ANY_THEME_OPTION = {
   label: "Any theme",
   description: "Clear the theme filter and use difficulty and color only.",
 };
+
+function TruncatedThemeLabel({ label, style, strong = false }) {
+  const labelRef = useRef(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useEffect(() => {
+    const labelElement = labelRef.current;
+
+    if (!labelElement) {
+      return undefined;
+    }
+
+    function updateTruncation() {
+      setIsTruncated(labelElement.scrollWidth > labelElement.clientWidth);
+    }
+
+    updateTruncation();
+
+    if (typeof ResizeObserver === "function") {
+      const resizeObserver = new ResizeObserver(updateTruncation);
+      resizeObserver.observe(labelElement);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }
+
+    window.addEventListener("resize", updateTruncation);
+
+    return () => {
+      window.removeEventListener("resize", updateTruncation);
+    };
+  }, [label]);
+
+  const Element = strong ? "strong" : "span";
+
+  return (
+    <Element
+      ref={labelRef}
+      style={style}
+      title={isTruncated ? label : undefined}
+    >
+      {label}
+    </Element>
+  );
+}
 
 function PuzzleThemeSelect({ value, onChange }) {
   const rootRef = useRef(null);
@@ -235,7 +294,10 @@ function PuzzleThemeSelect({ value, onChange }) {
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <span>{selectedOption?.label ?? "Any theme"}</span>
+        <TruncatedThemeLabel
+          label={selectedOption?.label ?? "Any theme"}
+          style={selectedThemeLabelStyle}
+        />
         <span aria-hidden="true">{isOpen ? "▲" : "▼"}</span>
       </button>
       {isOpen && (
@@ -260,7 +322,11 @@ function PuzzleThemeSelect({ value, onChange }) {
               onClick={() => handleSelect("")}
               aria-selected={!selectedOption}
             >
-              <strong>Any theme</strong>
+              <TruncatedThemeLabel
+                label="Any theme"
+                style={truncatedThemeLabelStyle}
+                strong
+              />
             </button>
             {filteredOptions.length ? (
               filteredOptions.map((option) => (
@@ -271,7 +337,11 @@ function PuzzleThemeSelect({ value, onChange }) {
                   onClick={() => handleSelect(option.value)}
                   aria-selected={option.value === selectedOption?.value}
                 >
-                  <strong>{option.label}</strong>
+                  <TruncatedThemeLabel
+                    label={option.label}
+                    style={truncatedThemeLabelStyle}
+                    strong
+                  />
                 </button>
               ))
             ) : (

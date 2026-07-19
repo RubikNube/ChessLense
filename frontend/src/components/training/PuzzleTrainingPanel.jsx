@@ -2,6 +2,7 @@ import {
   LICHESS_PUZZLE_COLOR_OPTIONS,
   LICHESS_PUZZLE_DIFFICULTY_OPTIONS,
 } from "../../utils/lichessPuzzles.js";
+import RadioGroup from "../RadioGroup.jsx";
 import PuzzleThemeSelect from "./PuzzleThemeSelect.jsx";
 import {
   TRAINING_MODE_PUZZLE,
@@ -15,6 +16,10 @@ const puzzleFilterGridStyle = {
   display: "grid",
   gap: "0.75rem",
   gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+};
+
+const puzzleThemeFilterStyle = {
+  gridColumn: "1 / -1",
 };
 
 const puzzleMetaGridStyle = {
@@ -139,7 +144,7 @@ function PuzzleTrainingPanel({
           <h3>Lichess filters</h3>
         </div>
         <div style={puzzleFilterGridStyle}>
-          <div>
+          <div style={puzzleThemeFilterStyle}>
             <PuzzleThemeSelect
               value={filters.theme}
               onChange={(nextTheme) =>
@@ -191,25 +196,18 @@ function PuzzleTrainingPanel({
               ))}
             </select>
           </label>
-          <label>
-            <span className="annotation-label">Color</span>
-            <select
-              className="modal-input"
-              value={filters.color}
-              onChange={(event) =>
-                setFilters((currentValue) => ({
-                  ...currentValue,
-                  color: event.target.value,
-                }))
-              }
-            >
-              {LICHESS_PUZZLE_COLOR_OPTIONS.map((option) => (
-                <option key={option.value || "default"} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <RadioGroup
+            label="Color"
+            name="puzzle-color"
+            options={LICHESS_PUZZLE_COLOR_OPTIONS}
+            value={filters.color}
+            onChange={(nextColor) =>
+              setFilters((currentValue) => ({
+                ...currentValue,
+                color: nextColor,
+              }))
+            }
+          />
         </div>
 
         <div className="annotation-actions">
