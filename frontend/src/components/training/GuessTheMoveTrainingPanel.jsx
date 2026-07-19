@@ -204,6 +204,15 @@ function GuessSummarySection({
   const canBrowse =
     moveHistory.length > 0 && typeof onSelectGuessBrowseIndex === "function";
   const hasBrowseSelection = Number.isInteger(guessBrowseIndex);
+  const selectedMoveRef = useRef(null);
+
+  useEffect(() => {
+    if (!hasBrowseSelection || !selectedMoveRef.current) {
+      return;
+    }
+
+    selectedMoveRef.current.scrollIntoView({ block: "nearest" });
+  }, [guessBrowseIndex, hasBrowseSelection]);
 
   return (
     <>
@@ -312,6 +321,7 @@ function GuessSummarySection({
               return (
                 <li
                   key={`${moveEntry.ply}-${moveEntry.expectedSan}`}
+                  ref={isSelected ? selectedMoveRef : null}
                   className={
                     "training-summary-history-entry" +
                     (canBrowse
