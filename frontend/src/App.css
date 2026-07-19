@@ -179,7 +179,8 @@ body {
   border: 1px solid var(--theme-border);
   border-radius: 10px;
   box-shadow: 0 12px 30px var(--theme-shadow);
-  z-index: 10;
+  /* react-chessboard renders board arrows at z-index: 999. */
+  z-index: 1000;
 }
 
 .menu-dropdown-mobile {
