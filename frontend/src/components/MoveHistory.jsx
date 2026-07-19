@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { THEME_CSS_VARS } from "../utils/theme.js";
 
 const actionRowStyle = {
@@ -101,7 +101,9 @@ function MoveHistory({
 }) {
   const moveHistoryRef = useRef(null);
   const selectedMoveRef = useRef(null);
+  const commentTooltipId = useId();
   const [contextMenu, setContextMenu] = useState(null);
+  const [commentTooltip, setCommentTooltip] = useState(null);
   const groupedMoveHistory = useMemo(
     () =>
       moveHistoryItems.reduce((pairs, moveEntry, index) => {
@@ -184,6 +186,22 @@ function MoveHistory({
     };
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (!commentTooltip) {
+      return undefined;
+    }
+
+    function hideCommentTooltip() {
+      setCommentTooltip(null);
+    }
+
+    window.addEventListener("scroll", hideCommentTooltip, true);
+
+    return () => {
+      window.removeEventListener("scroll", hideCommentTooltip, true);
+    };
+  }, [commentTooltip]);
+
   const lastMoveNodeId =
     moveHistoryItems[moveHistoryItems.length - 1]?.nodeId ?? null;
   const variantOptions = contextMenu
@@ -201,6 +219,29 @@ function MoveHistory({
       y: event.clientY,
       moveEntry,
     });
+  }
+
+  function showCommentTooltip(comments, anchor) {
+    if (!comments?.length || !anchor) {
+      return;
+    }
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const shouldPlaceBelow = anchorRect.top < window.innerHeight / 2 + 8;
+
+    setCommentTooltip({
+      comments,
+      left: Math.min(
+        Math.max(anchorRect.left + anchorRect.width / 2, 16),
+        window.innerWidth - 16,
+      ),
+      top: shouldPlaceBelow ? anchorRect.bottom + 8 : anchorRect.top - 8,
+      placement: shouldPlaceBelow ? "below" : "above",
+    });
+  }
+
+  function hideCommentTooltip() {
+    setCommentTooltip(null);
   }
 
   return (
@@ -242,18 +283,39 @@ function MoveHistory({
                       className={`move-entry move-entry-button${whiteIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
                       onClick={() => onSelectMove(white.nodeId)}
                       onContextMenu={(event) => openContextMenu(event, white)}
+                      onFocus={(event) =>
+                        showCommentTooltip(white.comments, event.currentTarget)
+                      }
+                      onBlur={hideCommentTooltip}
+                      aria-describedby={
+                        white.hasComments ? commentTooltipId : undefined
+                      }
                     >
                       <span>{white.san}</span>
                       {(white.hasVariants || white.hasComments) && (
-                        <span
-                          className="move-entry-indicators"
-                          aria-hidden="true"
-                        >
+                        <span className="move-entry-indicators">
                           {white.hasVariants && (
-                            <span className="move-entry-indicator">V</span>
+                            <span
+                              className="move-entry-indicator"
+                              aria-hidden="true"
+                            >
+                              V
+                            </span>
                           )}
                           {white.hasComments && (
-                            <span className="move-entry-indicator">C</span>
+                            <span
+                              className="move-entry-indicator move-entry-comment-indicator"
+                              aria-label="Show comments"
+                              onMouseEnter={(event) =>
+                                showCommentTooltip(
+                                  white.comments,
+                                  event.currentTarget,
+                                )
+                              }
+                              onMouseLeave={hideCommentTooltip}
+                            >
+                              C
+                            </span>
                           )}
                         </span>
                       )}
@@ -272,18 +334,39 @@ function MoveHistory({
                       className={`move-entry move-entry-button${blackIndex === currentMoveIndex ? " move-entry-selected" : ""}`}
                       onClick={() => onSelectMove(black.nodeId)}
                       onContextMenu={(event) => openContextMenu(event, black)}
+                      onFocus={(event) =>
+                        showCommentTooltip(black.comments, event.currentTarget)
+                      }
+                      onBlur={hideCommentTooltip}
+                      aria-describedby={
+                        black.hasComments ? commentTooltipId : undefined
+                      }
                     >
                       <span>{black.san}</span>
                       {(black.hasVariants || black.hasComments) && (
-                        <span
-                          className="move-entry-indicators"
-                          aria-hidden="true"
-                        >
+                        <span className="move-entry-indicators">
                           {black.hasVariants && (
-                            <span className="move-entry-indicator">V</span>
+                            <span
+                              className="move-entry-indicator"
+                              aria-hidden="true"
+                            >
+                              V
+                            </span>
                           )}
                           {black.hasComments && (
-                            <span className="move-entry-indicator">C</span>
+                            <span
+                              className="move-entry-indicator move-entry-comment-indicator"
+                              aria-label="Show comments"
+                              onMouseEnter={(event) =>
+                                showCommentTooltip(
+                                  black.comments,
+                                  event.currentTarget,
+                                )
+                              }
+                              onMouseLeave={hideCommentTooltip}
+                            >
+                              C
+                            </span>
                           )}
                         </span>
                       )}
@@ -353,6 +436,26 @@ function MoveHistory({
           ⏭
         </button>
       </div>
+      {commentTooltip && (
+        <div
+          id={commentTooltipId}
+          className={`move-history-comment-tooltip move-history-comment-tooltip-${commentTooltip.placement}`}
+          role="tooltip"
+          style={{
+            left: `${commentTooltip.left}px`,
+            top: `${commentTooltip.top}px`,
+          }}
+        >
+          <span className="annotation-label">
+            {commentTooltip.comments.length === 1 ? "Comment" : "Comments"}
+          </span>
+          <ul>
+            {commentTooltip.comments.map((comment, index) => (
+              <li key={`${comment}-${index}`}>{comment}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {contextMenu && (
         <div
           style={{

@@ -29,6 +29,7 @@ import VariantsView from "./components/VariantsView.jsx";
 import {
   DEFAULT_BOARD_SOUNDS_ENABLED,
   DEFAULT_VIEW_LAYOUT,
+  addCommentsToMoveHistoryEntries,
   createUserPositionComment,
   DEFAULT_ENGINE_SEARCH_DEPTH,
   MAX_ENGINE_SEARCH_DEPTH,
@@ -41,6 +42,7 @@ import {
   normalizeEngineSearchDepth,
   normalizeViewLayout,
   normalizeShortcutConfig,
+  reorderPositionCommentEntries,
   removePositionCommentEntry,
   savePositionCommentEntry,
   savePersistedAppState,
@@ -2337,22 +2339,9 @@ function App() {
     () => moveHistoryEntries.findIndex((entry) => entry.isSelected),
     [moveHistoryEntries],
   );
-  const moveHistoryCommentFens = useMemo(
-    () =>
-      new Set(
-        positionComments
-          .map((commentEntry) => commentEntry.fen)
-          .filter(Boolean),
-      ),
-    [positionComments],
-  );
   const moveHistoryItems = useMemo(
-    () =>
-      moveHistoryEntries.map((entry) => ({
-        ...entry,
-        hasComments: moveHistoryCommentFens.has(entry.fen),
-      })),
-    [moveHistoryCommentFens, moveHistoryEntries],
+    () => addCommentsToMoveHistoryEntries(moveHistoryEntries, positionComments),
+    [moveHistoryEntries, positionComments],
   );
   const getMoveHistoryVariantOptions = useCallback(
     (nodeId) => getVariantLinesForMoveHistoryNode(variantTree, nodeId),
@@ -3082,6 +3071,16 @@ function App() {
     },
     [editingCommentId],
   );
+
+  const reorderComments = useCallback((activeCommentId, overCommentId) => {
+    setPositionComments((currentValue) =>
+      reorderPositionCommentEntries(
+        currentValue,
+        activeCommentId,
+        overCommentId,
+      ),
+    );
+  }, []);
 
   const handleBoardSquareMouseDown = useCallback(
     ({ square }, event) => {
@@ -5075,6 +5074,7 @@ function App() {
                 currentPositionComments={currentPositionComments}
                 onStartEditingComment={startEditingComment}
                 onRemoveComment={removeComment}
+                onReorderComments={reorderComments}
                 editedComment={editedComment}
                 onStartAddingComment={startAddingComment}
                 commentDraft={commentDraft}

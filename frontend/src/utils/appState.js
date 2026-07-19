@@ -348,6 +348,96 @@ export function getPositionCommentsForFen(positionComments, fen) {
   );
 }
 
+export function addCommentsToMoveHistoryEntries(
+  moveHistoryEntries,
+  positionComments,
+) {
+  if (!Array.isArray(moveHistoryEntries)) {
+    return [];
+  }
+
+  const commentsByFen = new Map();
+
+  normalizePositionComments(positionComments).forEach((commentEntry) => {
+    if (!commentEntry.fen) {
+      return;
+    }
+
+    const comments = commentsByFen.get(commentEntry.fen) ?? [];
+    comments.push(commentEntry.comment);
+    commentsByFen.set(commentEntry.fen, comments);
+  });
+
+  return moveHistoryEntries.map((moveEntry) => {
+    const comments = commentsByFen.get(moveEntry.fen) ?? [];
+
+    return {
+      ...moveEntry,
+      comments,
+      hasComments: comments.length > 0,
+    };
+  });
+}
+
+export function reorderPositionCommentEntries(
+  positionComments,
+  activeCommentId,
+  overCommentId,
+) {
+  const normalizedComments = normalizePositionComments(positionComments);
+
+  if (
+    typeof activeCommentId !== "string" ||
+    typeof overCommentId !== "string" ||
+    activeCommentId === overCommentId
+  ) {
+    return normalizedComments;
+  }
+
+  const activeComment = normalizedComments.find(
+    (commentEntry) => commentEntry.id === activeCommentId,
+  );
+  const overComment = normalizedComments.find(
+    (commentEntry) => commentEntry.id === overCommentId,
+  );
+
+  if (!activeComment?.fen || activeComment.fen !== overComment?.fen) {
+    return normalizedComments;
+  }
+
+  const commentsForPosition = normalizedComments.filter(
+    (commentEntry) => commentEntry.fen === activeComment.fen,
+  );
+  const activeIndex = commentsForPosition.findIndex(
+    (commentEntry) => commentEntry.id === activeCommentId,
+  );
+  const overIndex = commentsForPosition.findIndex(
+    (commentEntry) => commentEntry.id === overCommentId,
+  );
+
+  if (activeIndex < 0 || overIndex < 0) {
+    return normalizedComments;
+  }
+
+  const reorderedComments = [
+    ...commentsForPosition.slice(0, activeIndex),
+    ...commentsForPosition.slice(activeIndex + 1),
+  ];
+  reorderedComments.splice(overIndex, 0, activeComment);
+
+  let positionCommentIndex = 0;
+
+  return normalizedComments.map((commentEntry) => {
+    if (commentEntry.fen !== activeComment.fen) {
+      return commentEntry;
+    }
+
+    const reorderedComment = reorderedComments[positionCommentIndex];
+    positionCommentIndex += 1;
+    return reorderedComment;
+  });
+}
+
 export function savePositionCommentEntry(positionComments, entry) {
   const normalizedEntry = normalizePositionComment(entry);
 

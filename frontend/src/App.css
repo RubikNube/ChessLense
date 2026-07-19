@@ -557,6 +557,25 @@ code {
   white-space: pre-wrap;
 }
 
+.sortable-comment {
+  touch-action: manipulation;
+}
+
+.sortable-comment-dragging {
+  opacity: 0.45;
+}
+
+.comment-drag-handle {
+  min-width: 2.4rem;
+  padding-inline: 0.5rem;
+  cursor: grab;
+  touch-action: none;
+}
+
+.comment-drag-handle:active {
+  cursor: grabbing;
+}
+
 .training-feedback {
   margin-top: 12px;
 }
@@ -1031,6 +1050,42 @@ code {
   color: var(--theme-surface-text);
   font-size: 0.7rem;
   font-weight: 700;
+}
+
+.move-entry-comment-indicator {
+  cursor: help;
+}
+
+.move-history-comment-tooltip {
+  position: fixed;
+  z-index: 1100;
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: calc(50vh - 1rem);
+  padding: 10px;
+  border: 1px solid var(--theme-border);
+  border-radius: 10px;
+  background: var(--theme-tooltip-background);
+  box-shadow: 0 12px 30px var(--theme-shadow);
+  color: var(--theme-surface-text);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.move-history-comment-tooltip-above {
+  transform: translate(-50%, -100%);
+}
+
+.move-history-comment-tooltip-below {
+  transform: translateX(-50%);
+}
+
+.move-history-comment-tooltip ul {
+  margin: 6px 0 0;
+  padding-left: 1.1rem;
+}
+
+.move-history-comment-tooltip li {
+  white-space: pre-wrap;
 }
 
 .variant-lines {

@@ -5,6 +5,7 @@ import { DEFAULT_LICHESS_SEARCH_FILTERS } from "./lichessSearch.js";
 import { DEFAULT_OTB_SEARCH_FILTERS } from "./otbSearch.js";
 import {
   createUserPositionComment,
+  addCommentsToMoveHistoryEntries,
   DEFAULT_ENGINE_SEARCH_DEPTH,
   FRONTEND_STATE_STORAGE_KEY,
   cloneGame,
@@ -18,6 +19,7 @@ import {
   normalizeEngineSearchDepth,
   normalizeViewLayout,
   parseGameFromPgn,
+  reorderPositionCommentEntries,
   removePositionCommentEntry,
   savePositionCommentEntry,
   savePersistedAppState,
@@ -874,6 +876,83 @@ describe("move helpers", () => {
 });
 
 describe("position comments", () => {
+  it("reorders comments for one position without moving other comments", () => {
+    expect(
+      reorderPositionCommentEntries(
+        [
+          { id: "comment-1", fen: "fen-1", comment: "First" },
+          { id: "comment-2", fen: "fen-2", comment: "Other" },
+          { id: "comment-3", fen: "fen-1", comment: "Second" },
+          { id: "comment-4", fen: "fen-1", comment: "Third" },
+        ],
+        "comment-4",
+        "comment-1",
+      ).map((commentEntry) => commentEntry.id),
+    ).toEqual(["comment-4", "comment-2", "comment-1", "comment-3"]);
+  });
+
+  it("does not reorder comments from different positions", () => {
+    expect(
+      reorderPositionCommentEntries(
+        [
+          { id: "comment-1", fen: "fen-1", comment: "First" },
+          { id: "comment-2", fen: "fen-2", comment: "Other" },
+        ],
+        "comment-1",
+        "comment-2",
+      ).map((commentEntry) => commentEntry.id),
+    ).toEqual(["comment-1", "comment-2"]);
+  });
+
+  it("adds all matching comments to their move-history entry", () => {
+    expect(
+      addCommentsToMoveHistoryEntries(
+        [
+          { nodeId: "node-1", san: "e4", fen: "fen-1" },
+          { nodeId: "node-2", san: "e5", fen: "fen-2" },
+        ],
+        [
+          { id: "comment-1", fen: "fen-1", comment: "First note" },
+          { id: "comment-2", fen: "fen-2", comment: "Other note" },
+          { id: "comment-3", fen: "fen-1", comment: "Second note" },
+          { id: "comment-4", comment: "No position" },
+        ],
+      ),
+    ).toEqual([
+      {
+        nodeId: "node-1",
+        san: "e4",
+        fen: "fen-1",
+        comments: ["First note", "Second note"],
+        hasComments: true,
+      },
+      {
+        nodeId: "node-2",
+        san: "e5",
+        fen: "fen-2",
+        comments: ["Other note"],
+        hasComments: true,
+      },
+    ]);
+  });
+
+  it("leaves move-history entries without comments unmarked", () => {
+    expect(
+      addCommentsToMoveHistoryEntries(
+        [{ nodeId: "node-1", san: "e4", fen: "fen-1" }],
+        [{ id: "comment-1", fen: "fen-2", comment: "Other note" }],
+      ),
+    ).toEqual([
+      {
+        nodeId: "node-1",
+        san: "e4",
+        fen: "fen-1",
+        comments: [],
+        hasComments: false,
+      },
+    ]);
+  });
+
   it("creates editable user comments with generated ids", () => {
     expect(
       createUserPositionComment({
