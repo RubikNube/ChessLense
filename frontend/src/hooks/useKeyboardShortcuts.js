@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 import { matchesShortcut } from "../utils/appState.js";
 
-function useKeyboardShortcuts({ shortcutConfig, modalState, actions }) {
+function useKeyboardShortcuts({
+  shortcutConfig,
+  modalState,
+  openMenu,
+  actions,
+}) {
   useEffect(() => {
     function handleKeyDown(event) {
       if (event.defaultPrevented) {
@@ -95,6 +100,12 @@ function useKeyboardShortcuts({ shortcutConfig, modalState, actions }) {
           actions.closeShortcutsPopup();
         }
 
+        return;
+      }
+
+      if (event.key === "Escape" && openMenu) {
+        event.preventDefault();
+        actions.setOpenMenu(null);
         return;
       }
 
@@ -239,7 +250,7 @@ function useKeyboardShortcuts({ shortcutConfig, modalState, actions }) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [actions, modalState, shortcutConfig]);
+  }, [actions, modalState, openMenu, shortcutConfig]);
 }
 
 export default useKeyboardShortcuts;

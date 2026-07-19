@@ -4787,6 +4787,7 @@ function App() {
   useKeyboardShortcuts({
     shortcutConfig,
     modalState: keyboardModalState,
+    openMenu,
     actions: keyboardActions,
   });
   return (
