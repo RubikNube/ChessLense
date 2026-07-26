@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { DEFAULT_LICHESS_PUZZLE_FILTERS } from "./lichessPuzzles.js";
 import { DEFAULT_LICHESS_SEARCH_FILTERS } from "./lichessSearch.js";
 import { DEFAULT_OTB_SEARCH_FILTERS } from "./otbSearch.js";
+import { DEFAULT_OTB_TREE_EXPORT_SETTINGS } from "./otbOpeningTree.js";
 import {
   createUserPositionComment,
   addCommentsToMoveHistoryEntries,
@@ -109,6 +110,7 @@ describe("persisted app state", () => {
         "replay-training",
         "guess-training",
         "opening-tree",
+        "otb-player-opening-tree",
         "variants",
         "imported-pgn",
       ],
@@ -240,6 +242,10 @@ describe("persisted app state", () => {
       boardOrientation: "black",
       showMoveHistory: false,
       showOpeningTreePanel: true,
+      showOtbPlayerTreePanel: false,
+      otbPlayerTreeScope: null,
+      otbPlayerTreeColor: "white",
+      otbPlayerTreeExportSettings: DEFAULT_OTB_TREE_EXPORT_SETTINGS,
       showPuzzleTrainingPanel: false,
       showReplayTrainingPanel: false,
       showGuessTrainingPanel: false,
@@ -485,6 +491,9 @@ describe("persisted app state", () => {
       boardOrientation: "black",
       showMoveHistory: false,
       showOpeningTreePanel: false,
+      otbPlayerTreeScope: null,
+      otbPlayerTreeColor: "white",
+      otbPlayerTreeExportSettings: DEFAULT_OTB_TREE_EXPORT_SETTINGS,
       showPuzzleTrainingPanel: true,
       showReplayTrainingPanel: false,
       showGuessTrainingPanel: true,
@@ -791,6 +800,10 @@ describe("persisted app state", () => {
       boardOrientation: "white",
       showMoveHistory: true,
       showOpeningTreePanel: true,
+      showOtbPlayerTreePanel: false,
+      otbPlayerTreeScope: null,
+      otbPlayerTreeColor: "white",
+      otbPlayerTreeExportSettings: DEFAULT_OTB_TREE_EXPORT_SETTINGS,
       showPuzzleTrainingPanel: true,
       showReplayTrainingPanel: true,
       showGuessTrainingPanel: true,

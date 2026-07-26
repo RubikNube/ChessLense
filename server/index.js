@@ -29,7 +29,9 @@ const {
 	searchGames: searchLichessGames,
 } = require("./lichess");
 const {
+	exportOpeningTree: exportOtbOpeningTree,
 	getGame: getOtbGame,
+	getOpeningTree: getOtbOpeningTree,
 	importPgnFile: importOtbPgnFile,
 	searchGames: searchOtbGames,
 } = require("./otb");
@@ -331,6 +333,24 @@ function createApp() {
 				games,
 				pagination,
 			});
+		} catch (error) {
+			return sendApiError(res, error);
+		}
+	});
+
+	app.get("/api/otb/opening-tree", async (req, res) => {
+		try {
+			const openingTree = await getOtbOpeningTree(req.query || {});
+			return res.json(openingTree);
+		} catch (error) {
+			return sendApiError(res, error);
+		}
+	});
+
+	app.get("/api/otb/opening-tree/export", async (req, res) => {
+		try {
+			const exportedTree = await exportOtbOpeningTree(req.query || {});
+			return res.json(exportedTree);
 		} catch (error) {
 			return sendApiError(res, error);
 		}

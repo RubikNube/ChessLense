@@ -83,6 +83,7 @@ npm run format:check
 - Import one local `.pgn` file into the OTB SQLite database from the app
 - Search public Lichess games by player with optional filters such as opponent, year, color, and speed
 - Search historical OTB master games from a local SQLite archive with player, opponent, optional player color, event, year range, result, ECO, opening, and move-count range filters
+- Browse filtered OTB games as separate White/Black player opening trees and export a bounded Markdown repertoire for LLM-assisted preparation
 - Import a selected Lichess game back into the existing PGN/annotation flow
 - Import a selected OTB game back into the existing PGN/annotation flow
 
@@ -111,6 +112,10 @@ You can also import a single `.pgn` file into the OTB database directly from the
 **Import PGN**. The app uploads the raw PGN text instead of wrapping it in JSON, which reduces
 request overhead for hosted deployments. The CLI importer remains the better option for bulk
 archive loads.
+
+OTB player trees index standard-game main lines during import. Existing databases are upgraded
+automatically, and matching legacy games are indexed the first time a player tree is opened.
+Nonstandard variants, custom starting positions, and malformed PGNs are reported as skipped.
 
 ## Frontend
 

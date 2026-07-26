@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const fs = require("fs/promises");
 const path = require("path");
+const { Chess, DEFAULT_POSITION } = require("chess.js");
 const { HttpError } = require("./httpError");
 const { clearOtbDatabase, openOtbDatabase } = require("./otbDb");
 
@@ -17,9 +18,32 @@ const ALLOWED_RESULTS = new Set(["1-0", "0-1", "1/2-1/2", "*"]);
 const ALLOWED_COLORS = new Set(["white", "black"]);
 const ECO_CODE_PATTERN = /^[A-E]\d{2}$/i;
 const GAME_ID_PATTERN = /^otb-[a-f0-9]{64}$/;
+const OPENING_TREE_COLORS = new Set(["white", "black"]);
+const DEFAULT_EXPORT_DEPTH = 20;
+const DEFAULT_EXPORT_MIN_GAMES = 2;
+const DEFAULT_EXPORT_MAX_BRANCHES = 5;
 
 function normalizeString(value) {
 	return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizePositionKey(fen) {
+	const normalizedFen = normalizeString(fen);
+
+	try {
+		const position = new Chess(normalizedFen || DEFAULT_POSITION);
+		return position.fen().split(/\s+/).slice(0, 4).join(" ");
+	} catch {
+		throw new HttpError(
+			400,
+			"invalid_query",
+			"fen must be a valid chess position",
+		);
+	}
+}
+
+function formatMoveAsUci(move) {
+	return `${move.from}${move.to}${move.promotion || ""}`;
 }
 
 function normalizeOptionalYear(value, fieldName) {
@@ -656,6 +680,65 @@ function buildImportedGameRecord(rawPgn, sourceFile) {
 	};
 }
 
+function indexGameMoves(database, game) {
+	const deleteMoves = database.prepare(
+		"DELETE FROM otb_game_moves WHERE game_id = ?",
+	);
+	const updateStatus = database.prepare(`
+		UPDATE otb_games
+		SET move_index_status = ?, move_index_error = ?
+		WHERE id = ?
+	`);
+	deleteMoves.run(game.id);
+
+	if (
+		normalizeString(game.variant).toLowerCase() !== "standard" ||
+		/\[\s*(?:FEN|SetUp)\s+"/i.test(game.rawPgn)
+	) {
+		updateStatus.run(
+			"skipped",
+			"Only standard games from the initial position are supported.",
+			game.id,
+		);
+		return { indexed: false, skipped: true };
+	}
+
+	try {
+		const chess = new Chess();
+		const didLoad = chess.loadPgn(game.rawPgn);
+
+		if (didLoad === false) {
+			throw new Error("Invalid PGN movetext.");
+		}
+
+		const moves = chess.history({ verbose: true });
+		const insertMove = database.prepare(`
+			INSERT INTO otb_game_moves (game_id, ply, position_key, uci, san)
+			VALUES (?, ?, ?, ?, ?)
+		`);
+
+		for (const [ply, move] of moves.entries()) {
+			insertMove.run(
+				game.id,
+				ply,
+				normalizePositionKey(move.before),
+				formatMoveAsUci(move),
+				move.san,
+			);
+		}
+
+		updateStatus.run("indexed", null, game.id);
+		return { indexed: true, skipped: false };
+	} catch (error) {
+		updateStatus.run(
+			"skipped",
+			normalizeString(error?.message) || "Unable to parse PGN.",
+			game.id,
+		);
+		return { indexed: false, skipped: true };
+	}
+}
+
 function mapGameSummaryRow(row) {
 	return {
 		id: row.id,
@@ -1063,6 +1146,7 @@ async function importPgnSourceEntries(sourceEntries, options = {}) {
 
 					insertGamePlayerStatement.run(game.id, "white", whitePlayerId);
 					insertGamePlayerStatement.run(game.id, "black", blackPlayerId);
+					indexGameMoves(database, game);
 					importedGames += 1;
 				}
 			}
@@ -1219,20 +1303,474 @@ async function getGame(gameId, options = {}) {
 	}
 }
 
+function normalizeOpeningTreeQuery(rawQuery, forcedColor) {
+	const player = normalizeString(rawQuery.player);
+	const color = normalizeString(forcedColor || rawQuery.color).toLowerCase();
+
+	if (!player) {
+		throw new HttpError(
+			400,
+			"invalid_query",
+			"player is required for an OTB opening tree",
+		);
+	}
+
+	if (!OPENING_TREE_COLORS.has(color)) {
+		throw new HttpError(400, "invalid_query", "color must be white or black");
+	}
+
+	const search = normalizeSearchQuery({
+		...rawQuery,
+		player,
+		color,
+		page: "1",
+		pageSize: String(MAX_PAGE_SIZE_LIMIT),
+	});
+
+	return {
+		search,
+		color,
+		positionKey: normalizePositionKey(rawQuery.fen),
+	};
+}
+
+function getMatchingIndexSummary(database, search) {
+	const queryDefinition = buildSearchQueryDefinition(search);
+	const rows = database
+		.prepare(
+			`
+				SELECT DISTINCT
+					g.id,
+					g.raw_pgn AS rawPgn,
+					g.variant,
+					g.move_index_status AS moveIndexStatus
+				${queryDefinition.fromClause}
+				${queryDefinition.whereClause}
+			`,
+		)
+		.all(...queryDefinition.params);
+
+	return {
+		rows,
+		indexedGames: rows.filter((row) => row.moveIndexStatus === "indexed")
+			.length,
+		skippedGames: rows.filter((row) => row.moveIndexStatus === "skipped")
+			.length,
+	};
+}
+
+function ensureMatchingGamesIndexed(database, search) {
+	const before = getMatchingIndexSummary(database, search);
+	const pendingGames = before.rows.filter(
+		(row) =>
+			row.moveIndexStatus !== "indexed" && row.moveIndexStatus !== "skipped",
+	);
+	let transactionOpen = false;
+
+	try {
+		if (pendingGames.length > 0) {
+			database.exec("BEGIN IMMEDIATE");
+			transactionOpen = true;
+
+			for (const game of pendingGames) {
+				indexGameMoves(database, game);
+			}
+
+			database.exec("COMMIT");
+			transactionOpen = false;
+		}
+	} catch (error) {
+		if (transactionOpen) {
+			database.exec("ROLLBACK");
+		}
+
+		throw error;
+	}
+
+	const after = getMatchingIndexSummary(database, search);
+	return {
+		totalGames: after.rows.length,
+		indexedGames: after.indexedGames,
+		skippedGames: after.skippedGames,
+		newlyProcessedGames: pendingGames.length,
+	};
+}
+
+function getPlayerOutcomeSql(color, outcome) {
+	if (outcome === "win") {
+		return color === "white" ? "result = '1-0'" : "result = '0-1'";
+	}
+
+	if (outcome === "loss") {
+		return color === "white" ? "result = '0-1'" : "result = '1-0'";
+	}
+
+	return "result = '1/2-1/2'";
+}
+
+function toPercent(value, total) {
+	return total > 0 ? Math.round((value / total) * 1000) / 10 : 0;
+}
+
+function queryOpeningMoves(database, search, positionKey, color) {
+	const queryDefinition = buildSearchQueryDefinition(search);
+	return database
+		.prepare(
+			`
+				WITH continuations AS (
+					SELECT DISTINCT
+						g.id AS gameId,
+						g.result AS result,
+						gm.uci AS uci,
+						gm.san AS san
+					${queryDefinition.fromClause}
+					JOIN otb_game_moves gm ON gm.game_id = g.id
+					${queryDefinition.whereClause}
+						${queryDefinition.whereClause ? "AND" : "WHERE"} gm.position_key = ?
+						AND g.move_index_status = 'indexed'
+				)
+				SELECT
+					uci,
+					san,
+					COUNT(*) AS gameCount,
+					SUM(CASE WHEN ${getPlayerOutcomeSql(color, "win")} THEN 1 ELSE 0 END) AS playerWins,
+					SUM(CASE WHEN ${getPlayerOutcomeSql(color, "draw")} THEN 1 ELSE 0 END) AS draws,
+					SUM(CASE WHEN ${getPlayerOutcomeSql(color, "loss")} THEN 1 ELSE 0 END) AS playerLosses
+				FROM continuations
+				GROUP BY uci, san
+				ORDER BY gameCount DESC, san COLLATE NOCASE ASC
+			`,
+		)
+		.all(...queryDefinition.params, positionKey);
+}
+
+async function getOpeningTree(rawQuery, options = {}) {
+	const { search, color, positionKey } = normalizeOpeningTreeQuery(rawQuery);
+	const { database } = await openOtbDatabase({ dbPath: options.dbPath });
+
+	try {
+		const indexing = ensureMatchingGamesIndexed(database, search);
+		const rows = queryOpeningMoves(database, search, positionKey, color);
+		const gamesAtPosition = rows.reduce(
+			(total, row) => total + Number(row.gameCount || 0),
+			0,
+		);
+
+		return {
+			scope: {
+				player: search.player,
+				color,
+				filters: {
+					opponent: search.opponent,
+					event: search.event,
+					yearFrom: search.yearFrom,
+					yearTo: search.yearTo,
+					result: search.result,
+					ecoFrom: search.ecoFrom,
+					ecoTo: search.ecoTo,
+					opening: search.opening,
+					moveCountMin: search.moveCountMin,
+					moveCountMax: search.moveCountMax,
+				},
+			},
+			positionKey,
+			gamesAtPosition,
+			indexing,
+			moves: rows.map((row) => {
+				const gameCount = Number(row.gameCount || 0);
+				const playerWins = Number(row.playerWins || 0);
+				const draws = Number(row.draws || 0);
+				const playerLosses = Number(row.playerLosses || 0);
+
+				return {
+					uci: row.uci,
+					san: row.san,
+					gameCount,
+					frequencyPercent: toPercent(gameCount, gamesAtPosition),
+					playerWins,
+					draws,
+					playerLosses,
+					playerWinPercent: toPercent(playerWins, gameCount),
+					drawPercent: toPercent(draws, gameCount),
+					playerLossPercent: toPercent(playerLosses, gameCount),
+				};
+			}),
+		};
+	} finally {
+		database.close();
+	}
+}
+
+function normalizeExportInteger(value, fallback, fieldName, maximum = null) {
+	const normalized = normalizeString(value);
+	const parsed = normalized
+		? normalizePositiveInteger(normalized, fieldName)
+		: fallback;
+
+	if (parsed < 1 || (maximum !== null && parsed > maximum)) {
+		throw new HttpError(
+			400,
+			"invalid_query",
+			`${fieldName} must be between 1 and ${maximum ?? "a positive integer"}`,
+		);
+	}
+
+	return parsed;
+}
+
+function addOutcome(node, result, color) {
+	if (result === "1/2-1/2") {
+		node.draws += 1;
+	} else if (
+		(color === "white" && result === "1-0") ||
+		(color === "black" && result === "0-1")
+	) {
+		node.playerWins += 1;
+	} else if (result === "1-0" || result === "0-1") {
+		node.playerLosses += 1;
+	}
+}
+
+function createExportNode() {
+	return {
+		gameCount: 0,
+		playerWins: 0,
+		draws: 0,
+		playerLosses: 0,
+		children: new Map(),
+	};
+}
+
+function loadExportGames(database, search, maxDepth) {
+	const queryDefinition = buildSearchQueryDefinition(search);
+	return database
+		.prepare(
+			`
+				SELECT
+					g.id,
+					g.result,
+					gm.ply,
+					gm.san,
+					gm.uci
+				${queryDefinition.fromClause}
+				JOIN otb_game_moves gm ON gm.game_id = g.id
+				${queryDefinition.whereClause}
+					${queryDefinition.whereClause ? "AND" : "WHERE"} g.move_index_status = 'indexed'
+					AND gm.ply < ?
+				ORDER BY g.id ASC, gm.ply ASC
+			`,
+		)
+		.all(...queryDefinition.params, maxDepth);
+}
+
+function buildExportTrie(rows, color) {
+	const root = createExportNode();
+	let currentGameId = "";
+	let currentNode = root;
+
+	for (const row of rows) {
+		if (row.id !== currentGameId) {
+			currentGameId = row.id;
+			currentNode = root;
+			root.gameCount += 1;
+			addOutcome(root, row.result, color);
+		}
+
+		const key = `${row.uci}\u0000${row.san}`;
+		let child = currentNode.children.get(key);
+
+		if (!child) {
+			child = {
+				...createExportNode(),
+				uci: row.uci,
+				san: row.san,
+				ply: row.ply,
+			};
+			currentNode.children.set(key, child);
+		}
+
+		child.gameCount += 1;
+		addOutcome(child, row.result, color);
+		currentNode = child;
+	}
+
+	return root;
+}
+
+function formatExportMove(ply, san) {
+	const moveNumber = Math.floor(ply / 2) + 1;
+	return ply % 2 === 0 ? `${moveNumber}. ${san}` : `${moveNumber}... ${san}`;
+}
+
+function renderExportNode(node, options, depth = 0) {
+	const eligible = [...node.children.values()]
+		.filter((child) => child.gameCount >= options.minGames)
+		.sort(
+			(left, right) =>
+				right.gameCount - left.gameCount || left.san.localeCompare(right.san),
+		);
+	const visible = eligible.slice(0, options.maxBranches);
+	const lines = [];
+
+	for (const child of visible) {
+		const frequency = toPercent(child.gameCount, node.gameCount);
+		lines.push(
+			`${"  ".repeat(depth)}- ${formatExportMove(child.ply, child.san)} — ${child.gameCount} games (${frequency}%); player W/D/L ${child.playerWins}/${child.draws}/${child.playerLosses}`,
+		);
+		lines.push(...renderExportNode(child, options, depth + 1));
+	}
+
+	if (eligible.length > visible.length) {
+		lines.push(
+			`${"  ".repeat(depth)}- [${eligible.length - visible.length} lower-frequency continuations omitted]`,
+		);
+	}
+
+	return lines;
+}
+
+function formatScopeFilters(search) {
+	const entries = [
+		["Opponent", search.opponent],
+		["Event", search.event],
+		[
+			"Years",
+			search.yearFrom || search.yearTo
+				? `${search.yearFrom || "any"}–${search.yearTo || "any"}`
+				: "",
+		],
+		["Result", search.result],
+		[
+			"ECO",
+			search.ecoFrom || search.ecoTo
+				? `${search.ecoFrom || "any"}–${search.ecoTo || "any"}`
+				: "",
+		],
+		["Opening", search.opening],
+		[
+			"Move count",
+			search.moveCountMin || search.moveCountMax
+				? `${search.moveCountMin || "any"}–${search.moveCountMax || "any"}`
+				: "",
+		],
+	].filter(([, value]) => value);
+
+	return entries.length > 0
+		? entries.map(([label, value]) => `${label}: ${value}`).join("; ")
+		: "None";
+}
+
+function sanitizeFileName(value) {
+	return (
+		normalizeString(value)
+			.toLowerCase()
+			.replace(/[^\p{L}\p{N}]+/gu, "-")
+			.replace(/^-+|-+$/g, "") || "player"
+	);
+}
+
+async function exportOpeningTree(rawQuery, options = {}) {
+	const maxDepth = normalizeExportInteger(
+		rawQuery.maxDepth,
+		DEFAULT_EXPORT_DEPTH,
+		"maxDepth",
+		60,
+	);
+	const minGames = normalizeExportInteger(
+		rawQuery.minGames,
+		DEFAULT_EXPORT_MIN_GAMES,
+		"minGames",
+	);
+	const maxBranches = normalizeExportInteger(
+		rawQuery.maxBranches,
+		DEFAULT_EXPORT_MAX_BRANCHES,
+		"maxBranches",
+		20,
+	);
+	const player = normalizeString(rawQuery.player);
+
+	if (!player) {
+		throw new HttpError(400, "invalid_query", "player is required");
+	}
+
+	const { database } = await openOtbDatabase({ dbPath: options.dbPath });
+
+	try {
+		const sections = [];
+		const summaries = {};
+
+		for (const color of ["white", "black"]) {
+			const { search } = normalizeOpeningTreeQuery(
+				{ ...rawQuery, fen: DEFAULT_POSITION },
+				color,
+			);
+			const indexing = ensureMatchingGamesIndexed(database, search);
+			const rows = loadExportGames(database, search, maxDepth);
+			const trie = buildExportTrie(rows, color);
+			summaries[color] = {
+				gameCount: trie.gameCount,
+				indexing,
+			};
+			sections.push(
+				`## As ${color === "white" ? "White" : "Black"} (${trie.gameCount} games)`,
+				"",
+				...(trie.gameCount > 0
+					? renderExportNode(trie, { minGames, maxBranches })
+					: ["No matching indexed games."]),
+				"",
+			);
+		}
+
+		const referenceSearch = normalizeOpeningTreeQuery(
+			{ ...rawQuery, fen: DEFAULT_POSITION },
+			"white",
+		).search;
+		const text = [
+			`# OTB opening tree: ${player}`,
+			"",
+			`Filters: ${formatScopeFilters(referenceSearch)}`,
+			`Limits: ${maxDepth} plies, minimum ${minGames} games, maximum ${maxBranches} branches per position.`,
+			"Statistics use the selected player's perspective. W/D/L means player wins, draws, and player losses.",
+			"",
+			...sections,
+		].join("\n");
+
+		return {
+			text,
+			filename: `${sanitizeFileName(player)}-otb-opening-tree.md`,
+			summary: {
+				player,
+				maxDepth,
+				minGames,
+				maxBranches,
+				colors: summaries,
+			},
+		};
+	} finally {
+		database.close();
+	}
+}
+
 module.exports = {
 	DEFAULT_OTB_PGN_DIR,
+	exportOpeningTree,
 	getGame,
+	getOpeningTree,
 	importPgnDirectory,
 	importPgnFile,
 	searchGames,
 	__testing: {
 		buildImportedGameRecord,
+		buildExportTrie,
+		indexGameMoves,
 		matchesEcoRange,
 		matchesSearch,
 		normalizeEcoCode,
 		normalizeGameId,
 		normalizeNameForSearch,
 		normalizeSearchQuery,
+		normalizePositionKey,
+		renderExportNode,
 		splitGames,
 	},
 };

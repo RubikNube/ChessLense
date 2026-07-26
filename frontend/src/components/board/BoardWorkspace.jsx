@@ -49,6 +49,7 @@ function BoardWorkspace({
     "replay-training": "Replay Training",
     "guess-training": "Guess the Move",
     "opening-tree": "Opening Tree",
+    "otb-player-opening-tree": "Player Opening Tree",
     engine: "Engine",
     comments: "Comments",
     variants: "Variants",

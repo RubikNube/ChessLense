@@ -12,6 +12,11 @@ import {
   DEFAULT_OTB_SEARCH_FILTERS,
   normalizeOtbSearchFilters,
 } from "./otbSearch.js";
+import {
+  DEFAULT_OTB_TREE_EXPORT_SETTINGS,
+  normalizeOtbTreeExportSettings,
+  normalizeOtbTreeScope,
+} from "./otbOpeningTree.js";
 import { normalizeThemeOverrides } from "./theme.js";
 import { normalizeTrainingState } from "./training.js";
 import {
@@ -176,6 +181,7 @@ export const VIEW_LAYOUT_VIEW_IDS = [
   "replay-training",
   "guess-training",
   "opening-tree",
+  "otb-player-opening-tree",
   "engine",
   "comments",
   "variants",
@@ -189,6 +195,7 @@ export const DEFAULT_VIEW_LAYOUT = {
     "replay-training",
     "guess-training",
     "opening-tree",
+    "otb-player-opening-tree",
     "engine",
     "comments",
     "variants",
@@ -713,6 +720,9 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
     const otbSearchFilters = parsedState.otbSearchFilters
       ? normalizeOtbSearchFilters(parsedState.otbSearchFilters)
       : DEFAULT_OTB_SEARCH_FILTERS;
+    const otbPlayerTreeScope = normalizeOtbTreeScope(
+      parsedState.otbPlayerTreeScope,
+    );
     const positionComments = Array.isArray(parsedState.positionComments)
       ? normalizePositionComments(parsedState.positionComments)
       : seedPositionCommentsFromImportedPgnData(importedPgnData);
@@ -736,6 +746,17 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showOpeningTreePanel === "boolean"
           ? parsedState.showOpeningTreePanel
           : true,
+      showOtbPlayerTreePanel:
+        typeof parsedState.showOtbPlayerTreePanel === "boolean"
+          ? parsedState.showOtbPlayerTreePanel
+          : false,
+      otbPlayerTreeScope: otbPlayerTreeScope.player ? otbPlayerTreeScope : null,
+      otbPlayerTreeColor:
+        parsedState.otbPlayerTreeColor === "black" ? "black" : "white",
+      otbPlayerTreeExportSettings: normalizeOtbTreeExportSettings(
+        parsedState.otbPlayerTreeExportSettings ??
+          DEFAULT_OTB_TREE_EXPORT_SETTINGS,
+      ),
       showPuzzleTrainingPanel: resolvePersistedPanelVisibility(
         parsedState,
         "showPuzzleTrainingPanel",
@@ -823,6 +844,10 @@ export function serializePersistedAppState({
   boardOrientation,
   showMoveHistory,
   showOpeningTreePanel,
+  showOtbPlayerTreePanel,
+  otbPlayerTreeScope,
+  otbPlayerTreeColor,
+  otbPlayerTreeExportSettings,
   showPuzzleTrainingPanel,
   showReplayTrainingPanel,
   showGuessTrainingPanel,
@@ -843,6 +868,9 @@ export function serializePersistedAppState({
   positionComments,
   trainingState,
 }) {
+  const normalizedOtbPlayerTreeScope =
+    normalizeOtbTreeScope(otbPlayerTreeScope);
+
   return JSON.stringify({
     variantTree: normalizeVariantTree(variantTree ?? createEmptyVariantTree()),
     engineSearchDepth: normalizeEngineSearchDepth(engineSearchDepth),
@@ -850,6 +878,14 @@ export function serializePersistedAppState({
     boardOrientation,
     showMoveHistory,
     showOpeningTreePanel,
+    showOtbPlayerTreePanel,
+    otbPlayerTreeScope: normalizedOtbPlayerTreeScope.player
+      ? normalizedOtbPlayerTreeScope
+      : null,
+    otbPlayerTreeColor: otbPlayerTreeColor === "black" ? "black" : "white",
+    otbPlayerTreeExportSettings: normalizeOtbTreeExportSettings(
+      otbPlayerTreeExportSettings,
+    ),
     showPuzzleTrainingPanel,
     showReplayTrainingPanel,
     showGuessTrainingPanel,

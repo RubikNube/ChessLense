@@ -20,6 +20,7 @@ import StudiesModal from "./components/modals/StudiesModal.jsx";
 import ThemeSettingsModal from "./components/modals/ThemeSettingsModal.jsx";
 import PositionPreviewBoard from "./components/PositionPreviewBoard.jsx";
 import OpeningTreePanel from "./components/opening/OpeningTreePanel.jsx";
+import OtbPlayerOpeningTreePanel from "./components/opening/OtbPlayerOpeningTreePanel.jsx";
 import ImportedPgnPanel from "./components/pgn/ImportedPgnPanel.jsx";
 import GuessTheMoveTrainingPanel from "./components/training/GuessTheMoveTrainingPanel.jsx";
 import PlayComputerPanel from "./components/training/PlayComputerPanel.jsx";
@@ -69,6 +70,11 @@ import {
   buildOtbSearchQuery,
   DEFAULT_OTB_SEARCH_FILTERS,
 } from "./utils/otbSearch.js";
+import {
+  DEFAULT_OTB_TREE_EXPORT_SETTINGS,
+  normalizeOtbTreeExportSettings,
+  normalizeOtbTreeScope,
+} from "./utils/otbOpeningTree.js";
 import { buildOpeningTreeArrow } from "./utils/openingTree.js";
 import {
   buildBoardHighlightSquareStyles,
@@ -396,6 +402,22 @@ function App() {
   const [showOpeningTreePanel, setShowOpeningTreePanel] = useState(
     () => persistedAppState?.showOpeningTreePanel ?? true,
   );
+  const [showOtbPlayerTreePanel, setShowOtbPlayerTreePanel] = useState(
+    () => persistedAppState?.showOtbPlayerTreePanel ?? false,
+  );
+  const [otbPlayerTreeScope, setOtbPlayerTreeScope] = useState(
+    () => persistedAppState?.otbPlayerTreeScope ?? null,
+  );
+  const [otbPlayerTreeColor, setOtbPlayerTreeColor] = useState(
+    () => persistedAppState?.otbPlayerTreeColor ?? "white",
+  );
+  const [otbPlayerTreeExportSettings, setOtbPlayerTreeExportSettings] =
+    useState(() =>
+      normalizeOtbTreeExportSettings(
+        persistedAppState?.otbPlayerTreeExportSettings ??
+          DEFAULT_OTB_TREE_EXPORT_SETTINGS,
+      ),
+    );
   const [showPuzzleTrainingPanel, setShowPuzzleTrainingPanel] = useState(
     () => persistedAppState?.showPuzzleTrainingPanel ?? true,
   );
@@ -4005,6 +4027,21 @@ function App() {
     }
   }
 
+  function exploreOtbPlayerOpeningTree() {
+    const nextScope = normalizeOtbTreeScope(appliedOtbSearchFilters);
+
+    if (!nextScope.player) {
+      setOtbSearchError("Enter a player before opening the tree.");
+      return;
+    }
+
+    resetGame();
+    setOtbPlayerTreeScope(nextScope);
+    setOtbPlayerTreeColor("white");
+    setShowOtbPlayerTreePanel(true);
+    closeOtbSearchPopup();
+  }
+
   const copyFenToClipboard = useCallback(async () => {
     const fenToCopy = (() => {
       if (!positionSetupState) {
@@ -4203,6 +4240,10 @@ function App() {
         boardOrientation,
         showMoveHistory: persistedRightSideViews.showMoveHistory,
         showOpeningTreePanel: persistedRightSideViews.showOpeningTreePanel,
+        showOtbPlayerTreePanel,
+        otbPlayerTreeScope,
+        otbPlayerTreeColor,
+        otbPlayerTreeExportSettings,
         showPuzzleTrainingPanel,
         showReplayTrainingPanel,
         showGuessTrainingPanel,
@@ -4235,6 +4276,9 @@ function App() {
     importedPgnData,
     isTrainingFocusMode,
     otbSearchFilters,
+    otbPlayerTreeColor,
+    otbPlayerTreeExportSettings,
+    otbPlayerTreeScope,
     positionComments,
     showEngineWindow,
     showEvaluationBar,
@@ -4243,6 +4287,7 @@ function App() {
     showImportedPgn,
     showMoveHistory,
     showOpeningTreePanel,
+    showOtbPlayerTreePanel,
     showPuzzleTrainingPanel,
     showReplayTrainingPanel,
     showGuessTrainingPanel,
@@ -4474,6 +4519,19 @@ function App() {
     setShowOpeningTreePanel(false);
   }, []);
 
+  const toggleOtbPlayerTreePanel = useCallback(() => {
+    if (!otbPlayerTreeScope?.player) {
+      openOtbSearchPopup();
+      return;
+    }
+
+    setShowOtbPlayerTreePanel((currentValue) => !currentValue);
+  }, [openOtbSearchPopup, otbPlayerTreeScope]);
+
+  const closeOtbPlayerTreePanel = useCallback(() => {
+    setShowOtbPlayerTreePanel(false);
+  }, []);
+
   const toggleReplayTrainingPanel = useCallback(() => {
     setShowReplayTrainingPanel((currentValue) => {
       const nextValue = !currentValue;
@@ -4633,6 +4691,7 @@ function App() {
       resetViewLayout,
       toggleMoveHistory,
       toggleOpeningTreePanel,
+      toggleOtbPlayerTreePanel,
       togglePuzzleTrainingPanel,
       toggleReplayTrainingPanel,
       toggleGuessTrainingPanel,
@@ -4671,6 +4730,7 @@ function App() {
       toggleImportedPgn,
       toggleMoveHistory,
       toggleOpeningTreePanel,
+      toggleOtbPlayerTreePanel,
       togglePuzzleTrainingPanel,
       toggleReplayTrainingPanel,
       toggleGuessTrainingPanel,
@@ -4801,6 +4861,7 @@ function App() {
         canRedo={canRedo}
         showMoveHistory={showMoveHistory}
         showOpeningTreePanel={showOpeningTreePanel}
+        showOtbPlayerTreePanel={showOtbPlayerTreePanel}
         showPuzzleTrainingPanel={showPuzzleTrainingPanel}
         showReplayTrainingPanel={showReplayTrainingPanel}
         showGuessTrainingPanel={showGuessTrainingPanel}
@@ -5043,6 +5104,24 @@ function App() {
               />
             )}
 
+            {!effectiveTrainingFocusMode &&
+              showOtbPlayerTreePanel &&
+              otbPlayerTreeScope?.player && (
+                <OtbPlayerOpeningTreePanel
+                  viewId="otb-player-opening-tree"
+                  scope={otbPlayerTreeScope}
+                  color={otbPlayerTreeColor}
+                  onColorChange={setOtbPlayerTreeColor}
+                  exportSettings={otbPlayerTreeExportSettings}
+                  onExportSettingsChange={setOtbPlayerTreeExportSettings}
+                  fen={fen}
+                  currentMoveLabel={currentMoveLabel}
+                  onClose={closeOtbPlayerTreePanel}
+                  onHoverMove={handleOpeningTreeHoverMove}
+                  onSelectMove={handleOpeningTreeSelectMove}
+                />
+              )}
+
             {!effectiveTrainingFocusMode && showEngineWindow && (
               <EnginePanel
                 viewId="engine"
@@ -5255,10 +5334,14 @@ function App() {
           hasSearched={hasSearchedOtb}
           results={otbSearchResults}
           importingGameId={otbImportingGameId}
+          canExploreOpeningTree={Boolean(
+            appliedOtbSearchFilters.player && otbSearchResults.length,
+          )}
           onSearch={searchOtbGames}
           onPageChange={changeOtbPage}
           onPageSizeChange={changeOtbPageSize}
           onImport={importOtbGame}
+          onExploreOpeningTree={exploreOtbPlayerOpeningTree}
           onClose={closeOtbSearchPopup}
         />
       )}

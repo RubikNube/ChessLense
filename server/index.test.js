@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("fs/promises");
 const os = require("os");
 const path = require("path");
+const { DEFAULT_POSITION } = require("chess.js");
 const { createApp } = require("./index");
 const { searchGames } = require("./otb");
 
@@ -309,6 +310,57 @@ test("GET /api/otb/games includes pagination metadata", async () => {
 				hasPreviousPage: false,
 				hasNextPage: true,
 			});
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousDbPath === "string") {
+			process.env.OTB_DB_PATH = previousDbPath;
+		} else {
+			delete process.env.OTB_DB_PATH;
+		}
+
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("GET /api/otb/opening-tree and export return player preparation data", async () => {
+	const previousDbPath = process.env.OTB_DB_PATH;
+	const { dbPath, rootDir } = await createTempDbPath();
+	process.env.OTB_DB_PATH = dbPath;
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			await fetch(`${baseUrl}/api/otb/import`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					fileName: "masters.pgn",
+					pgn: SAMPLE_PGN.trim(),
+				}),
+			});
+			const scope = new URLSearchParams({
+				player: "Morphy",
+				color: "white",
+				fen: DEFAULT_POSITION,
+			});
+			const treeResponse = await fetch(
+				`${baseUrl}/api/otb/opening-tree?${scope}`,
+			);
+			const tree = await treeResponse.json();
+			const exportResponse = await fetch(
+				`${baseUrl}/api/otb/opening-tree/export?player=Morphy&maxDepth=4&minGames=1&maxBranches=3`,
+			);
+			const exported = await exportResponse.json();
+
+			assert.equal(treeResponse.status, 200);
+			assert.equal(tree.moves[0].uci, "e2e4");
+			assert.equal(tree.moves[0].playerWinPercent, 100);
+			assert.equal(exportResponse.status, 200);
+			assert.match(exported.text, /## As White/);
+			assert.match(exported.text, /## As Black/);
 		} finally {
 			await closeServer(server);
 		}

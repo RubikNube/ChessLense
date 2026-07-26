@@ -4,9 +4,12 @@ const fs = require("fs/promises");
 const os = require("os");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
+const { DEFAULT_POSITION } = require("chess.js");
 const { HttpError } = require("./httpError");
 const {
+	exportOpeningTree,
 	getGame,
+	getOpeningTree,
 	importPgnDirectory,
 	searchGames,
 	__testing,
@@ -341,6 +344,99 @@ test("importPgnDirectory loads PGN archives into SQLite and skips duplicates", a
 		assert.equal(firstImport.skippedGames, 0);
 		assert.equal(secondImport.importedGames, 0);
 		assert.equal(secondImport.skippedGames, 3);
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("getOpeningTree aggregates indexed moves with player-perspective results", async () => {
+	const { archiveDir, dbPath, rootDir } = await createTempOtbWorkspace();
+
+	try {
+		await importPgnDirectory({ rootDir: archiveDir, dbPath });
+		const whiteTree = await getOpeningTree(
+			{
+				player: "Morphy",
+				color: "white",
+				fen: DEFAULT_POSITION,
+			},
+			{ dbPath },
+		);
+		const blackTree = await getOpeningTree(
+			{
+				player: "Morphy",
+				color: "black",
+				fen: DEFAULT_POSITION,
+			},
+			{ dbPath },
+		);
+
+		assert.equal(whiteTree.indexing.indexedGames, 1);
+		assert.deepEqual(whiteTree.moves[0], {
+			uci: "e2e4",
+			san: "e4",
+			gameCount: 1,
+			frequencyPercent: 100,
+			playerWins: 1,
+			draws: 0,
+			playerLosses: 0,
+			playerWinPercent: 100,
+			drawPercent: 0,
+			playerLossPercent: 0,
+		});
+		assert.equal(blackTree.moves[0].san, "e4");
+		assert.equal(blackTree.moves[0].playerWinPercent, 100);
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("getOpeningTree lazily indexes matching games in a legacy database", async () => {
+	const rootDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), "chesslense-legacy-tree-"),
+	);
+	const dbPath = path.join(rootDir, "legacy.sqlite");
+
+	try {
+		createLegacyOtbDatabase(dbPath);
+		const tree = await getOpeningTree(
+			{
+				player: "Kasparov",
+				color: "white",
+				fen: DEFAULT_POSITION,
+			},
+			{ dbPath },
+		);
+
+		assert.equal(tree.indexing.newlyProcessedGames, 1);
+		assert.equal(tree.indexing.indexedGames, 1);
+		assert.equal(tree.moves[0].san, "e4");
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("exportOpeningTree emits bounded Markdown for both colors", async () => {
+	const { archiveDir, dbPath, rootDir } = await createTempOtbWorkspace();
+
+	try {
+		await importPgnDirectory({ rootDir: archiveDir, dbPath });
+		const exported = await exportOpeningTree(
+			{
+				player: "Morphy",
+				maxDepth: "4",
+				minGames: "1",
+				maxBranches: "2",
+			},
+			{ dbPath },
+		);
+
+		assert.match(exported.text, /^# OTB opening tree: Morphy/m);
+		assert.match(exported.text, /## As White \(1 games\)/);
+		assert.match(exported.text, /## As Black \(1 games\)/);
+		assert.match(exported.text, /1\. e4 — 1 games \(100%\)/);
+		assert.doesNotMatch(exported.text, /3\. Bc4/);
+		assert.equal(exported.filename, "morphy-otb-opening-tree.md");
 	} finally {
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}

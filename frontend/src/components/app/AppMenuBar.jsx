@@ -85,6 +85,7 @@ function AppMenuBar({
   canRedo,
   showMoveHistory,
   showOpeningTreePanel,
+  showOtbPlayerTreePanel,
   showPuzzleTrainingPanel,
   showReplayTrainingPanel,
   showGuessTrainingPanel,
@@ -234,6 +235,12 @@ function AppMenuBar({
             action: actions.toggleOpeningTreePanel,
           },
           {
+            label: showOtbPlayerTreePanel
+              ? "Hide Player Opening Tree"
+              : "Show Player Opening Tree",
+            action: actions.toggleOtbPlayerTreePanel,
+          },
+          {
             label: showPuzzleTrainingPanel
               ? "Hide Puzzle Mode"
               : "Show Puzzle Mode",
@@ -339,6 +346,7 @@ function AppMenuBar({
       showImportedPgn,
       showMoveHistory,
       showOpeningTreePanel,
+      showOtbPlayerTreePanel,
       showPlayComputerPanel,
       showPuzzleTrainingPanel,
       showReplayTrainingPanel,

@@ -149,6 +149,11 @@ function migrateOtbSchema(database) {
 			definition:
 				"imported_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z'",
 		},
+		{
+			name: "move_index_status",
+			definition: "move_index_status TEXT NOT NULL DEFAULT 'pending'",
+		},
+		{ name: "move_index_error", definition: "move_index_error TEXT" },
 	]);
 	backfillPlayerSearchColumns(database);
 	backfillGameDerivedColumns(database);
@@ -191,6 +196,15 @@ function initializeOtbSchema(database) {
 			player_id INTEGER NOT NULL REFERENCES otb_players(id),
 			PRIMARY KEY (game_id, color)
 		);
+
+		CREATE TABLE IF NOT EXISTS otb_game_moves (
+			game_id TEXT NOT NULL REFERENCES otb_games(id) ON DELETE CASCADE,
+			ply INTEGER NOT NULL,
+			position_key TEXT NOT NULL,
+			uci TEXT NOT NULL,
+			san TEXT NOT NULL,
+			PRIMARY KEY (game_id, ply)
+		);
 	`);
 	migrateOtbSchema(database);
 	database.exec(`
@@ -212,6 +226,10 @@ function initializeOtbSchema(database) {
 			ON otb_games(event COLLATE NOCASE);
 		CREATE INDEX IF NOT EXISTS otb_game_players_player_color_idx
 			ON otb_game_players(player_id, color);
+		CREATE INDEX IF NOT EXISTS otb_game_moves_position_game_idx
+			ON otb_game_moves(position_key, game_id);
+		CREATE INDEX IF NOT EXISTS otb_games_move_index_status_idx
+			ON otb_games(move_index_status);
 	`);
 }
 
@@ -255,6 +273,7 @@ async function openOtbDatabase(options = {}) {
 
 function clearOtbDatabase(database) {
 	database.exec(`
+		DELETE FROM otb_game_moves;
 		DELETE FROM otb_game_players;
 		DELETE FROM otb_games;
 		DELETE FROM otb_players;

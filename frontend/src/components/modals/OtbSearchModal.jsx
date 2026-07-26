@@ -35,10 +35,12 @@ function OtbSearchModal({
   hasSearched,
   results,
   importingGameId,
+  canExploreOpeningTree,
   onSearch,
   onPageChange,
   onPageSizeChange,
   onImport,
+  onExploreOpeningTree,
   onClose,
 }) {
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
@@ -320,7 +322,19 @@ function OtbSearchModal({
       </form>
 
       <div className="search-results-section">
-        <h3>OTB results</h3>
+        <div className="search-result-header">
+          <h3>OTB results</h3>
+          {hasSearched && canExploreOpeningTree && (
+            <button
+              type="button"
+              style={modalPrimaryButtonStyle}
+              onClick={onExploreOpeningTree}
+              disabled={searchLoading || results.length === 0}
+            >
+              Explore player tree
+            </button>
+          )}
+        </div>
         {searchLoading && <p>Loading games...</p>}
         {!searchLoading && !hasSearched && (
           <p>Run a search to browse matching historical games.</p>
