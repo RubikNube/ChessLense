@@ -15,6 +15,10 @@ const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
   HTMLElement.prototype,
   "scrollIntoView",
 );
+const matchMediaDescriptor = Object.getOwnPropertyDescriptor(
+  window,
+  "matchMedia",
+);
 
 const summary = {
   evaluation: { label: "Strong" },
@@ -49,14 +53,18 @@ const summary = {
   ],
 };
 
-function renderPanel(root, guessBrowseIndex) {
+function renderPanel(
+  root,
+  guessBrowseIndex,
+  trainingStatus = TRAINING_STATUS_COMPLETED,
+) {
   act(() => {
     root.render(
       <GuessTheMoveTrainingPanel
         hasReplaySource
         normalizedTrainingState={{
           mode: TRAINING_MODE_GUESS_THE_MOVE,
-          status: TRAINING_STATUS_COMPLETED,
+          status: trainingStatus,
           playerSide: "white",
         }}
         setTrainingPlayerSide={() => {}}
@@ -119,6 +127,11 @@ describe("GuessTheMoveTrainingPanel", () => {
     } else {
       delete HTMLElement.prototype.scrollIntoView;
     }
+    if (matchMediaDescriptor) {
+      Object.defineProperty(window, "matchMedia", matchMediaDescriptor);
+    } else {
+      delete window.matchMedia;
+    }
   });
 
   it("keeps the selected browsed move visible as the browse index changes", () => {
@@ -149,5 +162,82 @@ describe("GuessTheMoveTrainingPanel", () => {
     );
     expect(scrollIntoView).toHaveBeenCalledTimes(2);
     expect(scrollIntoView.mock.instances.at(-1)).toBe(secondSelectedEntry);
+  });
+
+  it("scrolls only the training body when browsing moves on mobile", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+
+    renderPanel(root, null);
+    scrollIntoView.mockClear();
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => ({ matches: true })),
+    });
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function getBoundingClientRect() {
+        if (this.classList.contains("training-card-body")) {
+          return { top: 100, bottom: 400 };
+        }
+
+        if (
+          this.classList.contains("training-summary-history-entry-selected")
+        ) {
+          return { top: 500, bottom: 550 };
+        }
+
+        return { top: 0, bottom: 0 };
+      },
+    );
+    const trainingBody = container.querySelector(".training-card-body");
+    trainingBody.scrollTop = 100;
+
+    renderPanel(root, 0);
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(trainingBody.scrollTop).toBe(250);
+  });
+
+  it("keeps mobile summary auto-scroll contained within the training body", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => ({ matches: true })),
+    });
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function getBoundingClientRect() {
+        if (this.classList.contains("training-card-body")) {
+          return { top: 100, bottom: 400 };
+        }
+
+        if (this.classList.contains("annotation-section")) {
+          return { top: -50, bottom: 0 };
+        }
+
+        return { top: 0, bottom: 0 };
+      },
+    );
+
+    renderPanel(root, null, "idle");
+    const trainingBody = container.querySelector(".training-card-body");
+    trainingBody.scrollTop = 300;
+
+    renderPanel(root, null);
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(trainingBody.scrollTop).toBe(150);
   });
 });

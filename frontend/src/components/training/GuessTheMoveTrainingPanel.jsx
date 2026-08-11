@@ -8,6 +8,44 @@ import {
   TRAINING_STATUS_COMPLETED,
 } from "../../utils/training.js";
 
+const MOBILE_VIEWPORT_QUERY = "(max-width: 640px)";
+
+function scrollTrainingElementIntoView(element, block) {
+  if (!element) {
+    return;
+  }
+
+  const isMobileViewport =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
+
+  if (!isMobileViewport) {
+    element.scrollIntoView({ block });
+    return;
+  }
+
+  const scrollContainer = element.closest(".training-card-body");
+
+  if (!scrollContainer) {
+    return;
+  }
+
+  const elementBounds = element.getBoundingClientRect();
+  const containerBounds = scrollContainer.getBoundingClientRect();
+  let scrollDelta = 0;
+
+  if (block === "start" || elementBounds.top < containerBounds.top) {
+    scrollDelta = elementBounds.top - containerBounds.top;
+  } else if (elementBounds.bottom > containerBounds.bottom) {
+    scrollDelta = elementBounds.bottom - containerBounds.bottom;
+  }
+
+  if (scrollDelta !== 0) {
+    scrollContainer.scrollTop += scrollDelta;
+  }
+}
+
 function formatMoveLabel(move) {
   if (!move || typeof move !== "object") {
     return "Move";
@@ -211,7 +249,7 @@ function GuessSummarySection({
       return;
     }
 
-    selectedMoveRef.current.scrollIntoView({ block: "nearest" });
+    scrollTrainingElementIntoView(selectedMoveRef.current, "nearest");
   }, [guessBrowseIndex, hasBrowseSelection]);
 
   return (
@@ -595,7 +633,7 @@ function GuessTheMoveTrainingPanel({
       return;
     }
 
-    summaryRef.current?.scrollIntoView({ block: "start" });
+    scrollTrainingElementIntoView(summaryRef.current, "start");
   }, [shouldShowSummary, activeGuessHistoryEntry?.id]);
 
   return (
