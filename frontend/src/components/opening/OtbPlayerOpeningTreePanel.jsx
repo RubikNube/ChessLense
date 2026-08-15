@@ -25,6 +25,16 @@ const cellStyle = {
   fontVariantNumeric: "tabular-nums",
 };
 const firstCellStyle = { ...cellStyle, textAlign: "left" };
+const gameCountButtonStyle = {
+  border: 0,
+  padding: 0,
+  background: "transparent",
+  color: THEME_CSS_VARS.accent,
+  cursor: "pointer",
+  font: "inherit",
+  fontWeight: 700,
+  textDecoration: "underline",
+};
 const controlsStyle = {
   display: "flex",
   gap: "0.5rem",
@@ -79,6 +89,7 @@ function OtbPlayerOpeningTreePanel({
   currentMoveLabel,
   onClose,
   onHoverMove,
+  onOpenGames,
   onSelectMove,
 }) {
   const [tree, setTree] = useState(null);
@@ -250,7 +261,19 @@ function OtbPlayerOpeningTreePanel({
                     <td style={firstCellStyle}>
                       <strong>{move.san}</strong>
                     </td>
-                    <td style={cellStyle}>{move.gameCount}</td>
+                    <td style={cellStyle}>
+                      <button
+                        type="button"
+                        style={gameCountButtonStyle}
+                        aria-label={`Show ${move.gameCount} database ${move.gameCount === 1 ? "game" : "games"} after ${move.san}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpenGames(move);
+                        }}
+                      >
+                        {move.gameCount}
+                      </button>
+                    </td>
                     <td style={cellStyle}>{percent(move.frequencyPercent)}</td>
                     <td style={cellStyle}>
                       {percent(move.playerWinPercent)}/

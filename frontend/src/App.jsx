@@ -13,6 +13,7 @@ import ImportPgnModal from "./components/modals/ImportPgnModal.jsx";
 import LichessSearchModal from "./components/modals/LichessSearchModal.jsx";
 import LichessTokenModal from "./components/modals/LichessTokenModal.jsx";
 import ManageCollectionsModal from "./components/modals/ManageCollectionsModal.jsx";
+import OtbOpeningTreeGamesModal from "./components/modals/OtbOpeningTreeGamesModal.jsx";
 import OtbSearchModal from "./components/modals/OtbSearchModal.jsx";
 import SaveStudyModal from "./components/modals/SaveStudyModal.jsx";
 import ShortcutsModal from "./components/modals/ShortcutsModal.jsx";
@@ -540,6 +541,8 @@ function App() {
   const [otbImportingGameId, setOtbImportingGameId] = useState("");
   const [hasSearchedOtb, setHasSearchedOtb] = useState(false);
   const [otbSearchNonce, setOtbSearchNonce] = useState(0);
+  const [otbOpeningTreeGameSelection, setOtbOpeningTreeGameSelection] =
+    useState(null);
   const [boardPanelHeight, setBoardPanelHeight] = useState(0);
   const [importedPgnData, setImportedPgnData] = useState(
     () => persistedAppState?.importedPgnData ?? null,
@@ -4027,6 +4030,19 @@ function App() {
     }
   }
 
+  async function importOtbOpeningTreeGame(gameId) {
+    const data = await fetchJson(`/api/otb/games/${gameId}`);
+    const nextError = applyImportedPgn(data.pgn);
+
+    if (nextError) {
+      throw new Error(nextError);
+    }
+
+    setShowImportedPgn(true);
+    setShowComments(true);
+    setOtbOpeningTreeGameSelection(null);
+  }
+
   function exploreOtbPlayerOpeningTree() {
     const nextScope = normalizeOtbTreeScope(appliedOtbSearchFilters);
 
@@ -5118,6 +5134,15 @@ function App() {
                   currentMoveLabel={currentMoveLabel}
                   onClose={closeOtbPlayerTreePanel}
                   onHoverMove={handleOpeningTreeHoverMove}
+                  onOpenGames={(move) =>
+                    setOtbOpeningTreeGameSelection({
+                      scope: otbPlayerTreeScope,
+                      color: otbPlayerTreeColor,
+                      fen,
+                      currentMoveLabel,
+                      move,
+                    })
+                  }
                   onSelectMove={handleOpeningTreeSelectMove}
                 />
               )}
@@ -5343,6 +5368,14 @@ function App() {
           onImport={importOtbGame}
           onExploreOpeningTree={exploreOtbPlayerOpeningTree}
           onClose={closeOtbSearchPopup}
+        />
+      )}
+
+      {otbOpeningTreeGameSelection && (
+        <OtbOpeningTreeGamesModal
+          selection={otbOpeningTreeGameSelection}
+          onImport={importOtbOpeningTreeGame}
+          onClose={() => setOtbOpeningTreeGameSelection(null)}
         />
       )}
 

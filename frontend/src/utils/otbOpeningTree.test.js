@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOtbOpeningTreeExportQuery,
+  buildOtbOpeningTreeGamesQuery,
   buildOtbOpeningTreeQuery,
   normalizeOtbTreeScope,
 } from "./otbOpeningTree.js";
@@ -37,6 +38,33 @@ describe("OTB player opening tree queries", () => {
     expect(
       buildOtbOpeningTreeQuery({ player: "Morphy" }, "white", "").error,
     ).toMatch(/position/i);
+  });
+
+  it("builds a paginated query for one continuation", () => {
+    const { query, error } = buildOtbOpeningTreeGamesQuery(
+      { player: " Morphy ", event: " Paris " },
+      "white",
+      "start-fen",
+      "E2E4",
+      3,
+    );
+    const params = new URLSearchParams(query);
+
+    expect(error).toBe("");
+    expect(params.get("player")).toBe("Morphy");
+    expect(params.get("event")).toBe("Paris");
+    expect(params.get("color")).toBe("white");
+    expect(params.get("fen")).toBe("start-fen");
+    expect(params.get("uci")).toBe("e2e4");
+    expect(params.get("page")).toBe("3");
+    expect(params.get("pageSize")).toBe("25");
+  });
+
+  it("rejects an invalid continuation", () => {
+    expect(
+      buildOtbOpeningTreeGamesQuery({ player: "Morphy" }, "white", "fen", "e4")
+        .error,
+    ).toMatch(/continuation/i);
   });
 
   it("validates and serializes export limits", () => {

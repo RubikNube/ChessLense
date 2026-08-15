@@ -18,6 +18,7 @@ const ALLOWED_RESULTS = new Set(["1-0", "0-1", "1/2-1/2", "*"]);
 const ALLOWED_COLORS = new Set(["white", "black"]);
 const ECO_CODE_PATTERN = /^[A-E]\d{2}$/i;
 const GAME_ID_PATTERN = /^otb-[a-f0-9]{64}$/;
+const UCI_MOVE_PATTERN = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
 const OPENING_TREE_COLORS = new Set(["white", "black"]);
 const DEFAULT_EXPORT_DEPTH = 20;
 const DEFAULT_EXPORT_MIN_GAMES = 2;
@@ -1501,6 +1502,132 @@ async function getOpeningTree(rawQuery, options = {}) {
 	}
 }
 
+function normalizeOpeningTreeGamesQuery(rawQuery) {
+	const player = normalizeString(rawQuery.player);
+	const color = normalizeString(rawQuery.color).toLowerCase();
+	const uci = normalizeString(rawQuery.uci).toLowerCase();
+
+	if (!player) {
+		throw new HttpError(
+			400,
+			"invalid_query",
+			"player is required for OTB opening tree games",
+		);
+	}
+
+	if (!OPENING_TREE_COLORS.has(color)) {
+		throw new HttpError(400, "invalid_query", "color must be white or black");
+	}
+
+	if (!UCI_MOVE_PATTERN.test(uci)) {
+		throw new HttpError(400, "invalid_query", "uci must be a valid UCI move");
+	}
+
+	return {
+		search: normalizeSearchQuery({ ...rawQuery, player, color }),
+		positionKey: normalizePositionKey(rawQuery.fen),
+		uci,
+	};
+}
+
+function queryOpeningTreeGames(database, search, positionKey, uci) {
+	const queryDefinition = buildSearchQueryDefinition(search);
+	const positionClause = `${queryDefinition.whereClause ? "AND" : "WHERE"} gm.position_key = ?
+		AND gm.uci = ?
+		AND g.move_index_status = 'indexed'`;
+	const params = [...queryDefinition.params, positionKey, uci];
+	const totalResults =
+		database
+			.prepare(
+				`
+				SELECT COUNT(DISTINCT g.id) AS totalResults
+				${queryDefinition.fromClause}
+				JOIN otb_game_moves gm ON gm.game_id = g.id
+				${queryDefinition.whereClause}
+				${positionClause}
+			`,
+			)
+			.get(...params)?.totalResults ?? 0;
+	const totalPages =
+		totalResults > 0 ? Math.ceil(totalResults / search.pageSize) : 1;
+	const currentPage = Math.min(search.page, totalPages);
+	const offset = (currentPage - 1) * search.pageSize;
+	const games = database
+		.prepare(
+			`
+			SELECT DISTINCT
+				g.id,
+				g.source,
+				g.source_file AS sourceFile,
+				g.variant,
+				g.result,
+				g.created_at AS createdAt,
+				g.date_label AS dateLabel,
+				g.year,
+				g.move_count AS moveCount,
+				g.ply_count AS plyCount,
+				g.event,
+				g.site,
+				g.round,
+				g.eco,
+				g.opening,
+				pw.name AS whiteName,
+				pb.name AS blackName
+			${queryDefinition.fromClause}
+			JOIN otb_game_moves gm ON gm.game_id = g.id
+			${queryDefinition.whereClause}
+			${positionClause}
+			ORDER BY COALESCE(g.year, 0) DESC, COALESCE(g.created_at, 0) DESC, g.id ASC
+			LIMIT ? OFFSET ?
+		`,
+		)
+		.all(...params, search.pageSize, offset)
+		.map(mapGameSummaryRow);
+
+	return {
+		games,
+		pagination: {
+			page: currentPage,
+			pageSize: search.pageSize,
+			totalResults,
+			totalPages,
+			hasPreviousPage: currentPage > 1,
+			hasNextPage: currentPage < totalPages,
+		},
+	};
+}
+
+async function getOpeningTreeGames(rawQuery, options = {}) {
+	const { search, positionKey, uci } = normalizeOpeningTreeGamesQuery(rawQuery);
+	const { database } = await openOtbDatabase({ dbPath: options.dbPath });
+
+	try {
+		const indexing = ensureMatchingGamesIndexed(database, search);
+		const { games, pagination } = queryOpeningTreeGames(
+			database,
+			search,
+			positionKey,
+			uci,
+		);
+
+		return {
+			search: {
+				...search,
+				page: pagination.page,
+				totalResults: pagination.totalResults,
+				totalPages: pagination.totalPages,
+				positionKey,
+				uci,
+			},
+			games,
+			pagination,
+			indexing,
+		};
+	} finally {
+		database.close();
+	}
+}
+
 function normalizeExportInteger(value, fallback, fieldName, maximum = null) {
 	const normalized = normalizeString(value);
 	const parsed = normalized
@@ -1756,6 +1883,7 @@ module.exports = {
 	exportOpeningTree,
 	getGame,
 	getOpeningTree,
+	getOpeningTreeGames,
 	importPgnDirectory,
 	importPgnFile,
 	searchGames,

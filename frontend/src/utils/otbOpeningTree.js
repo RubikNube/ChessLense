@@ -76,6 +76,33 @@ export function buildOtbOpeningTreeQuery(scopeValue, color, fen) {
   return { query: params.toString(), error: "" };
 }
 
+export function buildOtbOpeningTreeGamesQuery(
+  scopeValue,
+  color,
+  fen,
+  uci,
+  page = 1,
+) {
+  const { query, error } = buildOtbOpeningTreeQuery(scopeValue, color, fen);
+
+  if (error) {
+    return { query: "", error };
+  }
+
+  const normalizedUci = typeof uci === "string" ? uci.trim().toLowerCase() : "";
+
+  if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(normalizedUci)) {
+    return { query: "", error: "The selected continuation is invalid." };
+  }
+
+  const params = new URLSearchParams(query);
+  params.set("uci", normalizedUci);
+  params.set("page", String(Math.max(1, Number(page) || 1)));
+  params.set("pageSize", "25");
+
+  return { query: params.toString(), error: "" };
+}
+
 function validateInteger(value, label, maximum = null) {
   if (!/^\d+$/.test(value) || Number(value) < 1) {
     return `${label} must be a positive whole number.`;

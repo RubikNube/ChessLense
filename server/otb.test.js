@@ -10,6 +10,7 @@ const {
 	exportOpeningTree,
 	getGame,
 	getOpeningTree,
+	getOpeningTreeGames,
 	importPgnDirectory,
 	searchGames,
 	__testing,
@@ -411,6 +412,94 @@ test("getOpeningTree lazily indexes matching games in a legacy database", async 
 		assert.equal(tree.indexing.newlyProcessedGames, 1);
 		assert.equal(tree.indexing.indexedGames, 1);
 		assert.equal(tree.moves[0].san, "e4");
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("getOpeningTreeGames returns paginated games for one continuation", async () => {
+	const { archiveDir, dbPath, rootDir } = await createTempOtbWorkspace();
+
+	try {
+		await importPgnDirectory({ rootDir: archiveDir, dbPath });
+		const matching = await getOpeningTreeGames(
+			{
+				player: "Morphy",
+				color: "white",
+				fen: DEFAULT_POSITION,
+				uci: "e2e4",
+				page: "3",
+				pageSize: "1",
+			},
+			{ dbPath },
+		);
+		const empty = await getOpeningTreeGames(
+			{
+				player: "Morphy",
+				color: "white",
+				fen: DEFAULT_POSITION,
+				uci: "d2d4",
+			},
+			{ dbPath },
+		);
+
+		assert.equal(matching.games.length, 1);
+		assert.equal(matching.games[0].event, "Paris Exhibition");
+		assert.equal(matching.pagination.page, 1);
+		assert.equal(matching.pagination.pageSize, 1);
+		assert.equal(matching.pagination.totalResults, 1);
+		assert.equal(matching.search.uci, "e2e4");
+		assert.equal(empty.games.length, 0);
+		assert.equal(empty.pagination.totalResults, 0);
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("getOpeningTreeGames validates the continuation move", async () => {
+	await assert.rejects(
+		() =>
+			getOpeningTreeGames({
+				player: "Morphy",
+				color: "white",
+				fen: DEFAULT_POSITION,
+				uci: "e4",
+			}),
+		(error) =>
+			error instanceof HttpError &&
+			error.status === 400 &&
+			error.message === "uci must be a valid UCI move",
+	);
+});
+
+test("getOpeningTreeGames returns a repeated position only once per game", async () => {
+	const { archiveDir, dbPath, rootDir } = await createTempOtbWorkspace();
+
+	try {
+		await fs.writeFile(
+			path.join(archiveDir, "repetition.pgn"),
+			`[Event "Repetition"]
+[Date "2026.01.01"]
+[White "Repeat Player"]
+[Black "Cycle Player"]
+[Result "1/2-1/2"]
+
+1. Nf3 Nf6 2. Ng1 Ng8 3. Nf3 Nf6 4. Ng1 Ng8 1/2-1/2`,
+			"utf8",
+		);
+		await importPgnDirectory({ rootDir: archiveDir, dbPath });
+		const result = await getOpeningTreeGames(
+			{
+				player: "Repeat Player",
+				color: "white",
+				fen: DEFAULT_POSITION,
+				uci: "g1f3",
+			},
+			{ dbPath },
+		);
+
+		assert.equal(result.games.length, 1);
+		assert.equal(result.pagination.totalResults, 1);
 	} finally {
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}

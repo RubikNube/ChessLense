@@ -350,6 +350,13 @@ test("GET /api/otb/opening-tree and export return player preparation data", asyn
 				`${baseUrl}/api/otb/opening-tree?${scope}`,
 			);
 			const tree = await treeResponse.json();
+			const gamesScope = new URLSearchParams(scope);
+			gamesScope.set("uci", "e2e4");
+			gamesScope.set("pageSize", "25");
+			const gamesResponse = await fetch(
+				`${baseUrl}/api/otb/opening-tree/games?${gamesScope}`,
+			);
+			const matchingGames = await gamesResponse.json();
 			const exportResponse = await fetch(
 				`${baseUrl}/api/otb/opening-tree/export?player=Morphy&maxDepth=4&minGames=1&maxBranches=3`,
 			);
@@ -358,6 +365,9 @@ test("GET /api/otb/opening-tree and export return player preparation data", asyn
 			assert.equal(treeResponse.status, 200);
 			assert.equal(tree.moves[0].uci, "e2e4");
 			assert.equal(tree.moves[0].playerWinPercent, 100);
+			assert.equal(gamesResponse.status, 200);
+			assert.equal(matchingGames.pagination.totalResults, 1);
+			assert.equal(matchingGames.games[0].event, "Paris Exhibition");
 			assert.equal(exportResponse.status, 200);
 			assert.match(exported.text, /## As White/);
 			assert.match(exported.text, /## As Black/);

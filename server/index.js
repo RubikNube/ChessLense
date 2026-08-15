@@ -32,6 +32,7 @@ const {
 	exportOpeningTree: exportOtbOpeningTree,
 	getGame: getOtbGame,
 	getOpeningTree: getOtbOpeningTree,
+	getOpeningTreeGames: getOtbOpeningTreeGames,
 	importPgnFile: importOtbPgnFile,
 	searchGames: searchOtbGames,
 } = require("./otb");
@@ -342,6 +343,15 @@ function createApp() {
 		try {
 			const openingTree = await getOtbOpeningTree(req.query || {});
 			return res.json(openingTree);
+		} catch (error) {
+			return sendApiError(res, error);
+		}
+	});
+
+	app.get("/api/otb/opening-tree/games", async (req, res) => {
+		try {
+			const games = await getOtbOpeningTreeGames(req.query || {});
+			return res.json(games);
 		} catch (error) {
 			return sendApiError(res, error);
 		}
