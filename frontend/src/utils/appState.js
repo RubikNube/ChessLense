@@ -183,6 +183,7 @@ export const VIEW_LAYOUT_VIEW_IDS = [
   "opening-tree",
   "otb-player-opening-tree",
   "engine",
+  "game-analysis",
   "comments",
   "variants",
   "imported-pgn",
@@ -197,6 +198,7 @@ export const DEFAULT_VIEW_LAYOUT = {
     "opening-tree",
     "otb-player-opening-tree",
     "engine",
+    "game-analysis",
     "comments",
     "variants",
     "imported-pgn",
@@ -781,6 +783,10 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showEngineWindow === "boolean"
           ? parsedState.showEngineWindow
           : true,
+      showGameAnalysisPanel:
+        typeof parsedState.showGameAnalysisPanel === "boolean"
+          ? parsedState.showGameAnalysisPanel
+          : false,
       showEvaluationBar:
         typeof parsedState.showEvaluationBar === "boolean"
           ? parsedState.showEvaluationBar
@@ -853,6 +859,7 @@ export function serializePersistedAppState({
   showGuessTrainingPanel,
   showPlayComputerPanel,
   showEngineWindow,
+  showGameAnalysisPanel,
   showEvaluationBar,
   boardSoundsEnabled,
   showComments,
@@ -891,6 +898,7 @@ export function serializePersistedAppState({
     showGuessTrainingPanel,
     showPlayComputerPanel,
     showEngineWindow,
+    showGameAnalysisPanel,
     showEvaluationBar,
     boardSoundsEnabled,
     showComments,

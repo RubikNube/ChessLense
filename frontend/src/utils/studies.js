@@ -1,6 +1,7 @@
 import { normalizeImportedPgnData } from "./annotatedPgn.js";
 import { normalizePositionComments } from "./appState.js";
 import { createEmptyVariantTree, normalizeVariantTree } from "./variantTree.js";
+import { normalizePersistedGameAnalysis } from "./gameAnalysis.js";
 
 function normalizeString(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -106,6 +107,7 @@ export function normalizeStudy(entry) {
     variantTree: normalizeVariantTree(entry.variantTree),
     importedPgnData: normalizeImportedPgnData(entry.importedPgnData),
     positionComments: normalizePositionComments(entry.positionComments),
+    gameAnalysis: normalizePersistedGameAnalysis(entry.gameAnalysis),
   };
 }
 
@@ -114,6 +116,7 @@ export function createStudySavePayload({
   variantTree,
   importedPgnData,
   positionComments,
+  gameAnalysis,
 }) {
   const normalizedImportedPgnData = normalizeImportedPgnData(importedPgnData);
 
@@ -122,5 +125,6 @@ export function createStudySavePayload({
     variantTree: normalizeVariantTree(variantTree ?? createEmptyVariantTree()),
     importedPgnData: normalizedImportedPgnData,
     positionComments: normalizePositionComments(positionComments),
+    gameAnalysis: normalizePersistedGameAnalysis(gameAnalysis),
   };
 }

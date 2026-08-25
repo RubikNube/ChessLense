@@ -131,6 +131,7 @@ CHESSLENSE_ALLOWED_ORIGINS=https://rubiknube.github.io,http://localhost:5173 npm
 Optional rate-limit controls for the Stockfish-backed analysis endpoints:
 
 - `POST /api/analyze`
+- `POST /api/analyze/game`
 - `POST /api/analyze/compare-moves`
 
 Defaults:
@@ -317,6 +318,43 @@ Engine failure:
   "stderr": ""
 }
 ```
+
+### `POST /api/analyze/game`
+
+Analyze the initial position and every position in a legal main-line move
+sequence. One Stockfish process is reused for the complete request. The response
+uses newline-delimited JSON (`application/x-ndjson`) so clients can display live
+progress and cancel by aborting the request.
+
+#### Request body
+
+```json
+{
+  "initialFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "moves": [
+    { "from": "e2", "to": "e4" },
+    { "from": "e7", "to": "e5" }
+  ],
+  "depth": 12
+}
+```
+
+`moves` may contain at most 500 plies. Moves are validated against the supplied
+initial position before analysis starts.
+
+#### Stream events
+
+```jsonl
+{"type":"start","total":3,"depth":12}
+{"type":"position","index":0,"ply":0,"fen":"...","evaluation":{"type":"cp","value":20},"bestmove":"e2e4"}
+{"type":"position","index":1,"ply":1,"fen":"...","evaluation":{"type":"cp","value":-18},"bestmove":"e7e5"}
+{"type":"complete","total":3,"depth":12}
+```
+
+`bestmove` is Stockfish's preferred UCI move from the streamed position.
+
+If Stockfish fails after streaming begins, the final event has type `error` with
+`error` and `details` fields.
 
 ### `GET /api/lichess/games`
 

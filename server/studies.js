@@ -160,6 +160,93 @@ function normalizePositionComments(positionComments) {
 		.filter(Boolean);
 }
 
+function normalizeEngineEvaluation(evaluation) {
+	if (
+		!evaluation ||
+		typeof evaluation !== "object" ||
+		(evaluation.type !== "cp" && evaluation.type !== "mate") ||
+		!Number.isFinite(evaluation.value)
+	) {
+		return null;
+	}
+
+	return { type: evaluation.type, value: evaluation.value };
+}
+
+function normalizeEngineBestMove(bestMove) {
+	if (typeof bestMove !== "string") {
+		return null;
+	}
+
+	const normalizedBestMove = bestMove.trim().toLowerCase();
+	return /^[a-h][1-8][a-h][1-8][nbrq]?$/.test(normalizedBestMove)
+		? normalizedBestMove
+		: null;
+}
+
+function normalizeGameAnalysis(value) {
+	if (
+		!value ||
+		typeof value !== "object" ||
+		value.version !== 1 ||
+		value.status !== "complete" ||
+		!Number.isInteger(value.depth) ||
+		value.depth < 1 ||
+		value.depth > 30 ||
+		typeof value.completedAt !== "string" ||
+		typeof value.mainlineSignature !== "string" ||
+		!Array.isArray(value.positions) ||
+		value.positions.length === 0 ||
+		value.positions.length > 501 ||
+		value.total !== value.positions.length
+	) {
+		return null;
+	}
+
+	const positions = [];
+	for (const position of value.positions) {
+		if (
+			!position ||
+			typeof position !== "object" ||
+			typeof position.nodeId !== "string" ||
+			!position.nodeId ||
+			typeof position.fen !== "string" ||
+			!position.fen ||
+			!Number.isInteger(position.ply) ||
+			position.ply < 0
+		) {
+			return null;
+		}
+
+		positions.push({
+			nodeId: position.nodeId,
+			fen: position.fen,
+			ply: position.ply,
+			moveNumber:
+				Number.isInteger(position.moveNumber) && position.moveNumber >= 0
+					? position.moveNumber
+					: 0,
+			side:
+				position.side === "white" || position.side === "black"
+					? position.side
+					: null,
+			san: normalizeString(position.san) || null,
+			evaluation: normalizeEngineEvaluation(position.evaluation),
+			bestMove: normalizeEngineBestMove(position.bestMove),
+		});
+	}
+
+	return {
+		version: 1,
+		status: "complete",
+		depth: value.depth,
+		completedAt: value.completedAt,
+		total: positions.length,
+		mainlineSignature: value.mainlineSignature,
+		positions,
+	};
+}
+
 function getHeaderValue(importedPgnData, headerName) {
 	if (!importedPgnData?.headers?.length || !normalizeString(headerName)) {
 		return "";
@@ -253,6 +340,7 @@ function normalizeStudyPayload(payload) {
 		variantTree,
 		importedPgnData,
 		positionComments: normalizePositionComments(payload.positionComments),
+		gameAnalysis: normalizeGameAnalysis(payload.gameAnalysis),
 	};
 }
 
@@ -270,6 +358,7 @@ function normalizeStudyRecord(record) {
 	}
 
 	const positionComments = normalizePositionComments(record.positionComments);
+	const gameAnalysis = normalizeGameAnalysis(record.gameAnalysis);
 	const createdAt = normalizeIsoTimestamp(
 		record.createdAt,
 		new Date().toISOString(),
@@ -289,6 +378,7 @@ function normalizeStudyRecord(record) {
 		variantTree,
 		importedPgnData,
 		positionComments,
+		gameAnalysis,
 	};
 }
 
@@ -406,6 +496,7 @@ async function saveStudy(payload, options = {}) {
 		variantTree: normalizedPayload.variantTree,
 		importedPgnData: normalizedPayload.importedPgnData,
 		positionComments: normalizedPayload.positionComments,
+		gameAnalysis: normalizedPayload.gameAnalysis,
 	};
 
 	await fs.writeFile(

@@ -15,10 +15,12 @@ import {
   getBoardAnnotationsForNode,
   getMoveHistoryEntries,
   getMoveHistoryForNode,
+  getMainlinePositionEntries,
   getRelevantVariantLines,
   getVariantLinesForMoveHistoryNode,
   getVariantLines,
   goToNodeInVariantTree,
+  goToMainlineNodeInVariantTree,
   goToEndInVariantTree,
   goToStartInVariantTree,
   importMoveSequenceToVariantTree,
@@ -36,6 +38,24 @@ import {
 import { parse } from "chess.js/src/pgn.js";
 
 describe("variantTree", () => {
+  it("extracts and navigates the main line while a sideline is active", () => {
+    let tree = createVariantTreeFromMoves([
+      { from: "e2", to: "e4" },
+      { from: "e7", to: "e5" },
+      { from: "g1", to: "f3" },
+    ]);
+    const mainlineLeafId = tree.currentNodeId;
+    tree = undoInVariantTree(tree);
+    tree = applyMoveToVariantTree(tree, { from: "f1", to: "c4" });
+
+    const entries = getMainlinePositionEntries(tree);
+    expect(entries.map(({ san }) => san)).toEqual([null, "e4", "e5", "Nf3"]);
+
+    tree = goToMainlineNodeInVariantTree(tree, mainlineLeafId);
+    expect(tree.currentNodeId).toBe(mainlineLeafId);
+    expect(tree.activeLineLeafId).toBe(mainlineLeafId);
+  });
+
   it("creates a new sideline instead of deleting redo history", () => {
     let tree = createEmptyVariantTree();
 

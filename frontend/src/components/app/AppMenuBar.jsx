@@ -91,6 +91,7 @@ function AppMenuBar({
   showGuessTrainingPanel,
   showPlayComputerPanel,
   showEngineWindow,
+  showGameAnalysisPanel,
   showEvaluationBar,
   boardSoundsEnabled,
   showComments,
@@ -143,6 +144,10 @@ function AppMenuBar({
           {
             label: "Analyze with Stockfish",
             action: actions.analyzePosition,
+          },
+          {
+            label: "Analyze Whole Game",
+            action: actions.analyzeWholeGame,
           },
           {
             label: showVariantArrows
@@ -271,6 +276,12 @@ function AppMenuBar({
             action: actions.toggleEngineWindow,
           },
           {
+            label: showGameAnalysisPanel
+              ? "Hide Whole Game Analysis"
+              : "Show Whole Game Analysis",
+            action: actions.toggleGameAnalysisPanel,
+          },
+          {
             label: showEvaluationBar
               ? "Hide Evaluation Bar"
               : "Show Evaluation Bar",
@@ -341,6 +352,7 @@ function AppMenuBar({
       canUndo,
       showComments,
       showEngineWindow,
+      showGameAnalysisPanel,
       showEvaluationBar,
       showGuessTrainingPanel,
       showImportedPgn,
@@ -524,6 +536,13 @@ function AppMenuBar({
                 onClick={() => onMenuAction(actions.analyzePosition)}
               >
                 Analyze with Stockfish
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => onMenuAction(actions.analyzeWholeGame)}
+              >
+                Analyze Whole Game
               </button>
               <button
                 type="button"
@@ -734,6 +753,15 @@ function AppMenuBar({
                 onClick={() => onMenuAction(actions.toggleEngineWindow)}
               >
                 {showEngineWindow ? "Hide Engine Window" : "Show Engine Window"}
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                onClick={() => onMenuAction(actions.toggleGameAnalysisPanel)}
+              >
+                {showGameAnalysisPanel
+                  ? "Hide Whole Game Analysis"
+                  : "Show Whole Game Analysis"}
               </button>
               <button
                 type="button"

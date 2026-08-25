@@ -44,6 +44,26 @@ function createStudyPayload() {
 			{ id: "comment-1", comment: "Plan here", fen: "fen-1", source: "user" },
 			{ comment: "" },
 		],
+		gameAnalysis: {
+			version: 1,
+			status: "complete",
+			depth: 12,
+			completedAt: "2026-08-25T12:00:00.000Z",
+			total: 1,
+			mainlineSignature: '[["root","fen-0"]]',
+			positions: [
+				{
+					nodeId: "root",
+					fen: "fen-0",
+					ply: 0,
+					moveNumber: 0,
+					side: null,
+					san: null,
+					evaluation: { type: "cp", value: 18 },
+					bestMove: "E2E4",
+				},
+			],
+		},
 	};
 }
 
@@ -100,6 +120,12 @@ test("saveStudy persists study file and getStudy reloads it", async () => {
 		assert.equal(loadedStudy.id, savedStudy.id);
 		assert.equal(loadedStudy.summary.commentCount, 1);
 		assert.equal(loadedStudy.summary.maxPly, 3);
+		assert.equal(loadedStudy.gameAnalysis.depth, 12);
+		assert.deepEqual(loadedStudy.gameAnalysis.positions[0].evaluation, {
+			type: "cp",
+			value: 18,
+		});
+		assert.equal(loadedStudy.gameAnalysis.positions[0].bestMove, "e2e4");
 		assert.deepEqual(loadedStudy.positionComments, [
 			{
 				id: "comment-1",

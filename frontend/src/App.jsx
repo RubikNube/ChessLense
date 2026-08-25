@@ -6,6 +6,7 @@ import BoardWorkspace from "./components/board/BoardWorkspace.jsx";
 import PositionSetupPanel from "./components/board/PositionSetupPanel.jsx";
 import CommentsPanel from "./components/comments/CommentsPanel.jsx";
 import EnginePanel from "./components/engine/EnginePanel.jsx";
+import WholeGameAnalysisPanel from "./components/engine/WholeGameAnalysisPanel.jsx";
 import BackendConnectionModal from "./components/modals/BackendConnectionModal.jsx";
 import CreateCollectionModal from "./components/modals/CreateCollectionModal.jsx";
 import GuessHistoryBrowserModal from "./components/modals/GuessHistoryBrowserModal.jsx";
@@ -106,9 +107,11 @@ import {
   getBoardAnnotationsForNode,
   getMoveHistoryEntries,
   getMoveHistoryForNode,
+  getMainlinePositionEntries,
   getRelevantVariantLines,
   getVariantLinesForMoveHistoryNode,
   goToNodeInVariantTree,
+  goToMainlineNodeInVariantTree,
   goToEndInVariantTree,
   goToStartInVariantTree,
   importMoveSequenceToVariantTree,
@@ -166,7 +169,36 @@ import {
   saveConfiguredApiBaseUrl,
   saveConfiguredApiToken,
   saveUseLocalApiBaseUrl,
+  streamNdjson,
 } from "./utils/api.js";
+import {
+  GAME_ANALYSIS_STATUS_CANCELLED,
+  GAME_ANALYSIS_STATUS_COMPLETE,
+  GAME_ANALYSIS_STATUS_ERROR,
+  GAME_ANALYSIS_STATUS_RUNNING,
+  GAME_ANALYSIS_VERSION,
+  ISSUE_FILTER_ALL,
+  addGameAnalysisToMoveHistoryEntries,
+  appendGameAnalysisPosition,
+  buildGameAnalysisIssueArrow,
+  buildGameAnalysisRequest,
+  createCompletedGameAnalysis,
+  createMainlineSignature,
+  findAdjacentIssue,
+  isGameAnalysisCurrent,
+} from "./utils/gameAnalysis.js";
+import {
+  GAME_ANALYSIS_RETRY_STATUS_EVALUATING,
+  GAME_ANALYSIS_RETRY_STATUS_FEEDBACK,
+  GAME_ANALYSIS_RETRY_STATUS_PREPARING,
+  GAME_ANALYSIS_RETRY_STATUS_READY,
+  buildGameAnalysisRetryArrows,
+  buildGameAnalysisRetryAttempt,
+  getGameAnalysisRetryFeedback,
+  getGameAnalysisRetryTarget,
+  getNextGameAnalysisRetryTarget,
+  setGameAnalysisRetryBestMove,
+} from "./utils/gameAnalysisRetry.js";
 import {
   applyPositionSetupTool,
   buildPositionSetupFen,
@@ -394,6 +426,10 @@ function App() {
   const [engineResult, setEngineResult] = useState(null);
   const [evaluationResult, setEvaluationResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [gameAnalysis, setGameAnalysis] = useState(null);
+  const [gameAnalysisIssueFilter, setGameAnalysisIssueFilter] =
+    useState(ISSUE_FILTER_ALL);
+  const [gameAnalysisRetry, setGameAnalysisRetry] = useState(null);
   const [selectedEngineVariantIndex, setSelectedEngineVariantIndex] =
     useState(0);
   const [openMenu, setOpenMenu] = useState(null);
@@ -433,6 +469,9 @@ function App() {
   );
   const [showEngineWindow, setShowEngineWindow] = useState(
     () => persistedAppState?.showEngineWindow ?? true,
+  );
+  const [showGameAnalysisPanel, setShowGameAnalysisPanel] = useState(
+    () => persistedAppState?.showGameAnalysisPanel ?? false,
   );
   const [showEvaluationBar, setShowEvaluationBar] = useState(
     () => persistedAppState?.showEvaluationBar ?? true,
@@ -587,6 +626,9 @@ function App() {
   const pendingGuessHistoryEntryIdRef = useRef("");
   const lastAdvancedPuzzleKeyRef = useRef("");
   const recentLichessPuzzleIdsRef = useRef(new Map());
+  const gameAnalysisAbortControllerRef = useRef(null);
+  const gameAnalysisRunSignatureRef = useRef("");
+  const gameAnalysisRetryRequestIdRef = useRef(0);
 
   const game = useMemo(() => buildGameToNode(variantTree), [variantTree]);
   const fen = useMemo(() => game.fen(), [game]);
@@ -610,6 +652,133 @@ function App() {
     () => getMoveHistoryEntries(variantTree),
     [variantTree],
   );
+  const mainlinePositionEntries = useMemo(
+    () => getMainlinePositionEntries(variantTree),
+    [variantTree],
+  );
+  const mainlineSignature = useMemo(
+    () => createMainlineSignature(mainlinePositionEntries),
+    [mainlinePositionEntries],
+  );
+  const gameAnalysisIsCurrent = useMemo(
+    () => isGameAnalysisCurrent(gameAnalysis, mainlinePositionEntries),
+    [gameAnalysis, mainlinePositionEntries],
+  );
+  const currentVariantPly =
+    variantTree.nodes[variantTree.currentNodeId]?.ply ?? 0;
+  const previousGameAnalysisIssue = useMemo(
+    () =>
+      gameAnalysisIsCurrent
+        ? findAdjacentIssue(
+            gameAnalysis?.positions,
+            currentVariantPly,
+            gameAnalysisIssueFilter,
+            -1,
+          )
+        : null,
+    [
+      gameAnalysis?.positions,
+      currentVariantPly,
+      gameAnalysisIssueFilter,
+      gameAnalysisIsCurrent,
+    ],
+  );
+  const nextGameAnalysisIssue = useMemo(
+    () =>
+      gameAnalysisIsCurrent
+        ? findAdjacentIssue(
+            gameAnalysis?.positions,
+            currentVariantPly,
+            gameAnalysisIssueFilter,
+            1,
+          )
+        : null,
+    [
+      gameAnalysis?.positions,
+      currentVariantPly,
+      gameAnalysisIssueFilter,
+      gameAnalysisIsCurrent,
+    ],
+  );
+  const gameAnalysisIssueArrow = useMemo(() => {
+    if (!gameAnalysisIsCurrent) {
+      return null;
+    }
+
+    const currentPosition = gameAnalysis?.positions?.find(
+      (position) => position.nodeId === variantTree.currentNodeId,
+    );
+    const currentMainlineEntry = mainlinePositionEntries.find(
+      (entry) => entry.nodeId === variantTree.currentNodeId,
+    );
+
+    return buildGameAnalysisIssueArrow(currentPosition, currentMainlineEntry);
+  }, [
+    gameAnalysis?.positions,
+    gameAnalysisIsCurrent,
+    mainlinePositionEntries,
+    variantTree.currentNodeId,
+  ]);
+  const currentGameAnalysisRetryTarget = useMemo(
+    () =>
+      gameAnalysisIsCurrent &&
+      gameAnalysis?.status === GAME_ANALYSIS_STATUS_COMPLETE
+        ? getGameAnalysisRetryTarget(
+            gameAnalysis.positions,
+            mainlinePositionEntries,
+            variantTree.currentNodeId,
+          )
+        : null,
+    [
+      gameAnalysis?.positions,
+      gameAnalysis?.status,
+      gameAnalysisIsCurrent,
+      mainlinePositionEntries,
+      variantTree.currentNodeId,
+    ],
+  );
+  const nextGameAnalysisRetryTarget = useMemo(
+    () =>
+      gameAnalysisRetry?.target && gameAnalysisIsCurrent
+        ? getNextGameAnalysisRetryTarget(
+            gameAnalysis?.positions,
+            mainlinePositionEntries,
+            gameAnalysisRetry.target.issuePly,
+            gameAnalysisIssueFilter,
+          )
+        : null,
+    [
+      gameAnalysis?.positions,
+      gameAnalysisIsCurrent,
+      gameAnalysisIssueFilter,
+      gameAnalysisRetry?.target,
+      mainlinePositionEntries,
+    ],
+  );
+  const gameAnalysisRetryArrows = useMemo(
+    () =>
+      gameAnalysisRetry?.attempt
+        ? buildGameAnalysisRetryArrows(
+            gameAnalysisRetry.target,
+            gameAnalysisRetry.attempt,
+          )
+        : [],
+    [gameAnalysisRetry],
+  );
+
+  useEffect(() => {
+    if (!gameAnalysisRetry) {
+      return;
+    }
+
+    if (
+      !gameAnalysisIsCurrent ||
+      variantTree.currentNodeId !== gameAnalysisRetry.target.sourceNodeId
+    ) {
+      gameAnalysisRetryRequestIdRef.current += 1;
+      setGameAnalysisRetry(null);
+    }
+  }, [gameAnalysisIsCurrent, gameAnalysisRetry, variantTree.currentNodeId]);
   const variantLines = useMemo(
     () => getRelevantVariantLines(variantTree),
     [variantTree],
@@ -818,6 +987,8 @@ function App() {
     setShowOpeningTreePanel,
     showEngineWindow,
     setShowEngineWindow,
+    showGameAnalysisPanel,
+    setShowGameAnalysisPanel,
     showComments,
     setShowComments,
     showImportedPgn,
@@ -1154,8 +1325,22 @@ function App() {
   );
 
   const effectiveBoardArrows = useMemo(
-    () => mergeBoardArrowCollections(boardArrows, guessBrowseArrows),
-    [boardArrows, guessBrowseArrows],
+    () =>
+      mergeBoardArrowCollections(
+        boardArrows,
+        !isGuessResultBrowsing && gameAnalysisIssueArrow
+          ? [gameAnalysisIssueArrow]
+          : [],
+        !isGuessResultBrowsing ? gameAnalysisRetryArrows : [],
+        guessBrowseArrows,
+      ),
+    [
+      boardArrows,
+      gameAnalysisIssueArrow,
+      gameAnalysisRetryArrows,
+      guessBrowseArrows,
+      isGuessResultBrowsing,
+    ],
   );
 
   useEffect(() => {
@@ -1214,6 +1399,124 @@ function App() {
     normalizedTrainingState.playerSide,
     trainingRequestIdRef,
   ]);
+  const startGameAnalysisRetry = useCallback(
+    async (target) => {
+      if (!target || !gameAnalysisIsCurrent) {
+        return;
+      }
+
+      resetTrainingSession();
+      const requestId = ++gameAnalysisRetryRequestIdRef.current;
+      setGameAnalysisRetry({
+        target,
+        status: target.bestMove
+          ? GAME_ANALYSIS_RETRY_STATUS_READY
+          : GAME_ANALYSIS_RETRY_STATUS_PREPARING,
+        attempt: null,
+        feedback: null,
+        error: "",
+      });
+      setVariantTree((currentValue) =>
+        goToMainlineNodeInVariantTree(currentValue, target.sourceNodeId),
+      );
+      setEngineResult(null);
+      setEvaluationResult(null);
+
+      if (target.bestMove) {
+        return;
+      }
+
+      try {
+        const analysis = await fetchJson("/api/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fen: target.sourceFen,
+            depth: engineSearchDepth,
+            multipv: 1,
+          }),
+        });
+
+        if (requestId !== gameAnalysisRetryRequestIdRef.current) {
+          return;
+        }
+
+        const hydratedTarget = setGameAnalysisRetryBestMove(
+          target,
+          analysis.bestmove,
+        );
+
+        if (!hydratedTarget) {
+          throw new Error("Stockfish did not return a legal best move.");
+        }
+
+        setGameAnalysisRetry({
+          target: hydratedTarget,
+          status: GAME_ANALYSIS_RETRY_STATUS_READY,
+          attempt: null,
+          feedback: null,
+          error: "",
+        });
+      } catch (error) {
+        if (requestId !== gameAnalysisRetryRequestIdRef.current) {
+          return;
+        }
+
+        setGameAnalysisRetry((currentValue) =>
+          currentValue
+            ? {
+                ...currentValue,
+                status: GAME_ANALYSIS_RETRY_STATUS_PREPARING,
+                error: error.message,
+              }
+            : currentValue,
+        );
+      }
+    },
+    [engineSearchDepth, gameAnalysisIsCurrent, resetTrainingSession],
+  );
+  const startCurrentGameAnalysisRetry = useCallback(() => {
+    startGameAnalysisRetry(currentGameAnalysisRetryTarget);
+  }, [currentGameAnalysisRetryTarget, startGameAnalysisRetry]);
+  const retryCurrentGameAnalysisMove = useCallback(() => {
+    setGameAnalysisRetry((currentValue) =>
+      currentValue?.target?.bestMove
+        ? {
+            ...currentValue,
+            status: GAME_ANALYSIS_RETRY_STATUS_READY,
+            attempt: null,
+            feedback: null,
+            error: "",
+          }
+        : currentValue,
+    );
+  }, []);
+  const restartGameAnalysisRetryPreparation = useCallback(() => {
+    if (gameAnalysisRetry?.target) {
+      startGameAnalysisRetry(gameAnalysisRetry.target);
+    }
+  }, [gameAnalysisRetry?.target, startGameAnalysisRetry]);
+  const exitGameAnalysisRetry = useCallback(() => {
+    const issueNodeId = gameAnalysisRetry?.target?.issueNodeId;
+
+    gameAnalysisRetryRequestIdRef.current += 1;
+    setGameAnalysisRetry(null);
+
+    if (issueNodeId) {
+      setVariantTree((currentValue) =>
+        goToMainlineNodeInVariantTree(currentValue, issueNodeId),
+      );
+      setEngineResult(null);
+      setEvaluationResult(null);
+    }
+  }, [gameAnalysisRetry?.target?.issueNodeId]);
+  const goToNextGameAnalysisRetry = useCallback(() => {
+    if (nextGameAnalysisRetryTarget) {
+      startGameAnalysisRetry(nextGameAnalysisRetryTarget);
+    }
+  }, [nextGameAnalysisRetryTarget, startGameAnalysisRetry]);
   const playBoardSound = useBoardSounds(boardSoundsEnabled);
   const playBoardSoundForVariantTree = useCallback(
     (nextVariantTree) => {
@@ -1229,6 +1532,70 @@ function App() {
     },
     [playBoardSound],
   );
+  const exploreGameAnalysisRetryAgainstComputer = useCallback(() => {
+    const attempt = gameAnalysisRetry?.attempt;
+    const target = gameAnalysisRetry?.target;
+
+    if (
+      !attempt?.userMove ||
+      !attempt.resultingFen ||
+      !target?.issueSide ||
+      variantTree.currentNodeId !== target.sourceNodeId
+    ) {
+      return;
+    }
+
+    const attemptedTree = applyMoveToVariantTree(variantTree, attempt.userMove);
+
+    if (!attemptedTree) {
+      setGameAnalysisRetry((currentValue) =>
+        currentValue
+          ? { ...currentValue, error: "Unable to explore the attempted move." }
+          : currentValue,
+      );
+      return;
+    }
+
+    const {
+      trainingState: nextTrainingState,
+      variantTree: nextVariantTree,
+      error,
+    } = createComputerPlayTrainingState(
+      attemptedTree,
+      target.issueSide,
+      TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+    );
+
+    if (error || !nextVariantTree) {
+      setGameAnalysisRetry((currentValue) =>
+        currentValue
+          ? {
+              ...currentValue,
+              error: error ?? "Unable to start computer exploration.",
+            }
+          : currentValue,
+      );
+      return;
+    }
+
+    gameAnalysisRetryRequestIdRef.current += 1;
+    trainingRequestIdRef.current += 1;
+    setGameAnalysisRetry(null);
+    setVariantTree(nextVariantTree);
+    setTrainingState(nextTrainingState);
+    setShowPlayComputerPanel(true);
+    setTrainingError("");
+    setTrainingLoading(false);
+    setTrainingPlayAutoReplyPaused(false);
+    setEngineResult(null);
+    setEvaluationResult(null);
+    playBoardSoundForVariantTree(nextVariantTree);
+  }, [
+    gameAnalysisRetry,
+    playBoardSoundForVariantTree,
+    trainingRequestIdRef,
+    variantTree,
+  ]);
 
   const buildReplayVariantTreeForProgress = useCallback(
     (referenceMoves, progressPly) => {
@@ -2298,6 +2665,9 @@ function App() {
       }
 
       setVariantTree(importedVariantTree);
+      gameAnalysisAbortControllerRef.current?.abort();
+      gameAnalysisAbortControllerRef.current = null;
+      setGameAnalysis(null);
       setEngineResult(null);
       setEvaluationResult(null);
       guessHistoryRunIdRef.current = null;
@@ -2365,8 +2735,17 @@ function App() {
     [moveHistoryEntries],
   );
   const moveHistoryItems = useMemo(
-    () => addCommentsToMoveHistoryEntries(moveHistoryEntries, positionComments),
-    [moveHistoryEntries, positionComments],
+    () =>
+      addGameAnalysisToMoveHistoryEntries(
+        addCommentsToMoveHistoryEntries(moveHistoryEntries, positionComments),
+        gameAnalysisIsCurrent ? gameAnalysis?.positions : [],
+      ),
+    [
+      gameAnalysis?.positions,
+      gameAnalysisIsCurrent,
+      moveHistoryEntries,
+      positionComments,
+    ],
   );
   const getMoveHistoryVariantOptions = useCallback(
     (nodeId) => getVariantLinesForMoveHistoryNode(variantTree, nodeId),
@@ -2433,6 +2812,124 @@ function App() {
     }
 
     const { appliedUserMove, normalizedAttemptedMove } = moveAttempt;
+
+    if (gameAnalysisRetry) {
+      if (
+        gameAnalysisRetry.status !== GAME_ANALYSIS_RETRY_STATUS_READY ||
+        !gameAnalysisRetry.target.bestMove ||
+        !gameAnalysisRetry.target.bestMoveUci
+      ) {
+        return false;
+      }
+
+      const target = gameAnalysisRetry.target;
+      const attemptedMoveUci = formatMoveAsUci(normalizedAttemptedMove);
+      const didMatchBestMove = attemptedMoveUci === target.bestMoveUci;
+
+      if (didMatchBestMove) {
+        const attempt = buildGameAnalysisRetryAttempt({
+          target,
+          userMove: normalizedAttemptedMove,
+          userSan: appliedUserMove.san,
+        });
+        const feedback = getGameAnalysisRetryFeedback(attempt);
+
+        if (!attempt || !feedback) {
+          setGameAnalysisRetry((currentValue) =>
+            currentValue
+              ? { ...currentValue, error: "Unable to score the retry move." }
+              : currentValue,
+          );
+          return false;
+        }
+
+        setGameAnalysisRetry((currentValue) =>
+          currentValue
+            ? {
+                ...currentValue,
+                status: GAME_ANALYSIS_RETRY_STATUS_FEEDBACK,
+                attempt,
+                feedback,
+                error: "",
+              }
+            : currentValue,
+        );
+        setHoveredOpeningTreeMove(null);
+        return true;
+      }
+
+      const requestId = ++gameAnalysisRetryRequestIdRef.current;
+      setGameAnalysisRetry((currentValue) =>
+        currentValue
+          ? {
+              ...currentValue,
+              status: GAME_ANALYSIS_RETRY_STATUS_EVALUATING,
+              attempt: null,
+              feedback: null,
+              error: "",
+            }
+          : currentValue,
+      );
+      fetchJson("/api/analyze/compare-moves", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fen: target.sourceFen,
+          referenceMove: target.bestMoveUci,
+          userMove: attemptedMoveUci,
+          depth: engineSearchDepth,
+        }),
+      })
+        .then((comparison) => {
+          if (requestId !== gameAnalysisRetryRequestIdRef.current) {
+            return;
+          }
+
+          const attempt = buildGameAnalysisRetryAttempt({
+            target,
+            userMove: normalizedAttemptedMove,
+            userSan: appliedUserMove.san,
+            comparison,
+          });
+          const feedback = getGameAnalysisRetryFeedback(attempt);
+
+          if (!attempt || !feedback) {
+            throw new Error("Stockfish could not score the retry move.");
+          }
+
+          setGameAnalysisRetry((currentValue) =>
+            currentValue
+              ? {
+                  ...currentValue,
+                  status: GAME_ANALYSIS_RETRY_STATUS_FEEDBACK,
+                  attempt,
+                  feedback,
+                  error: "",
+                }
+              : currentValue,
+          );
+        })
+        .catch((error) => {
+          if (requestId !== gameAnalysisRetryRequestIdRef.current) {
+            return;
+          }
+
+          setGameAnalysisRetry((currentValue) =>
+            currentValue
+              ? {
+                  ...currentValue,
+                  status: GAME_ANALYSIS_RETRY_STATUS_READY,
+                  error: error.message,
+                }
+              : currentValue,
+          );
+        });
+
+      setHoveredOpeningTreeMove(null);
+      return true;
+    }
 
     if (isTrainingPlayActive || isStandaloneComputerPlayActive) {
       if (!isEngineOpponentUserTurn) {
@@ -3325,6 +3822,9 @@ function App() {
 
     resetTrainingSession();
     setVariantTree(createEmptyVariantTree(nextFen));
+    gameAnalysisAbortControllerRef.current?.abort();
+    gameAnalysisAbortControllerRef.current = null;
+    setGameAnalysis(null);
     setEngineResult(null);
     setEvaluationResult(null);
     setImportedPgnData(null);
@@ -3539,11 +4039,14 @@ function App() {
       }
 
       resetTrainingSession();
+      gameAnalysisAbortControllerRef.current?.abort();
+      gameAnalysisAbortControllerRef.current = null;
       setVariantTree(study.variantTree);
       setEngineResult(null);
       setEvaluationResult(null);
       setImportedPgnData(study.importedPgnData);
       setPositionComments(study.positionComments);
+      setGameAnalysis(study.gameAnalysis);
       setEditingCommentId(null);
       setCommentDraft("");
       setPositionSetupState(null);
@@ -3573,6 +4076,11 @@ function App() {
             variantTree,
             importedPgnData,
             positionComments,
+            gameAnalysis:
+              gameAnalysis?.status === GAME_ANALYSIS_STATUS_COMPLETE &&
+              gameAnalysisIsCurrent
+                ? gameAnalysis
+                : null,
           }),
         ),
       });
@@ -3590,6 +4098,8 @@ function App() {
   }, [
     closeSaveStudyPopup,
     importedPgnData,
+    gameAnalysis,
+    gameAnalysisIsCurrent,
     loadStudies,
     positionComments,
     saveStudyTitle,
@@ -4243,6 +4753,7 @@ function App() {
             showMoveHistory,
             showOpeningTreePanel,
             showEngineWindow,
+            showGameAnalysisPanel,
             showComments,
             showImportedPgn,
             showVariants,
@@ -4265,6 +4776,7 @@ function App() {
         showGuessTrainingPanel,
         showPlayComputerPanel,
         showEngineWindow: persistedRightSideViews.showEngineWindow,
+        showGameAnalysisPanel: persistedRightSideViews.showGameAnalysisPanel,
         showEvaluationBar,
         boardSoundsEnabled,
         showComments: persistedRightSideViews.showComments,
@@ -4297,6 +4809,7 @@ function App() {
     otbPlayerTreeScope,
     positionComments,
     showEngineWindow,
+    showGameAnalysisPanel,
     showEvaluationBar,
     boardSoundsEnabled,
     showComments,
@@ -4435,6 +4948,180 @@ function App() {
     };
   }, [engineSearchDepth, fen, isPositionSetupMode]);
 
+  useEffect(
+    () => () => {
+      gameAnalysisAbortControllerRef.current?.abort();
+      gameAnalysisAbortControllerRef.current = null;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (
+      gameAnalysis?.status === GAME_ANALYSIS_STATUS_RUNNING &&
+      gameAnalysisRunSignatureRef.current &&
+      gameAnalysisRunSignatureRef.current !== mainlineSignature
+    ) {
+      gameAnalysisAbortControllerRef.current?.abort();
+    }
+  }, [gameAnalysis?.status, mainlineSignature]);
+
+  const cancelGameAnalysis = useCallback(() => {
+    gameAnalysisAbortControllerRef.current?.abort();
+  }, []);
+
+  const goToGameAnalysisPosition = useCallback(
+    (position) => {
+      const matchingEntry = mainlinePositionEntries.find(
+        (entry) =>
+          entry.nodeId === position?.nodeId && entry.fen === position?.fen,
+      );
+
+      if (!matchingEntry || isPositionSetupMode) {
+        return;
+      }
+
+      resetTrainingSession();
+      setVariantTree((currentValue) =>
+        goToMainlineNodeInVariantTree(currentValue, position.nodeId),
+      );
+      setEngineResult(null);
+      setEvaluationResult(null);
+    },
+    [isPositionSetupMode, mainlinePositionEntries, resetTrainingSession],
+  );
+
+  const analyzeWholeGame = useCallback(async () => {
+    setShowGameAnalysisPanel(true);
+
+    if (isPositionSetupMode) {
+      setPositionSetupError("Finish setup before analyzing the game.");
+      return;
+    }
+
+    gameAnalysisRetryRequestIdRef.current += 1;
+    setGameAnalysisRetry(null);
+
+    gameAnalysisAbortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    const analysisEntries = mainlinePositionEntries;
+    const analysisSignature = createMainlineSignature(analysisEntries);
+    let streamedPositions = [];
+    let receivedCompleteEvent = false;
+    gameAnalysisAbortControllerRef.current = abortController;
+    gameAnalysisRunSignatureRef.current = analysisSignature;
+    setGameAnalysis({
+      version: GAME_ANALYSIS_VERSION,
+      status: GAME_ANALYSIS_STATUS_RUNNING,
+      depth: engineSearchDepth,
+      completedAt: "",
+      total: analysisEntries.length,
+      mainlineSignature: analysisSignature,
+      positions: [],
+    });
+
+    try {
+      await streamNdjson(
+        "/api/analyze/game",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(
+            buildGameAnalysisRequest(analysisEntries, engineSearchDepth),
+          ),
+          signal: abortController.signal,
+        },
+        (event) => {
+          if (abortController !== gameAnalysisAbortControllerRef.current) {
+            return;
+          }
+
+          if (event?.type === "start") {
+            setGameAnalysis((currentValue) => ({
+              ...currentValue,
+              total: event.total,
+              depth: event.depth,
+            }));
+            return;
+          }
+
+          if (event?.type === "position") {
+            streamedPositions = appendGameAnalysisPosition(
+              streamedPositions,
+              event,
+              analysisEntries,
+            );
+            setGameAnalysis((currentValue) => ({
+              ...currentValue,
+              positions: streamedPositions,
+            }));
+            return;
+          }
+
+          if (event?.type === "error") {
+            throw new Error(event.details || "Whole-game analysis failed.");
+          }
+
+          if (event?.type === "complete") {
+            receivedCompleteEvent = true;
+          }
+        },
+      );
+
+      if (abortController.signal.aborted) {
+        throw new DOMException("Analysis cancelled.", "AbortError");
+      }
+
+      if (
+        !receivedCompleteEvent ||
+        streamedPositions.length !== analysisEntries.length
+      ) {
+        throw new Error(
+          "Whole-game analysis ended before every position was evaluated.",
+        );
+      }
+
+      setGameAnalysis(
+        createCompletedGameAnalysis({
+          depth: engineSearchDepth,
+          positions: streamedPositions,
+          mainlineEntries: analysisEntries,
+        }),
+      );
+    } catch (error) {
+      if (abortController !== gameAnalysisAbortControllerRef.current) {
+        return;
+      }
+
+      if (error?.name === "AbortError" || abortController.signal.aborted) {
+        setGameAnalysis((currentValue) => ({
+          ...currentValue,
+          status: GAME_ANALYSIS_STATUS_CANCELLED,
+        }));
+      } else {
+        setGameAnalysis((currentValue) => ({
+          ...currentValue,
+          status: GAME_ANALYSIS_STATUS_ERROR,
+          error: error.message,
+        }));
+      }
+    } finally {
+      if (abortController === gameAnalysisAbortControllerRef.current) {
+        gameAnalysisAbortControllerRef.current = null;
+      }
+    }
+  }, [engineSearchDepth, isPositionSetupMode, mainlinePositionEntries]);
+
+  const goToPreviousGameAnalysisIssue = useCallback(() => {
+    goToGameAnalysisPosition(previousGameAnalysisIssue);
+  }, [goToGameAnalysisPosition, previousGameAnalysisIssue]);
+
+  const goToNextGameAnalysisIssue = useCallback(() => {
+    goToGameAnalysisPosition(nextGameAnalysisIssue);
+  }, [goToGameAnalysisPosition, nextGameAnalysisIssue]);
+
   const analyzePosition = useCallback(async () => {
     if (isPositionSetupMode) {
       setPositionSetupError("Finish setup before analyzing this position.");
@@ -4508,7 +5195,10 @@ function App() {
 
   const resetGame = useCallback(() => {
     resetTrainingSession();
+    gameAnalysisAbortControllerRef.current?.abort();
+    gameAnalysisAbortControllerRef.current = null;
     setVariantTree(createEmptyVariantTree());
+    setGameAnalysis(null);
     setEngineResult(null);
     setEvaluationResult(null);
     setImportedPgnData(null);
@@ -4623,6 +5313,20 @@ function App() {
     setShowEngineWindow(false);
   }, []);
 
+  const toggleGameAnalysisPanel = useCallback(() => {
+    if (showGameAnalysisPanel && gameAnalysisRetry) {
+      exitGameAnalysisRetry();
+    }
+    setShowGameAnalysisPanel((currentValue) => !currentValue);
+  }, [exitGameAnalysisRetry, gameAnalysisRetry, showGameAnalysisPanel]);
+
+  const closeGameAnalysisPanel = useCallback(() => {
+    if (gameAnalysisRetry) {
+      exitGameAnalysisRetry();
+    }
+    setShowGameAnalysisPanel(false);
+  }, [exitGameAnalysisRetry, gameAnalysisRetry]);
+
   const toggleEvaluationBar = useCallback(() => {
     setShowEvaluationBar((currentValue) => !currentValue);
   }, []);
@@ -4689,6 +5393,7 @@ function App() {
   const menuActions = useMemo(
     () => ({
       analyzePosition,
+      analyzeWholeGame,
       toggleVariantArrows,
       undoMove,
       redoMove,
@@ -4713,6 +5418,7 @@ function App() {
       toggleGuessTrainingPanel,
       togglePlayComputerPanel,
       toggleEngineWindow,
+      toggleGameAnalysisPanel,
       toggleEvaluationBar,
       toggleBoardSounds,
       toggleComments,
@@ -4723,6 +5429,7 @@ function App() {
     }),
     [
       analyzePosition,
+      analyzeWholeGame,
       copyFenToClipboard,
       openImportPgnPopup,
       openPositionSetup,
@@ -4741,6 +5448,7 @@ function App() {
       toggleBoardOrientation,
       toggleComments,
       toggleEngineWindow,
+      toggleGameAnalysisPanel,
       toggleEvaluationBar,
       toggleBoardSounds,
       toggleImportedPgn,
@@ -4883,6 +5591,7 @@ function App() {
         showGuessTrainingPanel={showGuessTrainingPanel}
         showPlayComputerPanel={showPlayComputerPanel}
         showEngineWindow={showEngineWindow}
+        showGameAnalysisPanel={showGameAnalysisPanel}
         showEvaluationBar={showEvaluationBar}
         boardSoundsEnabled={boardSoundsEnabled}
         showComments={showComments}
@@ -5168,6 +5877,44 @@ function App() {
                 onSelectEngineVariant={setSelectedEngineVariantIndex}
                 onAnalyzePosition={analyzePosition}
                 onAddSelectedVariant={addSelectedEngineVariantToTree}
+              />
+            )}
+
+            {!effectiveTrainingFocusMode && showGameAnalysisPanel && (
+              <WholeGameAnalysisPanel
+                viewId="game-analysis"
+                onClose={closeGameAnalysisPanel}
+                engineSearchDepth={engineSearchDepth}
+                minEngineSearchDepth={MIN_ENGINE_SEARCH_DEPTH}
+                maxEngineSearchDepth={MAX_ENGINE_SEARCH_DEPTH}
+                onChangeEngineSearchDepth={(event) =>
+                  setEngineSearchDepth(
+                    normalizeEngineSearchDepth(event.target.value),
+                  )
+                }
+                gameAnalysis={gameAnalysis}
+                gameAnalysisIsCurrent={gameAnalysisIsCurrent}
+                currentNodeId={variantTree.currentNodeId}
+                issueFilter={gameAnalysisIssueFilter}
+                onChangeIssueFilter={setGameAnalysisIssueFilter}
+                onAnalyzeGame={analyzeWholeGame}
+                onCancelGameAnalysis={cancelGameAnalysis}
+                onSelectGameAnalysisPosition={goToGameAnalysisPosition}
+                onPreviousIssue={goToPreviousGameAnalysisIssue}
+                onNextIssue={goToNextGameAnalysisIssue}
+                canGoToPreviousIssue={!!previousGameAnalysisIssue}
+                canGoToNextIssue={!!nextGameAnalysisIssue}
+                gameAnalysisRetry={gameAnalysisRetry}
+                canRetryCurrentIssue={!!currentGameAnalysisRetryTarget}
+                onRetryCurrentIssue={startCurrentGameAnalysisRetry}
+                onRetryAgain={retryCurrentGameAnalysisMove}
+                onRetryPreparation={restartGameAnalysisRetryPreparation}
+                onExitRetry={exitGameAnalysisRetry}
+                onNextRetryIssue={goToNextGameAnalysisRetry}
+                canGoToNextRetryIssue={!!nextGameAnalysisRetryTarget}
+                onExploreRetryAgainstComputer={
+                  exploreGameAnalysisRetryAgainstComputer
+                }
               />
             )}
 

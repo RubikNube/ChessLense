@@ -41,6 +41,8 @@ function useTrainingController({
   setShowOpeningTreePanel,
   showEngineWindow,
   setShowEngineWindow,
+  showGameAnalysisPanel,
+  setShowGameAnalysisPanel,
   showComments,
   setShowComments,
   showImportedPgn,
@@ -90,6 +92,7 @@ function useTrainingController({
           showMoveHistory,
           showOpeningTreePanel,
           showEngineWindow,
+          showGameAnalysisPanel,
           showComments,
           showImportedPgn,
           showVariants,
@@ -106,6 +109,10 @@ function useTrainingController({
 
       if (showEngineWindow) {
         setShowEngineWindow(false);
+      }
+
+      if (showGameAnalysisPanel) {
+        setShowGameAnalysisPanel(false);
       }
 
       if (showComments) {
@@ -132,6 +139,7 @@ function useTrainingController({
     setShowMoveHistory(restoreState.showMoveHistory);
     setShowOpeningTreePanel(restoreState.showOpeningTreePanel);
     setShowEngineWindow(restoreState.showEngineWindow);
+    setShowGameAnalysisPanel(restoreState.showGameAnalysisPanel);
     setShowComments(restoreState.showComments);
     setShowImportedPgn(restoreState.showImportedPgn);
     setShowVariants(restoreState.showVariants);
@@ -139,12 +147,14 @@ function useTrainingController({
     isTrainingFocusMode,
     setShowComments,
     setShowEngineWindow,
+    setShowGameAnalysisPanel,
     setShowImportedPgn,
     setShowMoveHistory,
     setShowOpeningTreePanel,
     setShowVariants,
     showComments,
     showEngineWindow,
+    showGameAnalysisPanel,
     showImportedPgn,
     showMoveHistory,
     showOpeningTreePanel,

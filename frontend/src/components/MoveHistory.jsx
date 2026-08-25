@@ -1,5 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { THEME_CSS_VARS } from "../utils/theme.js";
+import {
+  getGameAnalysisIssueDescription,
+  getMoveSeveritySymbol,
+} from "../utils/gameAnalysis.js";
 
 const actionRowStyle = {
   display: "flex",
@@ -82,6 +86,27 @@ const contextMenuMetaStyle = {
   fontSize: "0.8rem",
   fontWeight: 500,
 };
+
+function MoveEvaluationIndicator({ issue }) {
+  const symbol = getMoveSeveritySymbol(issue?.severity);
+
+  if (!symbol) {
+    return null;
+  }
+
+  const description = getGameAnalysisIssueDescription(issue);
+
+  return (
+    <span
+      className={`move-entry-indicator move-evaluation-indicator move-evaluation-indicator-${issue.severity}`}
+      role="img"
+      aria-label={description}
+      title={description}
+    >
+      {symbol}
+    </span>
+  );
+}
 
 function MoveHistory({
   moveHistoryItems,
@@ -292,8 +317,13 @@ function MoveHistory({
                       }
                     >
                       <span>{white.san}</span>
-                      {(white.hasVariants || white.hasComments) && (
+                      {(white.hasVariants ||
+                        white.hasComments ||
+                        white.gameAnalysisIssue) && (
                         <span className="move-entry-indicators">
+                          <MoveEvaluationIndicator
+                            issue={white.gameAnalysisIssue}
+                          />
                           {white.hasVariants && (
                             <span
                               className="move-entry-indicator"
@@ -343,8 +373,13 @@ function MoveHistory({
                       }
                     >
                       <span>{black.san}</span>
-                      {(black.hasVariants || black.hasComments) && (
+                      {(black.hasVariants ||
+                        black.hasComments ||
+                        black.gameAnalysisIssue) && (
                         <span className="move-entry-indicators">
+                          <MoveEvaluationIndicator
+                            issue={black.gameAnalysisIssue}
+                          />
                           {black.hasVariants && (
                             <span
                               className="move-entry-indicator"

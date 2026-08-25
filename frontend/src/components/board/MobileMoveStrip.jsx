@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
+import {
+  getGameAnalysisIssueDescription,
+  getMoveSeveritySymbol,
+} from "../../utils/gameAnalysis.js";
 
 function formatMoveLabel(moveEntry) {
   if (!moveEntry) {
@@ -12,6 +16,27 @@ function formatMoveLabel(moveEntry) {
   return moveEntry.san;
 }
 
+function MobileMoveEvaluationIndicator({ issue }) {
+  const symbol = getMoveSeveritySymbol(issue?.severity);
+
+  if (!symbol) {
+    return null;
+  }
+
+  const description = getGameAnalysisIssueDescription(issue);
+
+  return (
+    <span
+      className={`mobile-move-evaluation-indicator move-evaluation-indicator move-evaluation-indicator-${issue.severity}`}
+      role="img"
+      aria-label={description}
+      title={description}
+    >
+      {symbol}
+    </span>
+  );
+}
+
 function MobileMoveStrip({ moveHistoryItems, currentMoveIndex, onSelectMove }) {
   const selectedMoveRef = useRef(null);
 
@@ -21,6 +46,7 @@ function MobileMoveStrip({ moveHistoryItems, currentMoveIndex, onSelectMove }) {
         index,
         nodeId: moveEntry.nodeId,
         label: formatMoveLabel(moveEntry),
+        gameAnalysisIssue: moveEntry.gameAnalysisIssue,
       })),
     [moveHistoryItems],
   );
@@ -60,7 +86,8 @@ function MobileMoveStrip({ moveHistoryItems, currentMoveIndex, onSelectMove }) {
             ref={isSelected ? selectedMoveRef : null}
             aria-current={isSelected ? "true" : undefined}
           >
-            {chip.label}
+            <span>{chip.label}</span>
+            <MobileMoveEvaluationIndicator issue={chip.gameAnalysisIssue} />
           </button>
         );
       })}

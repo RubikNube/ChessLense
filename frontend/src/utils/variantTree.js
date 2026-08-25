@@ -648,6 +648,33 @@ export function getMoveHistoryForNode(tree, targetNodeId = tree.currentNodeId) {
     .filter(Boolean);
 }
 
+export function getMainlinePositionEntries(tree) {
+  const normalizedTree = normalizeVariantTree(tree);
+  const entries = [];
+  let nodeId = normalizedTree.rootId;
+
+  while (nodeId) {
+    const node = normalizedTree.nodes[nodeId];
+
+    if (!node) {
+      break;
+    }
+
+    entries.push({
+      nodeId: node.id,
+      fen: node.fen,
+      ply: node.ply,
+      moveNumber: node.moveNumber,
+      side: node.side,
+      san: node.san,
+      move: node.move ? { ...node.move } : null,
+    });
+    nodeId = node.children[0] ?? null;
+  }
+
+  return entries;
+}
+
 export function getBoardAnnotationsForNode(
   tree,
   targetNodeId = tree.currentNodeId,
@@ -785,6 +812,11 @@ export function goToNodeInVariantTree(tree, nodeId) {
     ...normalizedTree,
     currentNodeId: nodeId,
   });
+}
+
+export function goToMainlineNodeInVariantTree(tree, nodeId) {
+  const mainlineTree = jumpToMainVariantInTree(tree);
+  return goToNodeInVariantTree(mainlineTree, nodeId);
 }
 
 export function jumpToMainVariantInTree(tree) {

@@ -51,6 +51,7 @@ function BoardWorkspace({
     "opening-tree": "Opening Tree",
     "otb-player-opening-tree": "Player Opening Tree",
     engine: "Engine",
+    "game-analysis": "Whole Game Analysis",
     comments: "Comments",
     variants: "Variants",
     "imported-pgn": "Imported PGN",

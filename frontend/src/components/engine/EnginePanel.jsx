@@ -1,11 +1,10 @@
-import InfoTip from "../InfoTip.jsx";
 import {
   modalActionRowStyle,
   modalButtonStyle,
-  modalInputStyle,
   modalPrimaryButtonStyle,
 } from "../modals/modalStyles.js";
 import { THEME_CSS_VARS } from "../../utils/theme.js";
+import EngineDepthControl from "./EngineDepthControl.jsx";
 
 const engineVariantListStyle = {
   listStyle: "none",
@@ -46,29 +45,6 @@ const engineVariantMovesStyle = {
   fontSize: "0.95rem",
 };
 
-const engineControlsStyle = {
-  display: "grid",
-  gap: "0.5rem",
-  marginBottom: "1rem",
-};
-
-const engineDepthHeaderStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "0.5rem",
-};
-
-const engineDepthLabelStyle = {
-  fontWeight: 600,
-};
-
-const engineDepthInputStyle = {
-  ...modalInputStyle,
-  width: "8rem",
-  marginTop: 0,
-  padding: "0.6rem 0.75rem",
-};
-
 function formatEngineEvaluation(evaluation) {
   if (!evaluation) {
     return "n/a";
@@ -106,25 +82,13 @@ function EnginePanel({
           ×
         </button>
       </div>
-      <div style={engineControlsStyle}>
-        <div style={engineDepthHeaderStyle}>
-          <label htmlFor="engine-search-depth" style={engineDepthLabelStyle}>
-            Search depth
-          </label>
-          <InfoTip text="Used for evaluation bar, engine analysis, and training replies." />
-        </div>
-        <input
-          id="engine-search-depth"
-          type="number"
-          min={minEngineSearchDepth}
-          max={maxEngineSearchDepth}
-          step="1"
-          inputMode="numeric"
-          value={engineSearchDepth}
-          onChange={onChangeEngineSearchDepth}
-          style={engineDepthInputStyle}
-        />
-      </div>
+      <EngineDepthControl
+        inputId="engine-search-depth"
+        value={engineSearchDepth}
+        min={minEngineSearchDepth}
+        max={maxEngineSearchDepth}
+        onChange={onChangeEngineSearchDepth}
+      />
       {loading && <p>Evaluating position...</p>}
       {engineResult?.error && <p className="error">{engineResult.error}</p>}
       {!engineResult && !loading && <p>No analysis yet.</p>}

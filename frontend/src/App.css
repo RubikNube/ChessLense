@@ -251,6 +251,18 @@ body {
   white-space: nowrap;
 }
 
+.mobile-move-evaluation-indicator {
+  min-width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
 .mobile-move-chip-selected {
   background: var(--theme-accent);
   border-color: var(--theme-accent);
@@ -384,6 +396,135 @@ body {
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--theme-surface-text);
+}
+
+.game-analysis-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.game-analysis-description {
+  margin-top: 0;
+  color: var(--theme-surface-text-muted);
+}
+
+.game-analysis-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.game-analysis-progress progress {
+  flex: 1;
+  accent-color: var(--theme-accent);
+}
+
+.game-analysis-chart-scroll {
+  margin-top: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--theme-border);
+  border-radius: 0.5rem;
+  background: var(--theme-surface-alt);
+}
+
+.game-analysis-chart {
+  display: block;
+  color: var(--theme-surface-text-muted);
+}
+
+.game-analysis-grid-line,
+.game-analysis-zero-line {
+  stroke: var(--theme-border);
+  stroke-width: 1;
+}
+
+.game-analysis-zero-line {
+  stroke: var(--theme-surface-text-muted);
+}
+
+.game-analysis-axis-label {
+  fill: currentColor;
+  font-size: 10px;
+}
+
+.game-analysis-bar {
+  cursor: pointer;
+  stroke: var(--theme-border);
+  stroke-width: 1;
+}
+
+.game-analysis-bar:hover,
+.game-analysis-bar:focus {
+  outline: none;
+  stroke: var(--theme-accent);
+  stroke-width: 2;
+}
+
+.game-analysis-bar-white {
+  fill: var(--theme-modal-surface);
+}
+
+.game-analysis-bar-black {
+  fill: var(--theme-modal-text);
+}
+
+.game-analysis-bar-inaccuracy {
+  fill: #facc15;
+  stroke: #facc15;
+  stroke-width: 2;
+}
+
+.game-analysis-bar-mistake {
+  fill: #f97316;
+  stroke: #f97316;
+  stroke-width: 2;
+}
+
+.game-analysis-bar-blunder {
+  fill: #dc2626;
+  stroke: #dc2626;
+  stroke-width: 3;
+}
+
+.game-analysis-bar-selected {
+  stroke: var(--theme-accent);
+  stroke-width: 3;
+}
+
+.game-analysis-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.game-analysis-retry {
+  margin-top: 0.85rem;
+}
+
+.game-analysis-retry-best,
+.game-analysis-retry-good {
+  border-color: #4caf50;
+  background: rgba(76, 175, 80, 0.12);
+}
+
+.game-analysis-retry-bad {
+  border-color: #dc2626;
+  background: var(--theme-danger-soft);
+}
+
+.game-analysis-navigation label {
+  font-weight: 600;
+}
+
+.game-analysis-navigation select {
+  width: auto;
+  margin: 0;
 }
 
 .info-column {
@@ -1055,6 +1196,25 @@ code {
 
 .move-entry-comment-indicator {
   cursor: help;
+}
+
+.move-evaluation-indicator {
+  cursor: help;
+}
+
+.move-evaluation-indicator-inaccuracy {
+  background: #facc15;
+  color: #422006;
+}
+
+.move-evaluation-indicator-mistake {
+  background: #f97316;
+  color: #431407;
+}
+
+.move-evaluation-indicator-blunder {
+  background: #dc2626;
+  color: #ffffff;
 }
 
 .move-history-comment-tooltip {

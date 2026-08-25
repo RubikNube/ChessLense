@@ -133,6 +133,7 @@ describe("studies", () => {
           source: "user",
         },
       ],
+      gameAnalysis: null,
     });
   });
 
@@ -195,6 +196,7 @@ describe("studies", () => {
           source: "user",
         },
       ],
+      gameAnalysis: null,
     });
   });
 });

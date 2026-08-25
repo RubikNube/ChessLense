@@ -47,6 +47,34 @@ async function createTempGuessHistoryDir() {
 	return fs.mkdtemp(path.join(os.tmpdir(), "chesslense-guess-history-api-"));
 }
 
+async function createFakeAnalysisEngine() {
+	const rootDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), "chesslense-analysis-api-"),
+	);
+	const executablePath = path.join(rootDir, "fake-stockfish");
+	const source = `#!/bin/sh
+while IFS= read -r line; do
+  case "$line" in
+    uci)
+      printf 'id name Fake Stockfish\\nuciok\\n'
+      ;;
+    isready)
+      printf 'readyok\\n'
+      ;;
+    go\\ *)
+      printf 'info depth 1 multipv 1 score cp 20 pv e2e4\\nbestmove e2e4\\n'
+      ;;
+    quit)
+      exit 0
+      ;;
+  esac
+done
+`;
+
+	await fs.writeFile(executablePath, source, { mode: 0o755 });
+	return { rootDir, executablePath };
+}
+
 async function startServer() {
 	const app = createApp();
 	const server = await new Promise((resolve) => {
@@ -802,6 +830,120 @@ test("POST /api/analyze returns an API error when Stockfish is unavailable witho
 			);
 			assert.equal(healthResponse.status, 200);
 			assert.deepEqual(healthData, { status: "ok" });
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousStockfishPath === "string") {
+			process.env.STOCKFISH_PATH = previousStockfishPath;
+		} else {
+			delete process.env.STOCKFISH_PATH;
+		}
+	}
+});
+
+test("POST /api/analyze/game validates the main-line position and moves", async () => {
+	const { baseUrl, server } = await startServer();
+
+	try {
+		const invalidFenResponse = await fetch(`${baseUrl}/api/analyze/game`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ initialFen: "not-a-fen", moves: [] }),
+		});
+		const illegalMoveResponse = await fetch(`${baseUrl}/api/analyze/game`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				initialFen: DEFAULT_POSITION,
+				moves: [{ from: "e2", to: "e5" }],
+			}),
+		});
+
+		assert.equal(invalidFenResponse.status, 400);
+		assert.deepEqual(await invalidFenResponse.json(), {
+			error: "invalid_game",
+			details: "initialFen is invalid.",
+		});
+		assert.equal(illegalMoveResponse.status, 400);
+		assert.deepEqual(await illegalMoveResponse.json(), {
+			error: "invalid_game",
+			details: "Move at ply 1 is illegal.",
+		});
+	} finally {
+		await closeServer(server);
+	}
+});
+
+test("POST /api/analyze/game streams the best move for each position", async () => {
+	const previousStockfishPath = process.env.STOCKFISH_PATH;
+	const fixture = await createFakeAnalysisEngine();
+	process.env.STOCKFISH_PATH = fixture.executablePath;
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const response = await fetch(`${baseUrl}/api/analyze/game`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					initialFen: DEFAULT_POSITION,
+					moves: [],
+					depth: 1,
+				}),
+			});
+			const events = (await response.text())
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line));
+
+			assert.equal(response.status, 200);
+			assert.equal(events[1].type, "position");
+			assert.equal(events[1].bestmove, "e2e4");
+			assert.deepEqual(events[1].evaluation, { type: "cp", value: 20 });
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousStockfishPath === "string") {
+			process.env.STOCKFISH_PATH = previousStockfishPath;
+		} else {
+			delete process.env.STOCKFISH_PATH;
+		}
+		await fs.rm(fixture.rootDir, { recursive: true, force: true });
+	}
+});
+
+test("POST /api/analyze/game streams an engine error without crashing the server", async () => {
+	const previousStockfishPath = process.env.STOCKFISH_PATH;
+	process.env.STOCKFISH_PATH = "/definitely/missing/stockfish";
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const response = await fetch(`${baseUrl}/api/analyze/game`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					initialFen: DEFAULT_POSITION,
+					moves: [{ from: "e2", to: "e4" }],
+					depth: 12,
+				}),
+			});
+			const events = (await response.text())
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line));
+			const healthResponse = await fetch(`${baseUrl}/api/health`);
+
+			assert.equal(response.status, 200);
+			assert.deepEqual(events[0], { type: "start", total: 2, depth: 12 });
+			assert.equal(events[1].type, "error");
+			assert.equal(events[1].error, "engine_failed");
+			assert.match(events[1].details, /Stockfish executable not found/);
+			assert.deepEqual(await healthResponse.json(), { status: "ok" });
 		} finally {
 			await closeServer(server);
 		}

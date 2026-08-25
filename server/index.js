@@ -1,6 +1,7 @@
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
+const { Chess } = require("chess.js");
 const {
 	DEFAULT_ANALYZE_RATE_LIMIT_MAX,
 	DEFAULT_ANALYZE_RATE_LIMIT_WINDOW_MS,
@@ -16,6 +17,7 @@ const {
 } = require("./requestProtection");
 const {
 	analyzePosition,
+	createEngineSession,
 	getComparableEvaluationScore,
 	normalizeMultiPv,
 } = require("./engine");
@@ -56,6 +58,7 @@ const { deleteStudy, getStudy, listStudies, saveStudy } = require("./studies");
 const DEFAULT_PORT = 3001;
 const DEFAULT_STOCKFISH_PATH = "stockfish";
 const JSON_BODY_LIMIT = "25mb";
+const MAX_GAME_ANALYSIS_PLIES = 500;
 const PGN_TEXT_BODY_PARSER = express.text({
 	type: "text/plain",
 	limit: JSON_BODY_LIMIT,
@@ -67,6 +70,83 @@ function normalizeString(value) {
 
 function getStockfishPath() {
 	return normalizeString(process.env.STOCKFISH_PATH) || DEFAULT_STOCKFISH_PATH;
+}
+
+function normalizeAnalysisDepth(value) {
+	const parsedValue = Number.parseInt(value, 10);
+
+	if (!Number.isInteger(parsedValue)) {
+		return 12;
+	}
+
+	return Math.min(30, Math.max(1, parsedValue));
+}
+
+function buildGameAnalysisPositions(initialFen, moves) {
+	if (typeof initialFen !== "string" || !initialFen.trim()) {
+		throw new HttpError(400, "invalid_game", "initialFen is required.");
+	}
+
+	if (!Array.isArray(moves)) {
+		throw new HttpError(400, "invalid_game", "moves must be an array.");
+	}
+
+	if (moves.length > MAX_GAME_ANALYSIS_PLIES) {
+		throw new HttpError(
+			400,
+			"invalid_game",
+			`moves cannot contain more than ${MAX_GAME_ANALYSIS_PLIES} plies.`,
+		);
+	}
+
+	let game;
+	try {
+		game = new Chess(initialFen.trim());
+	} catch {
+		throw new HttpError(400, "invalid_game", "initialFen is invalid.");
+	}
+
+	const positions = [game.fen()];
+
+	for (const [index, move] of moves.entries()) {
+		if (
+			!move ||
+			typeof move !== "object" ||
+			typeof move.from !== "string" ||
+			typeof move.to !== "string"
+		) {
+			throw new HttpError(
+				400,
+				"invalid_game",
+				`Move at ply ${index + 1} is invalid.`,
+			);
+		}
+
+		let appliedMove = null;
+		try {
+			appliedMove = game.move({
+				from: move.from,
+				to: move.to,
+				...(typeof move.promotion === "string"
+					? { promotion: move.promotion.toLowerCase() }
+					: {}),
+			});
+		} catch {
+			appliedMove = null;
+		}
+
+		if (!appliedMove) {
+			throw new HttpError(
+				400,
+				"invalid_game",
+				`Move at ply ${index + 1} is illegal.`,
+			);
+		}
+
+		positions.push(game.fen());
+	}
+
+	return positions;
 }
 
 function sendApiError(res, error) {
@@ -131,9 +211,89 @@ function createApp() {
 		});
 	});
 
+	app.post("/api/analyze/game", analyzeRateLimit, async (req, res) => {
+		let positions;
+		try {
+			positions = buildGameAnalysisPositions(
+				req.body?.initialFen,
+				req.body?.moves,
+			);
+		} catch (error) {
+			return sendApiError(res, error);
+		}
+
+		const depth = normalizeAnalysisDepth(req.body?.depth);
+		const abortController = new AbortController();
+		let responseFinished = false;
+		let session = null;
+		const abortAnalysis = () => {
+			if (!responseFinished) {
+				abortController.abort();
+			}
+		};
+		req.once("aborted", abortAnalysis);
+		res.once("close", abortAnalysis);
+		res.status(200);
+		res.set({
+			"Content-Type": "application/x-ndjson; charset=utf-8",
+			"Cache-Control": "no-cache, no-transform",
+			"X-Accel-Buffering": "no",
+		});
+		res.flushHeaders();
+
+		const writeEvent = (event) => {
+			if (!res.destroyed && !res.writableEnded) {
+				res.write(`${JSON.stringify(event)}\n`);
+			}
+		};
+
+		writeEvent({ type: "start", total: positions.length, depth });
+
+		try {
+			session = await createEngineSession({
+				stockfishPath: getStockfishPath(),
+				signal: abortController.signal,
+			});
+
+			for (const [index, positionFen] of positions.entries()) {
+				const analysis = await session.analyze({
+					fen: positionFen,
+					depth,
+					multipv: 1,
+				});
+				writeEvent({
+					type: "position",
+					index,
+					ply: index,
+					fen: positionFen,
+					evaluation: analysis.evaluation,
+					bestmove: analysis.bestmove,
+				});
+			}
+
+			writeEvent({ type: "complete", total: positions.length, depth });
+		} catch (error) {
+			if (!abortController.signal.aborted) {
+				writeEvent({
+					type: "error",
+					error: "engine_failed",
+					details: error.message,
+				});
+			}
+		} finally {
+			responseFinished = true;
+			session?.close();
+			req.off("aborted", abortAnalysis);
+			if (!res.writableEnded && !res.destroyed) {
+				res.end();
+			}
+		}
+	});
+
 	app.post("/api/analyze", analyzeRateLimit, async (req, res) => {
 		const { fen, depth = 12, multipv = 1 } = req.body || {};
 		const requestedMultiPv = normalizeMultiPv(multipv);
+		const requestedDepth = normalizeAnalysisDepth(depth);
 
 		if (!fen) {
 			return res.status(400).json({ error: "fen is required" });
@@ -143,7 +303,7 @@ function createApp() {
 			const analysis = await analyzePosition({
 				stockfishPath: getStockfishPath(),
 				fen,
-				depth,
+				depth: requestedDepth,
 				multipv: requestedMultiPv,
 			});
 
@@ -164,6 +324,7 @@ function createApp() {
 
 	app.post("/api/analyze/compare-moves", analyzeRateLimit, async (req, res) => {
 		const { fen, referenceMove, userMove, depth = 12 } = req.body || {};
+		const requestedDepth = normalizeAnalysisDepth(depth);
 
 		if (!fen) {
 			return res.status(400).json({ error: "fen is required" });
@@ -182,14 +343,14 @@ function createApp() {
 				analyzePosition({
 					stockfishPath: getStockfishPath(),
 					fen,
-					depth,
+					depth: requestedDepth,
 					multipv: 1,
 					searchMoves: [referenceMove.trim()],
 				}),
 				analyzePosition({
 					stockfishPath: getStockfishPath(),
 					fen,
-					depth,
+					depth: requestedDepth,
 					multipv: 1,
 					searchMoves: [userMove.trim()],
 				}),

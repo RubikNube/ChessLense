@@ -1,6 +1,13 @@
 const { spawn } = require("child_process");
 
-function waitForLine(stream, matcher, timeoutMs = 5000) {
+function createAbortError() {
+	const error = new Error("Engine analysis was cancelled.");
+	error.name = "AbortError";
+	error.code = "ABORT_ERR";
+	return error;
+}
+
+function waitForLine(stream, matcher, timeoutMs = 5000, signal) {
 	return new Promise((resolve, reject) => {
 		let buffer = "";
 
@@ -29,9 +36,21 @@ function waitForLine(stream, matcher, timeoutMs = 5000) {
 		function cleanup() {
 			clearTimeout(timeout);
 			stream.off("data", onData);
+			signal?.removeEventListener("abort", onAbort);
+		}
+
+		function onAbort() {
+			cleanup();
+			reject(createAbortError());
+		}
+
+		if (signal?.aborted) {
+			onAbort();
+			return;
 		}
 
 		stream.on("data", onData);
+		signal?.addEventListener("abort", onAbort, { once: true });
 	});
 }
 
@@ -130,17 +149,11 @@ function createEngineProcessError(error, stockfishPath) {
 	return error;
 }
 
-async function analyzePosition({
-	stockfishPath,
-	fen,
-	depth = 12,
-	multipv = 1,
-	searchMoves = [],
-}) {
-	const requestedMultiPv = normalizeMultiPv(multipv);
+async function createEngineSession({ stockfishPath, signal } = {}) {
 	const engine = spawn(stockfishPath, [], { stdio: "pipe" });
 	let stderr = "";
 	const output = [];
+	let closed = false;
 	const engineError = new Promise((_, reject) => {
 		engine.once("error", (error) => {
 			reject(createEngineProcessError(error, stockfishPath));
@@ -150,62 +163,131 @@ async function analyzePosition({
 	engine.stderr.on("data", (data) => {
 		stderr += data.toString();
 	});
+	engine.stdin.on("error", () => {
+		// Process startup and cancellation errors are surfaced through engineError.
+	});
 
 	engine.stdout.on("data", (data) => {
 		output.push(data.toString());
 	});
 
 	function send(command) {
+		if (closed || engine.stdin.destroyed) {
+			throw new Error("Stockfish session is closed.");
+		}
 		engine.stdin.write(`${command}\n`);
 	}
 
-	try {
-		send("uci");
-		await Promise.race([waitForLine(engine.stdout, "uciok"), engineError]);
+	function close() {
+		if (closed) {
+			return;
+		}
 
-		send(`setoption name MultiPV value ${requestedMultiPv}`);
-		send("isready");
-		await Promise.race([waitForLine(engine.stdout, "readyok"), engineError]);
-
-		send(`position fen ${fen}`);
-		send(
-			searchMoves.length
-				? `go depth ${depth} searchmoves ${searchMoves.join(" ")}`
-				: `go depth ${depth}`,
-		);
-
-		const bestMoveLine = await Promise.race([
-			waitForLine(engine.stdout, (line) => line.startsWith("bestmove"), 15000),
-			engineError,
-		]);
-		const combinedOutput = output.join("");
-		const bestMoveMatch = bestMoveLine.match(/^bestmove\s+(\S+)/);
-		const bestmove = bestMoveMatch ? bestMoveMatch[1] : null;
-		const principalVariations = parsePrincipalVariations(
-			combinedOutput,
-			requestedMultiPv,
-		);
-		const evaluation = principalVariations[0]?.evaluation ?? null;
-
-		send("quit");
+		closed = true;
+		signal?.removeEventListener("abort", onAbort);
+		if (!engine.stdin.destroyed) {
+			engine.stdin.write("quit\n");
+		}
 		engine.kill();
+	}
+
+	function onAbort() {
+		close();
+	}
+
+	signal?.addEventListener("abort", onAbort, { once: true });
+
+	try {
+		const uciReadyPromise = waitForLine(engine.stdout, "uciok", 5000, signal);
+		send("uci");
+		await Promise.race([uciReadyPromise, engineError]);
+
+		const engineReadyPromise = waitForLine(
+			engine.stdout,
+			"readyok",
+			5000,
+			signal,
+		);
+		send("isready");
+		await Promise.race([engineReadyPromise, engineError]);
 
 		return {
-			fen,
-			bestmove,
-			evaluation,
-			principalVariations,
-			stderr,
+			async analyze({ fen, depth = 12, multipv = 1, searchMoves = [] }) {
+				if (signal?.aborted) {
+					throw createAbortError();
+				}
+
+				const requestedMultiPv = normalizeMultiPv(multipv);
+				output.length = 0;
+				send(`setoption name MultiPV value ${requestedMultiPv}`);
+				send(`position fen ${fen}`);
+				const bestMovePromise = waitForLine(
+					engine.stdout,
+					(line) => line.startsWith("bestmove"),
+					15000,
+					signal,
+				);
+				send(
+					searchMoves.length
+						? `go depth ${depth} searchmoves ${searchMoves.join(" ")}`
+						: `go depth ${depth}`,
+				);
+
+				const bestMoveLine = await Promise.race([bestMovePromise, engineError]);
+				const bestMoveMatch = bestMoveLine.match(/^bestmove\s+(\S+)/);
+				const bestmove = bestMoveMatch ? bestMoveMatch[1] : null;
+				const principalVariations = parsePrincipalVariations(
+					output.join(""),
+					requestedMultiPv,
+				);
+
+				return {
+					fen,
+					bestmove,
+					evaluation: principalVariations[0]?.evaluation ?? null,
+					principalVariations,
+					stderr,
+				};
+			},
+			close,
+			getStderr: () => stderr,
 		};
 	} catch (error) {
-		engine.kill();
+		close();
 		error.stderr = typeof error.stderr === "string" ? error.stderr : stderr;
 		throw error;
 	}
 }
 
+async function analyzePosition({
+	stockfishPath,
+	fen,
+	depth = 12,
+	multipv = 1,
+	searchMoves = [],
+	signal,
+}) {
+	const session = await createEngineSession({ stockfishPath, signal });
+
+	try {
+		return await session.analyze({
+			fen,
+			depth,
+			multipv,
+			searchMoves,
+		});
+	} catch (error) {
+		error.stderr =
+			typeof error.stderr === "string" ? error.stderr : session.getStderr();
+		throw error;
+	} finally {
+		session.close();
+	}
+}
+
 module.exports = {
 	analyzePosition,
+	createEngineSession,
 	getComparableEvaluationScore,
 	normalizeMultiPv,
 };

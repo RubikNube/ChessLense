@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BACKEND_API_BASE_URL_STORAGE_KEY,
   BACKEND_API_TOKEN_STORAGE_KEY,
@@ -15,7 +15,12 @@ import {
   saveConfiguredApiToken,
   saveUseLocalApiBaseUrl,
   shouldRequireConfiguredApiBaseUrl,
+  streamNdjson,
 } from "./api.js";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function createStorage(initialValue = null) {
   const storedValues = new Map(
@@ -194,5 +199,31 @@ describe("api helpers", () => {
     expect(
       getBackendUnavailableMessage("", "local", { hostname: "localhost" }),
     ).toContain("Start the server on port 3001");
+  });
+
+  it("parses newline-delimited streaming events across chunks", async () => {
+    const encoder = new TextEncoder();
+    const events = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode('{"type":"sta'));
+              controller.enqueue(
+                encoder.encode('rt","total":2}\n{"type":"complete"}\n'),
+              );
+              controller.close();
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    await streamNdjson("/api/analyze/game", {}, (event) => events.push(event));
+
+    expect(events).toEqual([{ type: "start", total: 2 }, { type: "complete" }]);
   });
 });

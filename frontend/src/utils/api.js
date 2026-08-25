@@ -277,3 +277,75 @@ export async function fetchJson(path, options = {}) {
 
   return data;
 }
+
+export async function streamNdjson(path, options = {}, onEvent = () => {}) {
+  const apiBaseUrl = loadConfiguredApiBaseUrl();
+  const apiBaseUrlSource = getApiBaseUrlSource();
+
+  if (shouldRequireConfiguredApiBaseUrl(path, apiBaseUrlSource)) {
+    throw new Error(getBackendUnavailableMessage(apiBaseUrl, apiBaseUrlSource));
+  }
+
+  let response;
+
+  try {
+    response = await fetch(resolveApiUrl(path, apiBaseUrl), {
+      ...options,
+      headers: createApiHeaders(options.headers),
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw error;
+    }
+
+    throw new Error(getBackendUnavailableMessage(apiBaseUrl, apiBaseUrlSource));
+  }
+
+  if (!response.ok) {
+    const data = await readJsonResponse(response);
+    throw new Error(
+      data?.details ||
+        data?.error ||
+        `Request failed with status ${response.status}`,
+    );
+  }
+
+  if (!response.body) {
+    throw new Error("Server returned an empty analysis stream.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  function emitLine(line) {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      return;
+    }
+
+    try {
+      onEvent(JSON.parse(trimmedLine));
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        throw new Error("Server returned an invalid analysis event.");
+      }
+
+      throw error;
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    lines.forEach(emitLine);
+
+    if (done) {
+      emitLine(buffer);
+      break;
+    }
+  }
+}
