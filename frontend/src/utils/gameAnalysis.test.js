@@ -197,9 +197,9 @@ describe("whole-game analysis", () => {
     expect(normalizeGameAnalysisBestMove(" E7E8Q ")).toBe("e7e8q");
     expect(normalizeGameAnalysisBestMove("e2e9")).toBeNull();
     expect(normalizeGameAnalysisBestMove(null)).toBeNull();
-    expect(buildAnalyzedLine().positions.map(({ bestMove }) => bestMove)).toEqual(
-      ["e2e4", "e7e5", "g1f3", "b8c6"],
-    );
+    expect(
+      buildAnalyzedLine().positions.map(({ bestMove }) => bestMove),
+    ).toEqual(["e2e4", "e7e5", "g1f3", "b8c6"]);
   });
 
   it("rounds histogram ranges up to symmetric 1-2-5 pawn scales", () => {
