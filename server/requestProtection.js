@@ -1,9 +1,9 @@
 const crypto = require("crypto");
 
 const DEFAULT_ANALYZE_RATE_LIMIT_WINDOW_MS = 60_000;
-const DEFAULT_ANALYZE_RATE_LIMIT_MAX = 30;
+const DEFAULT_ANALYZE_RATE_LIMIT_MAX = 3000;
 const DEFAULT_IMPORT_RATE_LIMIT_WINDOW_MS = 10 * 60_000;
-const DEFAULT_IMPORT_RATE_LIMIT_MAX = 5;
+const DEFAULT_IMPORT_RATE_LIMIT_MAX = 500;
 const API_TOKEN_HEADER = "x-chesslense-api-token";
 
 function normalizeString(value) {
