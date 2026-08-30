@@ -1,5 +1,4 @@
 import {
-  modalButtonStyle,
   modalDangerButtonStyle,
   modalInputStyle,
   modalPrimaryButtonStyle,
@@ -10,15 +9,10 @@ import {
   GAME_ANALYSIS_STATUS_RUNNING,
   GAME_ANALYSIS_FIXED_SCALE_MAX_CP,
   GAME_ANALYSIS_SCALE_AUTO,
-  ISSUE_FILTER_ALL,
-  ISSUE_FILTER_BLUNDERS,
-  ISSUE_FILTER_MISTAKES,
-  ISSUE_SIDE_BLACK,
-  ISSUE_SIDE_BOTH,
-  ISSUE_SIDE_WHITE,
 } from "../../utils/gameAnalysis.js";
 import EngineDepthControl from "./EngineDepthControl.jsx";
 import GameAnalysisHistogram from "./GameAnalysisHistogram.jsx";
+import GameAnalysisNavigation from "./GameAnalysisNavigation.jsx";
 import {
   GAME_ANALYSIS_RETRY_FEEDBACK_BAD,
   GAME_ANALYSIS_RETRY_FEEDBACK_BEST,
@@ -203,56 +197,20 @@ function WholeGameAnalysisPanel({
             scale={gameAnalysisScale}
             onSelectPosition={onSelectGameAnalysisPosition}
           />
-          <div className="game-analysis-navigation">
-            <label htmlFor="game-analysis-issue-filter">Jump through</label>
-            <select
-              id="game-analysis-issue-filter"
-              value={issueFilter}
-              onChange={(event) => onChangeIssueFilter(event.target.value)}
-              style={modalInputStyle}
-            >
-              <option value={ISSUE_FILTER_ALL}>All issues (50+ cp)</option>
-              <option value={ISSUE_FILTER_MISTAKES}>
-                Mistakes and blunders (100+ cp)
-              </option>
-              <option value={ISSUE_FILTER_BLUNDERS}>Blunders (200+ cp)</option>
-            </select>
-            <label htmlFor="game-analysis-issue-side">Side</label>
-            <select
-              id="game-analysis-issue-side"
-              value={issueSide}
-              onChange={(event) => onChangeIssueSide(event.target.value)}
-              style={modalInputStyle}
-            >
-              <option value={ISSUE_SIDE_BOTH}>Both sides</option>
-              <option value={ISSUE_SIDE_WHITE}>White</option>
-              <option value={ISSUE_SIDE_BLACK}>Black</option>
-            </select>
-            <button
-              type="button"
-              style={modalButtonStyle}
-              onClick={onPreviousIssue}
-              disabled={!canGoToPreviousIssue}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              style={modalButtonStyle}
-              onClick={onNextIssue}
-              disabled={!canGoToNextIssue}
-            >
-              Next
-            </button>
-            <button
-              type="button"
-              className="annotation-primary-button"
-              onClick={onRetryCurrentIssue}
-              disabled={!canRetryCurrentIssue || !!gameAnalysisRetry}
-            >
-              Retry move
-            </button>
-          </div>
+          <GameAnalysisNavigation
+            idPrefix="game-analysis"
+            issueFilter={issueFilter}
+            onChangeIssueFilter={onChangeIssueFilter}
+            issueSide={issueSide}
+            onChangeIssueSide={onChangeIssueSide}
+            onPreviousIssue={onPreviousIssue}
+            onNextIssue={onNextIssue}
+            canGoToPreviousIssue={canGoToPreviousIssue}
+            canGoToNextIssue={canGoToNextIssue}
+            onRetryCurrentIssue={onRetryCurrentIssue}
+            canRetryCurrentIssue={canRetryCurrentIssue}
+            retryInProgress={!!gameAnalysisRetry}
+          />
           {gameAnalysisRetry && (
             <div
               className={`annotation-item game-analysis-retry game-analysis-retry-${gameAnalysisRetry.feedback ?? gameAnalysisRetry.status}`}

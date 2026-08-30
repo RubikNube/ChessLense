@@ -3,6 +3,7 @@ import PositionSetupPanel from "../board/PositionSetupPanel.jsx";
 import CommentsPanel from "../comments/CommentsPanel.jsx";
 import EnginePanel from "../engine/EnginePanel.jsx";
 import WholeGameAnalysisPanel from "../engine/WholeGameAnalysisPanel.jsx";
+import GameAnalysisNavigation from "../engine/GameAnalysisNavigation.jsx";
 import OpeningTreePanel from "../opening/OpeningTreePanel.jsx";
 import OtbPlayerOpeningTreePanel from "../opening/OtbPlayerOpeningTreePanel.jsx";
 import ImportedPgnPanel from "../pgn/ImportedPgnPanel.jsx";
@@ -264,6 +265,29 @@ function AppWorkspaceContent({ app }) {
         onRedo={isGuessResultBrowsing ? goGuessBrowseNext : redoMove}
         onGoToStart={isGuessResultBrowsing ? goGuessBrowseStart : goToStart}
         onGoToEnd={isGuessResultBrowsing ? goGuessBrowseEnd : goToEnd}
+        belowBoardContent={
+          !isPositionSetupMode &&
+          !effectiveTrainingFocusMode &&
+          showGameAnalysisPanel &&
+          !!gameAnalysis?.positions?.length ? (
+            <GameAnalysisNavigation
+              idPrefix="below-board-game-analysis"
+              className="game-analysis-navigation-below-board"
+              issueFilter={gameAnalysisIssueFilter}
+              onChangeIssueFilter={setGameAnalysisIssueFilter}
+              issueSide={gameAnalysisIssueSide}
+              onChangeIssueSide={setGameAnalysisIssueSide}
+              onPreviousIssue={goToPreviousGameAnalysisIssue}
+              onNextIssue={goToNextGameAnalysisIssue}
+              canGoToPreviousIssue={!!previousGameAnalysisIssue}
+              canGoToNextIssue={!!nextGameAnalysisIssue}
+              onRetryCurrentIssue={startCurrentGameAnalysisRetry}
+              canRetryCurrentIssue={!!currentGameAnalysisRetryTarget}
+              retryInProgress={!!gameAnalysisRetry}
+              compactSettings
+            />
+          ) : null
+        }
         onRevertMovesUntil={revertMoveHistoryToNode}
         getVariantOptionsForMove={getMoveHistoryVariantOptions}
         onSelectVariant={selectVariant}

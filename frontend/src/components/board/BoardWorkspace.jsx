@@ -66,6 +66,7 @@ function BoardWorkspace({
   onRedo,
   onGoToStart,
   onGoToEnd,
+  belowBoardContent,
   onRevertMovesUntil,
   getVariantOptionsForMove,
   onSelectVariant,
@@ -189,6 +190,8 @@ function BoardWorkspace({
             />
           )}
         </div>
+
+        {belowBoardContent}
 
         <div
           className="mobile-move-nav"

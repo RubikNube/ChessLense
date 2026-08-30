@@ -134,4 +134,27 @@ describe("BoardWorkspace responsive move history", () => {
     expect(container.querySelector('[data-view-id="move-history"]')).toBeNull();
     expect(container.querySelector(".mobile-move-strip")).toBeNull();
   });
+
+  it("renders optional content between the board and mobile navigation", () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+
+    act(() =>
+      root.render(
+        <BoardWorkspace
+          {...createProps({
+            belowBoardContent: <div data-testid="below-board">Controls</div>,
+          })}
+        />,
+      ),
+    );
+
+    const board = container.querySelector(".board-and-evaluation");
+    const belowBoard = container.querySelector('[data-testid="below-board"]');
+    const mobileNavigation = container.querySelector(".mobile-move-nav");
+
+    expect(board.nextElementSibling).toBe(belowBoard);
+    expect(belowBoard.nextElementSibling).toBe(mobileNavigation);
+  });
 });

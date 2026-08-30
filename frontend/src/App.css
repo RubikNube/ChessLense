@@ -592,6 +592,54 @@ body {
   flex-wrap: wrap;
 }
 
+.game-analysis-navigation-below-board {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(100%, 860px);
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  background: var(--theme-surface);
+}
+
+.game-analysis-settings {
+  position: relative;
+  display: inline-flex;
+}
+
+.game-analysis-settings-button {
+  min-width: 2.5rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.game-analysis-settings-popover {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 1000;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+  width: min(20rem, calc(100vw - 2rem));
+  box-sizing: border-box;
+  padding: 0.85rem;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  background: var(--theme-surface);
+  box-shadow: 0 12px 30px var(--theme-shadow);
+}
+
+.game-analysis-settings-popover label {
+  white-space: nowrap;
+}
+
+.game-analysis-navigation .game-analysis-settings-popover select {
+  width: 100%;
+}
+
 .game-analysis-retry {
   margin-top: 0.85rem;
 }
