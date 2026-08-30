@@ -371,6 +371,11 @@ function normalizeComputerPlay(entry) {
     entry.startVariantTree && typeof entry.startVariantTree === "object"
       ? normalizeVariantTree(entry.startVariantTree)
       : null;
+  const resumeMainlineNodeId =
+    typeof entry.resumeMainlineNodeId === "string" &&
+    startVariantTree?.nodes[entry.resumeMainlineNodeId]
+      ? entry.resumeMainlineNodeId
+      : null;
 
   if (!startFrom || !startVariantTree) {
     return null;
@@ -379,6 +384,7 @@ function normalizeComputerPlay(entry) {
   return {
     startFrom,
     startVariantTree,
+    ...(resumeMainlineNodeId ? { resumeMainlineNodeId } : {}),
   };
 }
 
@@ -856,6 +862,7 @@ export function createComputerPlayTrainingState(
   startVariantTree,
   playerSide = TRAINING_SIDE_WHITE,
   startFrom = TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+  resumeMainlineNodeId = null,
 ) {
   const normalizedStartVariantTree =
     startVariantTree && typeof startVariantTree === "object"
@@ -891,6 +898,10 @@ export function createComputerPlayTrainingState(
       computerPlay: {
         startFrom: normalizedStartFrom,
         startVariantTree: normalizedStartVariantTree,
+        ...(typeof resumeMainlineNodeId === "string" &&
+        normalizedStartVariantTree.nodes[resumeMainlineNodeId]
+          ? { resumeMainlineNodeId }
+          : {}),
       },
       playSession: null,
     }),

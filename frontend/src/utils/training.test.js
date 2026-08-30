@@ -46,7 +46,10 @@ import {
   REPLAY_RESULT_MATCH,
   REPLAY_RESULT_WORSE,
 } from "./training.js";
-import { createEmptyVariantTree } from "./variantTree.js";
+import {
+  createEmptyVariantTree,
+  createVariantTreeFromMoves,
+} from "./variantTree.js";
 
 describe("training helpers", () => {
   it("creates an empty training state by default", () => {
@@ -198,6 +201,35 @@ describe("training helpers", () => {
         },
       }),
     );
+  });
+
+  it("keeps a valid mainline resume node for computer exploration", () => {
+    const startVariantTree = createVariantTreeFromMoves([
+      { from: "e2", to: "e4" },
+      { from: "e7", to: "e5" },
+    ]);
+    const resumeMainlineNodeId = startVariantTree.currentNodeId;
+    const { trainingState } = createComputerPlayTrainingState(
+      startVariantTree,
+      TRAINING_SIDE_WHITE,
+      TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+      resumeMainlineNodeId,
+    );
+
+    expect(trainingState.computerPlay).toEqual({
+      startFrom: TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+      startVariantTree,
+      resumeMainlineNodeId,
+    });
+    expect(
+      normalizeTrainingState({
+        ...trainingState,
+        computerPlay: {
+          ...trainingState.computerPlay,
+          resumeMainlineNodeId: "missing-node",
+        },
+      }).computerPlay,
+    ).not.toHaveProperty("resumeMainlineNodeId");
   });
 
   it("derives puzzle terminal outcomes for progression reporting", () => {

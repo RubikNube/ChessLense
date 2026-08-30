@@ -767,6 +767,7 @@ describe("persisted app state", () => {
       startVariantTree,
       TRAINING_SIDE_WHITE,
       TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+      startVariantTree.currentNodeId,
     );
 
     savePersistedAppState(
@@ -785,6 +786,7 @@ describe("persisted app state", () => {
         computerPlay: {
           startFrom: TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
           startVariantTree,
+          resumeMainlineNodeId: startVariantTree.currentNodeId,
         },
       }),
     );

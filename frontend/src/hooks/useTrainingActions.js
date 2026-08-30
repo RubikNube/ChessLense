@@ -298,6 +298,7 @@ function useTrainingActions(context) {
       attemptedTree,
       target.issueSide,
       TRAINING_COMPUTER_PLAY_SOURCE_CURRENT,
+      target.issueNodeId,
     );
 
     if (error || !nextVariantTree) {
@@ -462,6 +463,14 @@ function useTrainingActions(context) {
     }
 
     trainingRequestIdRef.current += 1;
+    if (computerPlayConfig?.resumeMainlineNodeId) {
+      setVariantTree((currentValue) =>
+        goToMainlineNodeInVariantTree(
+          currentValue,
+          computerPlayConfig.resumeMainlineNodeId,
+        ),
+      );
+    }
     hideTrainingPreview();
     setTrainingState(
       createEmptyTrainingState(normalizedTrainingState.playerSide),
@@ -472,6 +481,7 @@ function useTrainingActions(context) {
     setEngineResult(null);
     setEvaluationResult(null);
   }, [
+    computerPlayConfig?.resumeMainlineNodeId,
     hideTrainingPreview,
     isStandaloneComputerPlay,
     normalizedTrainingState.playerSide,
