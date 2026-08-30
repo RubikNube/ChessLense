@@ -339,6 +339,7 @@ describe("WholeGameAnalysisPanel", () => {
     expect(container.textContent).toContain("f3 is a bad move");
     expect(container.textContent).toContain("1.3 pawns worse");
     expect(container.textContent).toContain("Stockfish preferred d4");
+    const retryFeedback = container.querySelector(".game-analysis-retry");
 
     for (const [label, callback] of [
       ["Retry", onRetryAgain],
@@ -346,7 +347,7 @@ describe("WholeGameAnalysisPanel", () => {
       ["Play vs computer", onExploreRetryAgainstComputer],
       ["Exit retry", onExitRetry],
     ]) {
-      const button = [...container.querySelectorAll("button")].find(
+      const button = [...retryFeedback.querySelectorAll("button")].find(
         (entry) => entry.textContent === label,
       );
       act(() => button.click());
