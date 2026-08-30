@@ -88,6 +88,7 @@ function AppWorkspaceContent({ app }) {
     gameAnalysis,
     gameAnalysisIsCurrent,
     gameAnalysisIssueFilter,
+    gameAnalysisIssueSide,
     gameAnalysisScale,
     gameAnalysisRetry,
     getMoveHistoryVariantOptions,
@@ -175,6 +176,7 @@ function AppWorkspaceContent({ app }) {
     setCommentDraft,
     setEngineSearchDepth,
     setGameAnalysisIssueFilter,
+    setGameAnalysisIssueSide,
     setGameAnalysisScale,
     setLichessPuzzleFilters,
     setOtbOpeningTreeGameSelection,
@@ -519,6 +521,8 @@ function AppWorkspaceContent({ app }) {
                 }
                 issueFilter={gameAnalysisIssueFilter}
                 onChangeIssueFilter={setGameAnalysisIssueFilter}
+                issueSide={gameAnalysisIssueSide}
+                onChangeIssueSide={setGameAnalysisIssueSide}
                 onAnalyzeGame={analyzeWholeGame}
                 onCancelGameAnalysis={cancelGameAnalysis}
                 onSelectGameAnalysisPosition={goToGameAnalysisPosition}

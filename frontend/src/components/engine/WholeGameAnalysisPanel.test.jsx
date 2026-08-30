@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ISSUE_FILTER_ALL } from "../../utils/gameAnalysis.js";
+import { ISSUE_FILTER_ALL, ISSUE_SIDE_BOTH } from "../../utils/gameAnalysis.js";
 import WholeGameAnalysisPanel from "./WholeGameAnalysisPanel.jsx";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -22,6 +22,8 @@ function renderPanel(root, overrides = {}) {
     onChangeGameAnalysisScale: () => {},
     issueFilter: ISSUE_FILTER_ALL,
     onChangeIssueFilter: () => {},
+    issueSide: ISSUE_SIDE_BOTH,
+    onChangeIssueSide: () => {},
     onAnalyzeGame: () => {},
     onCancelGameAnalysis: () => {},
     onSelectGameAnalysisPosition: () => {},
@@ -199,6 +201,34 @@ describe("WholeGameAnalysisPanel", () => {
       scaleSelect.dispatchEvent(new Event("change", { bubbles: true }));
     });
     expect(onChangeGameAnalysisScale).toHaveBeenCalledWith("200");
+  });
+
+  it("selects which side to jump through", () => {
+    const onChangeIssueSide = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    renderPanel(root, {
+      issueSide: "white",
+      onChangeIssueSide,
+      gameAnalysis: {
+        status: "complete",
+        total: 1,
+        positions: [{ nodeId: "node-1", ply: 1, side: "white" }],
+      },
+    });
+
+    const sideSelect = container.querySelector("#game-analysis-issue-side");
+    expect(sideSelect.value).toBe("white");
+    expect([...sideSelect.options].map((option) => option.textContent)).toEqual(
+      ["Both sides", "White", "Black"],
+    );
+
+    act(() => {
+      sideSelect.value = "black";
+      sideSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(onChangeIssueSide).toHaveBeenCalledWith("black");
   });
 
   it("marks issue bars with their severity fill classes", () => {

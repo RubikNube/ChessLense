@@ -1,5 +1,6 @@
 import { Chess } from "chess.js";
 import {
+  ISSUE_SIDE_BOTH,
   getIssueThreshold,
   normalizeGameAnalysisBestMove,
 } from "./gameAnalysis.js";
@@ -129,13 +130,15 @@ export function getNextGameAnalysisRetryTarget(
   mainlineEntries,
   currentIssuePly,
   issueFilter,
+  issueSide = ISSUE_SIDE_BOTH,
 ) {
   const threshold = getIssueThreshold(issueFilter);
   const nextIssue = positions?.find(
     (position) =>
       position?.ply > currentIssuePly &&
       Number.isFinite(position.lossCp) &&
-      position.lossCp >= threshold,
+      position.lossCp >= threshold &&
+      (issueSide === ISSUE_SIDE_BOTH || position.side === issueSide),
   );
 
   return nextIssue

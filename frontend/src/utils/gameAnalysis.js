@@ -12,6 +12,9 @@ export const GAME_ANALYSIS_STATUS_ERROR = "error";
 export const ISSUE_FILTER_ALL = "all";
 export const ISSUE_FILTER_MISTAKES = "mistakes";
 export const ISSUE_FILTER_BLUNDERS = "blunders";
+export const ISSUE_SIDE_BOTH = "both";
+export const ISSUE_SIDE_WHITE = "white";
+export const ISSUE_SIDE_BLACK = "black";
 
 export const GAME_ANALYSIS_SCALE_AUTO = "auto";
 export const GAME_ANALYSIS_FIXED_SCALE_MAX_CP = Object.freeze([
@@ -376,11 +379,19 @@ export function getIssueThreshold(filter) {
   return INACCURACY_THRESHOLD_CP;
 }
 
-export function findAdjacentIssue(positions, currentPly, filter, direction) {
+export function findAdjacentIssue(
+  positions,
+  currentPly,
+  filter,
+  direction,
+  side = ISSUE_SIDE_BOTH,
+) {
   const threshold = getIssueThreshold(filter);
   const issues = (Array.isArray(positions) ? positions : []).filter(
     (position) =>
-      Number.isFinite(position.lossCp) && position.lossCp >= threshold,
+      Number.isFinite(position.lossCp) &&
+      position.lossCp >= threshold &&
+      (side === ISSUE_SIDE_BOTH || position.side === side),
   );
 
   if (direction < 0) {

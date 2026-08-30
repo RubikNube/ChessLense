@@ -166,5 +166,18 @@ describe("game analysis retry", () => {
     expect(
       getNextGameAnalysisRetryTarget(positions, entries, 2, "all"),
     ).toBeNull();
+    expect(
+      getNextGameAnalysisRetryTarget(
+        positions,
+        entries,
+        1,
+        "mistakes",
+        "white",
+      ),
+    ).toBeNull();
+    expect(
+      getNextGameAnalysisRetryTarget(positions, entries, 1, "mistakes", "black")
+        ?.issueNodeId,
+    ).toBe("issue-2");
   });
 });

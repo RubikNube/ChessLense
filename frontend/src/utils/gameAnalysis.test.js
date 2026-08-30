@@ -4,6 +4,8 @@ import {
   ISSUE_FILTER_ALL,
   ISSUE_FILTER_BLUNDERS,
   ISSUE_FILTER_MISTAKES,
+  ISSUE_SIDE_BLACK,
+  ISSUE_SIDE_WHITE,
   MOVE_SEVERITY_BLUNDER,
   MOVE_SEVERITY_INACCURACY,
   MOVE_SEVERITY_MISTAKE,
@@ -241,6 +243,23 @@ describe("whole-game analysis", () => {
       3,
     );
     expect(findAdjacentIssue(positions, 3, ISSUE_FILTER_ALL, 1)).toBeNull();
+    expect(
+      findAdjacentIssue(positions, 0, ISSUE_FILTER_ALL, 1, ISSUE_SIDE_WHITE)
+        ?.ply,
+    ).toBe(3);
+    expect(
+      findAdjacentIssue(positions, 0, ISSUE_FILTER_ALL, 1, ISSUE_SIDE_BLACK)
+        ?.ply,
+    ).toBe(2);
+    expect(
+      findAdjacentIssue(
+        positions,
+        3,
+        ISSUE_FILTER_MISTAKES,
+        -1,
+        ISSUE_SIDE_WHITE,
+      ),
+    ).toBeNull();
   });
 
   it("round-trips completed analysis and rejects a changed main line", () => {

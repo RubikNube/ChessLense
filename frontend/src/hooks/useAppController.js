@@ -145,6 +145,7 @@ import {
   GAME_ANALYSIS_VERSION,
   GAME_ANALYSIS_SCALE_AUTO,
   ISSUE_FILTER_ALL,
+  ISSUE_SIDE_BOTH,
   addGameAnalysisToMoveHistoryEntries,
   appendGameAnalysisPosition,
   buildGameAnalysisIssueArrow,
@@ -227,6 +228,8 @@ function useAppController() {
   const [gameAnalysis, setGameAnalysis] = useState(null);
   const [gameAnalysisIssueFilter, setGameAnalysisIssueFilter] =
     useState(ISSUE_FILTER_ALL);
+  const [gameAnalysisIssueSide, setGameAnalysisIssueSide] =
+    useState(ISSUE_SIDE_BOTH);
   const [gameAnalysisScale, setGameAnalysisScale] = useState(
     () => persistedAppState?.gameAnalysisScale ?? GAME_ANALYSIS_SCALE_AUTO,
   );
@@ -479,12 +482,14 @@ function useAppController() {
             currentVariantPly,
             gameAnalysisIssueFilter,
             -1,
+            gameAnalysisIssueSide,
           )
         : null,
     [
       gameAnalysis?.positions,
       currentVariantPly,
       gameAnalysisIssueFilter,
+      gameAnalysisIssueSide,
       gameAnalysisIsCurrent,
     ],
   );
@@ -496,12 +501,14 @@ function useAppController() {
             currentVariantPly,
             gameAnalysisIssueFilter,
             1,
+            gameAnalysisIssueSide,
           )
         : null,
     [
       gameAnalysis?.positions,
       currentVariantPly,
       gameAnalysisIssueFilter,
+      gameAnalysisIssueSide,
       gameAnalysisIsCurrent,
     ],
   );
@@ -550,12 +557,14 @@ function useAppController() {
             mainlinePositionEntries,
             gameAnalysisRetry.target.issuePly,
             gameAnalysisIssueFilter,
+            gameAnalysisIssueSide,
           )
         : null,
     [
       gameAnalysis?.positions,
       gameAnalysisIsCurrent,
       gameAnalysisIssueFilter,
+      gameAnalysisIssueSide,
       gameAnalysisRetry?.target,
       mainlinePositionEntries,
     ],
@@ -2487,6 +2496,7 @@ function useAppController() {
     gameAnalysis,
     gameAnalysisIsCurrent,
     gameAnalysisIssueFilter,
+    gameAnalysisIssueSide,
     gameAnalysisScale,
     gameAnalysisRetry,
     getMoveHistoryVariantOptions,
@@ -2632,6 +2642,7 @@ function useAppController() {
     setCreateCollectionTitle,
     setEngineSearchDepth,
     setGameAnalysisIssueFilter,
+    setGameAnalysisIssueSide,
     setGameAnalysisScale,
     setImportPgnError,
     setImportPgnValue,

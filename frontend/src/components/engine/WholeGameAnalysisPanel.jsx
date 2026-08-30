@@ -13,6 +13,9 @@ import {
   ISSUE_FILTER_ALL,
   ISSUE_FILTER_BLUNDERS,
   ISSUE_FILTER_MISTAKES,
+  ISSUE_SIDE_BLACK,
+  ISSUE_SIDE_BOTH,
+  ISSUE_SIDE_WHITE,
 } from "../../utils/gameAnalysis.js";
 import EngineDepthControl from "./EngineDepthControl.jsx";
 import GameAnalysisHistogram from "./GameAnalysisHistogram.jsx";
@@ -82,6 +85,8 @@ function WholeGameAnalysisPanel({
   onChangeGameAnalysisScale,
   issueFilter,
   onChangeIssueFilter,
+  issueSide,
+  onChangeIssueSide,
   onAnalyzeGame,
   onCancelGameAnalysis,
   onSelectGameAnalysisPosition,
@@ -211,6 +216,17 @@ function WholeGameAnalysisPanel({
                 Mistakes and blunders (100+ cp)
               </option>
               <option value={ISSUE_FILTER_BLUNDERS}>Blunders (200+ cp)</option>
+            </select>
+            <label htmlFor="game-analysis-issue-side">Side</label>
+            <select
+              id="game-analysis-issue-side"
+              value={issueSide}
+              onChange={(event) => onChangeIssueSide(event.target.value)}
+              style={modalInputStyle}
+            >
+              <option value={ISSUE_SIDE_BOTH}>Both sides</option>
+              <option value={ISSUE_SIDE_WHITE}>White</option>
+              <option value={ISSUE_SIDE_BLACK}>Black</option>
             </select>
             <button
               type="button"
