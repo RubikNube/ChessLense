@@ -603,6 +603,10 @@ body {
   background: var(--theme-surface);
 }
 
+.game-analysis-navigation-below-board .game-analysis-settings {
+  margin-left: auto;
+}
+
 .game-analysis-settings {
   position: relative;
   display: inline-flex;

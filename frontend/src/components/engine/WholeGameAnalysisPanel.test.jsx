@@ -314,7 +314,7 @@ describe("WholeGameAnalysisPanel", () => {
     });
 
     const retryMoveButton = [...container.querySelectorAll("button")].find(
-      (button) => button.textContent === "Retry move",
+      (button) => button.textContent === "Retry",
     );
     act(() => retryMoveButton.click());
     expect(onRetryCurrentIssue).toHaveBeenCalledOnce();

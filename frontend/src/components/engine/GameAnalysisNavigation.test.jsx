@@ -81,7 +81,7 @@ describe("GameAnalysisNavigation", () => {
     act(() => {
       buttons.Previous.click();
       buttons.Next.click();
-      buttons["Retry move"].click();
+      buttons["Retry"].click();
     });
 
     expect(onChangeIssueFilter).toHaveBeenCalledWith("mistakes");

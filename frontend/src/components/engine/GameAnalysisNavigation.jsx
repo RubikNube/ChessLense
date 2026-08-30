@@ -117,7 +117,7 @@ function GameAnalysisNavigation({
         onClick={onRetryCurrentIssue}
         disabled={!canRetryCurrentIssue || retryInProgress}
       >
-        Retry move
+        Retry
       </button>
       {compactSettings && (
         <div className="game-analysis-settings" ref={settingsRootRef}>
