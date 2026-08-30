@@ -11,6 +11,7 @@ import PlayComputerPanel from "../training/PlayComputerPanel.jsx";
 import PuzzleTrainingPanel from "../training/PuzzleTrainingPanel.jsx";
 import ReplayTrainingPanel from "../training/ReplayTrainingPanel.jsx";
 import VariantsView from "../VariantsView.jsx";
+import { normalizeGameAnalysisScale } from "../../utils/gameAnalysis.js";
 
 function AppWorkspaceContent({ app }) {
   const {
@@ -87,6 +88,7 @@ function AppWorkspaceContent({ app }) {
     gameAnalysis,
     gameAnalysisIsCurrent,
     gameAnalysisIssueFilter,
+    gameAnalysisScale,
     gameAnalysisRetry,
     getMoveHistoryVariantOptions,
     goGuessBrowseEnd,
@@ -173,6 +175,7 @@ function AppWorkspaceContent({ app }) {
     setCommentDraft,
     setEngineSearchDepth,
     setGameAnalysisIssueFilter,
+    setGameAnalysisScale,
     setLichessPuzzleFilters,
     setOtbOpeningTreeGameSelection,
     setOtbPlayerTreeColor,
@@ -510,6 +513,10 @@ function AppWorkspaceContent({ app }) {
                 gameAnalysis={gameAnalysis}
                 gameAnalysisIsCurrent={gameAnalysisIsCurrent}
                 currentNodeId={variantTree.currentNodeId}
+                gameAnalysisScale={gameAnalysisScale}
+                onChangeGameAnalysisScale={(value) =>
+                  setGameAnalysisScale(normalizeGameAnalysisScale(value))
+                }
                 issueFilter={gameAnalysisIssueFilter}
                 onChangeIssueFilter={setGameAnalysisIssueFilter}
                 onAnalyzeGame={analyzeWholeGame}

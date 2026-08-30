@@ -54,13 +54,18 @@ function getBarClassName(position, isSelected) {
   return classes.join(" ");
 }
 
-function GameAnalysisHistogram({ positions, currentNodeId, onSelectPosition }) {
+function GameAnalysisHistogram({
+  positions,
+  currentNodeId,
+  scale,
+  onSelectPosition,
+}) {
   const chartWidth = Math.max(360, positions.length * 10 + 44);
   const plotLeft = 38;
   const plotWidth = chartWidth - plotLeft - 8;
   const step = plotWidth / Math.max(positions.length, 1);
   const barWidth = Math.max(3, Math.min(10, step - 1));
-  const scaleMaxCp = getGameAnalysisScaleMaxCp(positions);
+  const scaleMaxCp = getGameAnalysisScaleMaxCp(positions, scale);
   const scaleLabel = formatScaleLabel(scaleMaxCp);
 
   return (

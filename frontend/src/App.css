@@ -496,11 +496,28 @@ body {
 }
 
 .game-analysis-chart-scroll {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
   overflow-x: auto;
   border: 1px solid var(--theme-border);
   border-radius: 0.5rem;
   background: var(--theme-surface-alt);
+}
+
+.game-analysis-scale-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.game-analysis-scale-control label {
+  font-weight: 600;
+}
+
+.game-analysis-scale-control select {
+  width: auto;
+  margin: 0;
 }
 
 .game-analysis-chart {

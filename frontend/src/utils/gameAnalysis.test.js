@@ -20,6 +20,7 @@ import {
   getMoveSeverityColor,
   getMoveSeveritySymbol,
   isGameAnalysisCurrent,
+  normalizeGameAnalysisScale,
   normalizeGameAnalysisBestMove,
   normalizePersistedGameAnalysis,
 } from "./gameAnalysis.js";
@@ -218,6 +219,15 @@ describe("whole-game analysis", () => {
         { evaluation: { type: "mate", value: 2 }, scoreCp: 99998 },
       ]),
     ).toBe(100);
+    expect(getGameAnalysisScaleMaxCp([cpPosition(320)], 200)).toBe(200);
+  });
+
+  it("normalizes supported histogram scale preferences", () => {
+    expect(normalizeGameAnalysisScale("auto")).toBe("auto");
+    expect(normalizeGameAnalysisScale("500")).toBe(500);
+    expect(normalizeGameAnalysisScale(1000)).toBe(1000);
+    expect(normalizeGameAnalysisScale("300")).toBe("auto");
+    expect(normalizeGameAnalysisScale(null)).toBe("auto");
   });
 
   it("finds previous and next issues using the selected filter", () => {

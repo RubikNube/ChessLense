@@ -13,6 +13,11 @@ export const ISSUE_FILTER_ALL = "all";
 export const ISSUE_FILTER_MISTAKES = "mistakes";
 export const ISSUE_FILTER_BLUNDERS = "blunders";
 
+export const GAME_ANALYSIS_SCALE_AUTO = "auto";
+export const GAME_ANALYSIS_FIXED_SCALE_MAX_CP = Object.freeze([
+  100, 200, 500, 1000,
+]);
+
 export const MOVE_SEVERITY_INACCURACY = "inaccuracy";
 export const MOVE_SEVERITY_MISTAKE = "mistake";
 export const MOVE_SEVERITY_BLUNDER = "blunder";
@@ -388,7 +393,28 @@ export function findAdjacentIssue(positions, currentPly, filter, direction) {
   return issues.find((position) => position.ply > currentPly) ?? null;
 }
 
-export function getGameAnalysisScaleMaxCp(positions) {
+export function normalizeGameAnalysisScale(value) {
+  if (value === GAME_ANALYSIS_SCALE_AUTO) {
+    return GAME_ANALYSIS_SCALE_AUTO;
+  }
+
+  const parsedValue = Number(value);
+
+  return GAME_ANALYSIS_FIXED_SCALE_MAX_CP.includes(parsedValue)
+    ? parsedValue
+    : GAME_ANALYSIS_SCALE_AUTO;
+}
+
+export function getGameAnalysisScaleMaxCp(
+  positions,
+  scale = GAME_ANALYSIS_SCALE_AUTO,
+) {
+  const normalizedScale = normalizeGameAnalysisScale(scale);
+
+  if (normalizedScale !== GAME_ANALYSIS_SCALE_AUTO) {
+    return normalizedScale;
+  }
+
   const maxAbsoluteCp = (Array.isArray(positions) ? positions : []).reduce(
     (currentMax, position) => {
       if (

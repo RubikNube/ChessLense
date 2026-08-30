@@ -18,6 +18,8 @@ function renderPanel(root, overrides = {}) {
     gameAnalysis: null,
     gameAnalysisIsCurrent: true,
     currentNodeId: "root",
+    gameAnalysisScale: "auto",
+    onChangeGameAnalysisScale: () => {},
     issueFilter: ISSUE_FILTER_ALL,
     onChangeIssueFilter: () => {},
     onAnalyzeGame: () => {},
@@ -159,6 +161,44 @@ describe("WholeGameAnalysisPanel", () => {
     const mateBar = container.querySelector('[aria-label*="-M2"]');
     expect(mateBar.getAttribute("y")).toBe("90");
     expect(mateBar.getAttribute("height")).toBe("72");
+  });
+
+  it("selects a fixed histogram scale", () => {
+    const onChangeGameAnalysisScale = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    renderPanel(root, {
+      gameAnalysisScale: 500,
+      onChangeGameAnalysisScale,
+      gameAnalysis: {
+        status: "complete",
+        total: 1,
+        positions: [
+          {
+            nodeId: "node-1",
+            ply: 1,
+            scoreCp: 120,
+            evaluation: { type: "cp", value: 120 },
+          },
+        ],
+      },
+    });
+
+    const scaleSelect = container.querySelector("#game-analysis-scale");
+    expect(scaleSelect.value).toBe("500");
+    expect(
+      [...scaleSelect.options].map((option) => option.textContent),
+    ).toEqual(["Auto", "±1", "±2", "±5", "±10"]);
+    expect(
+      container.querySelector(".game-analysis-chart").textContent,
+    ).toContain("+5");
+
+    act(() => {
+      scaleSelect.value = "200";
+      scaleSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(onChangeGameAnalysisScale).toHaveBeenCalledWith("200");
   });
 
   it("marks issue bars with their severity fill classes", () => {

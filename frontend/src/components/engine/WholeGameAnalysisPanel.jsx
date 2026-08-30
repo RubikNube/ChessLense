@@ -8,6 +8,8 @@ import {
   GAME_ANALYSIS_STATUS_CANCELLED,
   GAME_ANALYSIS_STATUS_ERROR,
   GAME_ANALYSIS_STATUS_RUNNING,
+  GAME_ANALYSIS_FIXED_SCALE_MAX_CP,
+  GAME_ANALYSIS_SCALE_AUTO,
   ISSUE_FILTER_ALL,
   ISSUE_FILTER_BLUNDERS,
   ISSUE_FILTER_MISTAKES,
@@ -76,6 +78,8 @@ function WholeGameAnalysisPanel({
   gameAnalysis,
   gameAnalysisIsCurrent,
   currentNodeId,
+  gameAnalysisScale,
+  onChangeGameAnalysisScale,
   issueFilter,
   onChangeIssueFilter,
   onAnalyzeGame,
@@ -170,9 +174,28 @@ function WholeGameAnalysisPanel({
               results.
             </p>
           )}
+          <div className="game-analysis-scale-control">
+            <label htmlFor="game-analysis-scale">Scale</label>
+            <select
+              id="game-analysis-scale"
+              value={gameAnalysisScale}
+              onChange={(event) =>
+                onChangeGameAnalysisScale(event.target.value)
+              }
+              style={modalInputStyle}
+            >
+              <option value={GAME_ANALYSIS_SCALE_AUTO}>Auto</option>
+              {GAME_ANALYSIS_FIXED_SCALE_MAX_CP.map((scaleMaxCp) => (
+                <option key={scaleMaxCp} value={scaleMaxCp}>
+                  ±{scaleMaxCp / 100}
+                </option>
+              ))}
+            </select>
+          </div>
           <GameAnalysisHistogram
             positions={gameAnalysisPositions}
             currentNodeId={currentNodeId}
+            scale={gameAnalysisScale}
             onSelectPosition={onSelectGameAnalysisPosition}
           />
           <div className="game-analysis-navigation">

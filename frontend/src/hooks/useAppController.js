@@ -143,6 +143,7 @@ import {
   GAME_ANALYSIS_STATUS_ERROR,
   GAME_ANALYSIS_STATUS_RUNNING,
   GAME_ANALYSIS_VERSION,
+  GAME_ANALYSIS_SCALE_AUTO,
   ISSUE_FILTER_ALL,
   addGameAnalysisToMoveHistoryEntries,
   appendGameAnalysisPosition,
@@ -226,6 +227,9 @@ function useAppController() {
   const [gameAnalysis, setGameAnalysis] = useState(null);
   const [gameAnalysisIssueFilter, setGameAnalysisIssueFilter] =
     useState(ISSUE_FILTER_ALL);
+  const [gameAnalysisScale, setGameAnalysisScale] = useState(
+    () => persistedAppState?.gameAnalysisScale ?? GAME_ANALYSIS_SCALE_AUTO,
+  );
   const [gameAnalysisRetry, setGameAnalysisRetry] = useState(null);
   const [selectedEngineVariantIndex, setSelectedEngineVariantIndex] =
     useState(0);
@@ -1897,6 +1901,7 @@ function useAppController() {
       showPlayComputerPanel,
       showEngineWindow,
       showGameAnalysisPanel,
+      gameAnalysisScale,
       showEvaluationBar,
       boardSoundsEnabled,
       showComments,
@@ -2482,6 +2487,7 @@ function useAppController() {
     gameAnalysis,
     gameAnalysisIsCurrent,
     gameAnalysisIssueFilter,
+    gameAnalysisScale,
     gameAnalysisRetry,
     getMoveHistoryVariantOptions,
     goGuessBrowseEnd,
@@ -2626,6 +2632,7 @@ function useAppController() {
     setCreateCollectionTitle,
     setEngineSearchDepth,
     setGameAnalysisIssueFilter,
+    setGameAnalysisScale,
     setImportPgnError,
     setImportPgnValue,
     setLichessPuzzleFilters,

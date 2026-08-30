@@ -20,6 +20,10 @@ import {
 import { normalizeThemeOverrides } from "./theme.js";
 import { normalizeTrainingState } from "./training.js";
 import {
+  GAME_ANALYSIS_SCALE_AUTO,
+  normalizeGameAnalysisScale,
+} from "./gameAnalysis.js";
+import {
   createEmptyVariantTree,
   createVariantTreeFromGameAndRedo,
   normalizeVariantTree,
@@ -787,6 +791,9 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showGameAnalysisPanel === "boolean"
           ? parsedState.showGameAnalysisPanel
           : false,
+      gameAnalysisScale: normalizeGameAnalysisScale(
+        parsedState.gameAnalysisScale ?? GAME_ANALYSIS_SCALE_AUTO,
+      ),
       showEvaluationBar:
         typeof parsedState.showEvaluationBar === "boolean"
           ? parsedState.showEvaluationBar
@@ -860,6 +867,7 @@ export function serializePersistedAppState({
   showPlayComputerPanel,
   showEngineWindow,
   showGameAnalysisPanel,
+  gameAnalysisScale,
   showEvaluationBar,
   boardSoundsEnabled,
   showComments,
@@ -899,6 +907,7 @@ export function serializePersistedAppState({
     showPlayComputerPanel,
     showEngineWindow,
     showGameAnalysisPanel,
+    gameAnalysisScale: normalizeGameAnalysisScale(gameAnalysisScale),
     showEvaluationBar,
     boardSoundsEnabled,
     showComments,
