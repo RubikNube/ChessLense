@@ -2,7 +2,10 @@
 
 React frontend for a local chess analysis app. It renders the board, tracks game state, sends the current position to the local backend for Stockfish analysis, and provides both Lichess and OTB search/import workflows.
 
-The frontend now uses a thin `App.jsx` orchestration layer plus feature-focused components for the menu bar, board workspace, training, engine, comments, imported PGN details, and modal dialogs.
+The frontend uses `App.jsx` as a minimal composition root. Stateful workflows are
+organized in feature hooks and controllers, while feature-focused components render
+the menu bar, board workspace, training tools, engine analysis, comments, imported PGN
+details, and modal dialogs.
 
 ## Stack
 
@@ -61,11 +64,22 @@ frontend/
 │   ├── App.css
 │   ├── index.css
 │   ├── main.jsx
+│   ├── controllers/
+│   │   └── createMoveExecutor.js
 │   ├── hooks/
-│   │   ├── useKeyboardShortcuts.js
-│   │   └── useTrainingController.js
+│   │   ├── useAppController.js
+│   │   ├── useWorkspaceActions.js
+│   │   ├── useTrainingActions.js
+│   │   ├── useGameAnalysisActions.js
+│   │   ├── useStudyLibraryActions.js
+│   │   ├── useGameSourceActions.js
+│   │   └── supporting UI and persistence hooks
 │   ├── components/
 │   │   ├── app/
+│   │   │   ├── AppView.jsx
+│   │   │   ├── AppWorkspaceContent.jsx
+│   │   │   ├── AppModalHost.jsx
+│   │   │   ├── AppOverlays.jsx
 │   │   │   └── AppMenuBar.jsx
 │   │   ├── board/
 │   │   │   └── BoardWorkspace.jsx
@@ -87,13 +101,17 @@ frontend/
 │   │   ├── pgn/
 │   │   │   └── ImportedPgnPanel.jsx
 │   │   ├── training/
-│   │   │   └── TrainingPanel.jsx
+│   │   │   ├── ReplayTrainingPanel.jsx
+│   │   │   ├── PuzzleTrainingPanel.jsx
+│   │   │   ├── GuessTheMoveTrainingPanel.jsx
+│   │   │   └── PlayComputerPanel.jsx
 │   │   ├── EvaluationBar.jsx
 │   │   ├── MoveHistory.jsx
 │   │   ├── PositionPreviewBoard.jsx
 │   │   └── VariantsView.jsx
 │   └── utils/
 │       ├── api.js
+│       ├── appChess.js
 │       ├── appState.js
 │       ├── annotatedPgn.js
 │       ├── evaluation.js
@@ -108,8 +126,20 @@ frontend/
 
 ## Frontend architecture
 
-- `App.jsx` owns cross-feature state and wires together the extracted panels, modals, and hooks.
-- `components/board/BoardWorkspace.jsx` renders the chessboard, evaluation bar, move history slot, and right-side reference column layout.
-- Feature panels (`TrainingPanel`, `EnginePanel`, `CommentsPanel`, `ImportedPgnPanel`) encapsulate the large render-heavy cards that previously lived inline in `App.jsx`.
-- `components/modals/` contains the reusable modal shell plus dedicated dialogs for PGN import, studies, collections, shortcuts, and game search workflows.
-- `hooks/useKeyboardShortcuts.js` and `hooks/useTrainingController.js` keep keyboard/focus/preview effects separate from the main render tree.
+- `App.jsx` only connects `useAppController` to `AppView`; feature state and behavior do not belong in the composition root.
+- `hooks/useAppController.js` assembles the application view model from focused action hooks for the workspace, training, engine analysis, studies, and external game sources.
+- `controllers/createMoveExecutor.js` routes board moves through analysis retry, computer play, replay, guess, puzzle, or normal workspace behavior in priority order.
+- `components/app/` separates top-level rendering into the menu, board workspace content, modal host, and transient overlays. Feature panels remain responsible for their own render-heavy UI.
+- `utils/` contains pure chess and domain behavior. Stateful workflows belong in feature hooks, while reusable effects such as persistence, keyboard shortcuts, board sizing, sounds, and clipboard handling remain in dedicated hooks.
+
+The primary data flow is:
+
+```text
+domain utilities -> feature action hooks/controllers -> useAppController
+                 -> app composition components -> feature panels
+```
+
+Keep these boundaries when adding features: extend pure domain utilities first, place
+stateful orchestration in the relevant feature hook, expose the minimum view model and
+actions through `useAppController`, and render them in the appropriate composition or
+feature component.
