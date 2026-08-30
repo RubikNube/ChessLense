@@ -67,4 +67,89 @@ describe("MobileMoveStrip", () => {
     act(() => issueChip.click());
     expect(onSelectMove).toHaveBeenCalledWith("node-1");
   });
+
+  it("selects variants separately from move navigation", () => {
+    const onSelectMove = vi.fn();
+    const onSelectVariant = vi.fn();
+    const getVariantOptionsForMove = vi.fn(() => [
+      {
+        id: "main-line",
+        continuationText: "e5 Nf3",
+        isMainLine: true,
+        isSelected: true,
+      },
+      {
+        id: "sideline",
+        continuationText: "c5 Nf3",
+        isMainLine: false,
+        isSelected: false,
+      },
+    ]);
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+
+    act(() =>
+      root.render(
+        <MobileMoveStrip
+          moveHistoryItems={[
+            {
+              nodeId: "node-1",
+              san: "e4",
+              moveNumber: 1,
+              side: "white",
+              hasVariants: true,
+            },
+            {
+              nodeId: "node-2",
+              san: "e5",
+              moveNumber: 1,
+              side: "black",
+              hasVariants: false,
+            },
+          ]}
+          currentMoveIndex={-1}
+          onSelectMove={onSelectMove}
+          getVariantOptionsForMove={getVariantOptionsForMove}
+          onSelectVariant={onSelectVariant}
+        />,
+      ),
+    );
+
+    const variantButton = container.querySelector(
+      '[aria-label="Select variant after 1. e4"]',
+    );
+    expect(variantButton).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Select variant after e5"]'),
+    ).toBeNull();
+
+    act(() => variantButton.click());
+
+    expect(getVariantOptionsForMove).toHaveBeenCalledWith("node-1");
+    expect(container.textContent).toContain("e5 Nf3");
+    expect(container.textContent).toContain("Main line · Selected");
+    expect(
+      [...container.querySelectorAll("button")].find(
+        (button) => button.textContent === "e5 Nf3Main line · Selected",
+      ).disabled,
+    ).toBe(true);
+    expect(onSelectMove).not.toHaveBeenCalled();
+
+    const sidelineButton = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "c5 Nf3Sideline",
+    );
+    act(() => sidelineButton.click());
+
+    expect(onSelectVariant).toHaveBeenCalledWith("sideline");
+    expect(
+      container.querySelector('[aria-label="Variants after 1. e4"]'),
+    ).toBeNull();
+
+    const moveButton = [...container.querySelectorAll("button")].find(
+      (button) => button.textContent === "1. e4",
+    );
+    act(() => moveButton.click());
+    expect(onSelectMove).toHaveBeenCalledWith("node-1");
+  });
 });

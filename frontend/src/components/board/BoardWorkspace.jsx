@@ -1,10 +1,42 @@
-import { Children, Fragment, isValidElement } from "react";
+import { Children, Fragment, isValidElement, useEffect, useState } from "react";
 import { Chessboard } from "react-chessboard";
 import EvaluationBar from "../EvaluationBar.jsx";
 import MoveHistory from "../MoveHistory.jsx";
 import MobileMoveStrip from "./MobileMoveStrip.jsx";
 import SortableViewLayout from "../app/SortableViewLayout.jsx";
 import { THEME_CSS_VARS } from "../../utils/theme.js";
+
+const MOBILE_VIEWPORT_QUERY = "(max-width: 640px)";
+
+function getIsMobileViewport() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(MOBILE_VIEWPORT_QUERY).matches
+  );
+}
+
+function useIsMobileViewport() {
+  const [isMobileViewport, setIsMobileViewport] = useState(getIsMobileViewport);
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia(MOBILE_VIEWPORT_QUERY);
+    const handleChange = (event) => setIsMobileViewport(event.matches);
+
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  return isMobileViewport;
+}
 
 function BoardWorkspace({
   boardRenderKey,
@@ -42,6 +74,7 @@ function BoardWorkspace({
   showViewLayout,
   children,
 }) {
+  const isMobileViewport = useIsMobileViewport();
   const viewLabels = {
     "move-history": "Move History",
     "play-computer": "Play vs Computer",
@@ -77,7 +110,7 @@ function BoardWorkspace({
 
   collectViewElements(children);
   const views = {
-    ...(showMoveHistory
+    ...(showMoveHistory && !isMobileViewport
       ? {
           "move-history": {
             label: "Move History",
@@ -110,11 +143,13 @@ function BoardWorkspace({
       className={`workspace${isTrainingFocusMode ? " workspace-training-focus" : ""}`}
     >
       <div className="board-panel" ref={boardPanelRef}>
-        {showMoveHistory && (
+        {showMoveHistory && isMobileViewport && (
           <MobileMoveStrip
             moveHistoryItems={moveHistoryItems}
             currentMoveIndex={currentMoveIndex}
             onSelectMove={onSelectMove}
+            getVariantOptionsForMove={getVariantOptionsForMove}
+            onSelectVariant={onSelectVariant}
           />
         )}
 
