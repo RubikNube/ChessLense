@@ -97,6 +97,7 @@ function AppMenuBar({
   showComments,
   showImportedPgn,
   showVariants,
+  viewMode,
   actions,
 }) {
   const [expandedSection, setExpandedSection] = useState(null);
@@ -228,6 +229,21 @@ function AppMenuBar({
           {
             label: "Reset View Layout",
             action: actions.resetViewLayout,
+          },
+          {
+            label: `${viewMode === "auto" ? "✓ " : ""}View Mode: Auto`,
+            action: actions.useAutoViewMode,
+            checked: viewMode === "auto",
+          },
+          {
+            label: `${viewMode === "normal" ? "✓ " : ""}View Mode: Normal`,
+            action: actions.useNormalViewMode,
+            checked: viewMode === "normal",
+          },
+          {
+            label: `${viewMode === "mobile" ? "✓ " : ""}View Mode: Mobile`,
+            action: actions.useMobileViewMode,
+            checked: viewMode === "mobile",
           },
           {
             label: showMoveHistory ? "Hide Move History" : "Show Move History",
@@ -364,6 +380,7 @@ function AppMenuBar({
       showReplayTrainingPanel,
       showVariantArrows,
       showVariants,
+      viewMode,
     ],
   );
 
@@ -417,6 +434,7 @@ function AppMenuBar({
                             className="menu-entry menu-entry-sub"
                             onClick={() => onMenuAction(item.action)}
                             disabled={item.disabled}
+                            aria-pressed={item.checked}
                           >
                             {item.label}
                           </button>
@@ -694,6 +712,30 @@ function AppMenuBar({
                 onClick={() => onMenuAction(actions.resetViewLayout)}
               >
                 Reset View Layout
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                aria-pressed={viewMode === "auto"}
+                onClick={() => onMenuAction(actions.useAutoViewMode)}
+              >
+                {viewMode === "auto" ? "✓ " : ""}View Mode: Auto
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                aria-pressed={viewMode === "normal"}
+                onClick={() => onMenuAction(actions.useNormalViewMode)}
+              >
+                {viewMode === "normal" ? "✓ " : ""}View Mode: Normal
+              </button>
+              <button
+                type="button"
+                className="menu-entry"
+                aria-pressed={viewMode === "mobile"}
+                onClick={() => onMenuAction(actions.useMobileViewMode)}
+              >
+                {viewMode === "mobile" ? "✓ " : ""}View Mode: Mobile
               </button>
               <button
                 type="button"

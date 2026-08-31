@@ -13,12 +13,14 @@ import {
   createGameFromPgn,
   DEFAULT_BOARD_SOUNDS_ENABLED,
   DEFAULT_VIEW_LAYOUT,
+  DEFAULT_VIEW_MODE,
   getPositionCommentsForFen,
   loadPersistedAppState,
   MAX_ENGINE_SEARCH_DEPTH,
   MIN_ENGINE_SEARCH_DEPTH,
   normalizeEngineSearchDepth,
   normalizeViewLayout,
+  normalizeViewMode,
   parseGameFromPgn,
   reorderPositionCommentEntries,
   removePositionCommentEntry,
@@ -122,6 +124,13 @@ describe("persisted app state", () => {
     expect(normalizeViewLayout()).toEqual(DEFAULT_VIEW_LAYOUT);
   });
 
+  it("normalizes view modes and falls back to auto", () => {
+    expect(normalizeViewMode("normal")).toBe("normal");
+    expect(normalizeViewMode("mobile")).toBe("mobile");
+    expect(normalizeViewMode("unsupported")).toBe(DEFAULT_VIEW_MODE);
+    expect(normalizeViewMode()).toBe(DEFAULT_VIEW_MODE);
+  });
+
   it("normalizes engine search depth values", () => {
     expect(normalizeEngineSearchDepth("16")).toBe(16);
     expect(normalizeEngineSearchDepth("0")).toBe(MIN_ENGINE_SEARCH_DEPTH);
@@ -150,6 +159,7 @@ describe("persisted app state", () => {
         showImportedPgn: false,
         showVariants: false,
         showVariantArrows: true,
+        viewMode: "normal",
         themeOverrides: {
           accent: "#ff00aa",
           boardLightSquare: "#abc",
@@ -260,6 +270,7 @@ describe("persisted app state", () => {
       showImportedPgn: false,
       showVariants: false,
       showVariantArrows: true,
+      viewMode: "normal",
       viewLayout: DEFAULT_VIEW_LAYOUT,
       themeOverrides: {
         accent: "#ff00aa",
@@ -432,6 +443,7 @@ describe("persisted app state", () => {
         showImportedPgn: false,
         showVariants: false,
         showVariantArrows: true,
+        viewMode: "mobile",
         themeOverrides: {
           accent: "#ABCDEF",
           appBackground: DEFAULT_THEME.appBackground,
@@ -512,6 +524,7 @@ describe("persisted app state", () => {
       showImportedPgn: false,
       showVariants: false,
       showVariantArrows: true,
+      viewMode: "mobile",
       viewLayout: DEFAULT_VIEW_LAYOUT,
       themeOverrides: {
         accent: "#abcdef",
@@ -826,6 +839,7 @@ describe("persisted app state", () => {
       showImportedPgn: true,
       showVariants: true,
       showVariantArrows: false,
+      viewMode: DEFAULT_VIEW_MODE,
       viewLayout: DEFAULT_VIEW_LAYOUT,
       themeOverrides: {},
       lichessPuzzleFilters: DEFAULT_LICHESS_PUZZLE_FILTERS,

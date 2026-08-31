@@ -15,10 +15,6 @@ const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
   HTMLElement.prototype,
   "scrollIntoView",
 );
-const matchMediaDescriptor = Object.getOwnPropertyDescriptor(
-  window,
-  "matchMedia",
-);
 
 const summary = {
   evaluation: { label: "Strong" },
@@ -57,10 +53,12 @@ function renderPanel(
   root,
   guessBrowseIndex,
   trainingStatus = TRAINING_STATUS_COMPLETED,
+  isMobileView = false,
 ) {
   act(() => {
     root.render(
       <GuessTheMoveTrainingPanel
+        isMobileView={isMobileView}
         hasReplaySource
         normalizedTrainingState={{
           mode: TRAINING_MODE_GUESS_THE_MOVE,
@@ -127,11 +125,6 @@ describe("GuessTheMoveTrainingPanel", () => {
     } else {
       delete HTMLElement.prototype.scrollIntoView;
     }
-    if (matchMediaDescriptor) {
-      Object.defineProperty(window, "matchMedia", matchMediaDescriptor);
-    } else {
-      delete window.matchMedia;
-    }
   });
 
   it("keeps the selected browsed move visible as the browse index changes", () => {
@@ -174,12 +167,8 @@ describe("GuessTheMoveTrainingPanel", () => {
       value: scrollIntoView,
     });
 
-    renderPanel(root, null);
+    renderPanel(root, null, TRAINING_STATUS_COMPLETED, true);
     scrollIntoView.mockClear();
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: vi.fn(() => ({ matches: true })),
-    });
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
       function getBoundingClientRect() {
         if (this.classList.contains("training-card-body")) {
@@ -198,7 +187,7 @@ describe("GuessTheMoveTrainingPanel", () => {
     const trainingBody = container.querySelector(".training-card-body");
     trainingBody.scrollTop = 100;
 
-    renderPanel(root, 0);
+    renderPanel(root, 0, TRAINING_STATUS_COMPLETED, true);
 
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(trainingBody.scrollTop).toBe(250);
@@ -212,10 +201,6 @@ describe("GuessTheMoveTrainingPanel", () => {
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
       value: scrollIntoView,
-    });
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: vi.fn(() => ({ matches: true })),
     });
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
       function getBoundingClientRect() {
@@ -231,11 +216,11 @@ describe("GuessTheMoveTrainingPanel", () => {
       },
     );
 
-    renderPanel(root, null, "idle");
+    renderPanel(root, null, "idle", true);
     const trainingBody = container.querySelector(".training-card-body");
     trainingBody.scrollTop = 300;
 
-    renderPanel(root, null);
+    renderPanel(root, null, TRAINING_STATUS_COMPLETED, true);
 
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(trainingBody.scrollTop).toBe(150);

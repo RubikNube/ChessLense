@@ -176,6 +176,10 @@ export const DEFAULT_ENGINE_SEARCH_DEPTH = 12;
 export const MIN_ENGINE_SEARCH_DEPTH = 1;
 export const MAX_ENGINE_SEARCH_DEPTH = 30;
 export const DEFAULT_BOARD_SOUNDS_ENABLED = true;
+export const VIEW_MODE_AUTO = "auto";
+export const VIEW_MODE_NORMAL = "normal";
+export const VIEW_MODE_MOBILE = "mobile";
+export const DEFAULT_VIEW_MODE = VIEW_MODE_AUTO;
 export const VIEW_LAYOUT_NAVIGATION_COLUMN = "navigation";
 export const VIEW_LAYOUT_REFERENCE_COLUMN = "reference";
 export const VIEW_LAYOUT_VIEW_IDS = [
@@ -278,6 +282,12 @@ export function normalizeViewLayout(value) {
   }
 
   return normalizedLayout;
+}
+
+export function normalizeViewMode(value) {
+  return [VIEW_MODE_AUTO, VIEW_MODE_NORMAL, VIEW_MODE_MOBILE].includes(value)
+    ? value
+    : DEFAULT_VIEW_MODE;
 }
 
 function normalizePositionComment(entry, index = 0) {
@@ -818,6 +828,7 @@ export function loadPersistedAppState(storage = getBrowserStorage()) {
         typeof parsedState.showVariantArrows === "boolean"
           ? parsedState.showVariantArrows
           : false,
+      viewMode: normalizeViewMode(parsedState.viewMode),
       viewLayout: normalizeViewLayout(parsedState.viewLayout),
       themeOverrides: normalizeThemeOverrides(parsedState.themeOverrides),
       lichessSearchFilters,
@@ -874,6 +885,7 @@ export function serializePersistedAppState({
   showImportedPgn,
   showVariants,
   showVariantArrows,
+  viewMode,
   viewLayout,
   themeOverrides,
   lichessSearchFilters,
@@ -914,6 +926,7 @@ export function serializePersistedAppState({
     showImportedPgn,
     showVariants,
     showVariantArrows,
+    viewMode: normalizeViewMode(viewMode),
     viewLayout: normalizeViewLayout(viewLayout),
     themeOverrides: normalizeThemeOverrides(themeOverrides),
     lichessSearchFilters: normalizeLichessSearchFilters(

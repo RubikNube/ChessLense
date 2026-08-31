@@ -62,6 +62,7 @@ function createProps(overrides = {}) {
     viewLayout: { navigation: ["move-history"], reference: [] },
     onViewLayoutChange: () => {},
     showViewLayout: true,
+    isMobileView: false,
     ...overrides,
   };
 }
@@ -83,29 +84,7 @@ describe("BoardWorkspace responsive move history", () => {
     }
   });
 
-  it("swaps the full panel for the mobile strip at the mobile breakpoint", () => {
-    let matches = false;
-    const listeners = new Set();
-    const mediaQuery = {
-      get matches() {
-        return matches;
-      },
-      media: "(max-width: 640px)",
-      addEventListener: vi.fn((eventName, listener) => {
-        if (eventName === "change") {
-          listeners.add(listener);
-        }
-      }),
-      removeEventListener: vi.fn((eventName, listener) => {
-        if (eventName === "change") {
-          listeners.delete(listener);
-        }
-      }),
-    };
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: vi.fn(() => mediaQuery),
-    });
+  it("swaps the full panel for the mobile strip in mobile view", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -117,10 +96,9 @@ describe("BoardWorkspace responsive move history", () => {
     ).not.toBeNull();
     expect(container.querySelector(".mobile-move-strip")).toBeNull();
 
-    act(() => {
-      matches = true;
-      listeners.forEach((listener) => listener({ matches }));
-    });
+    act(() =>
+      root.render(<BoardWorkspace {...createProps({ isMobileView: true })} />),
+    );
 
     expect(container.querySelector('[data-view-id="move-history"]')).toBeNull();
     expect(container.querySelector(".mobile-move-strip")).not.toBeNull();

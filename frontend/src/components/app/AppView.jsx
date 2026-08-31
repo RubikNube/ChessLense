@@ -26,10 +26,11 @@ function AppView({ app }) {
     showVariantArrows,
     showVariants,
     toggleMenu,
+    viewMode,
   } = app;
 
   return (
-    <div className="app">
+    <div className={`app view-mode-${viewMode}`}>
       <AppMenuBar
         openMenu={openMenu}
         onToggleMenu={toggleMenu}
@@ -51,6 +52,7 @@ function AppView({ app }) {
         showComments={showComments}
         showImportedPgn={showImportedPgn}
         showVariants={showVariants}
+        viewMode={viewMode}
         actions={menuActions}
       />
 

@@ -8,19 +8,12 @@ import {
   TRAINING_STATUS_COMPLETED,
 } from "../../utils/training.js";
 
-const MOBILE_VIEWPORT_QUERY = "(max-width: 640px)";
-
-function scrollTrainingElementIntoView(element, block) {
+function scrollTrainingElementIntoView(element, block, isMobileView) {
   if (!element) {
     return;
   }
 
-  const isMobileViewport =
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
-
-  if (!isMobileViewport) {
+  if (!isMobileView) {
     element.scrollIntoView({ block });
     return;
   }
@@ -235,6 +228,7 @@ function GuessSummarySection({
   onGuessBrowseStart,
   onGuessBrowseEnd,
   onStopGuessBrowsing,
+  isMobileView,
 }) {
   const moveHistory = Array.isArray(summary?.moveHistory)
     ? summary.moveHistory
@@ -249,8 +243,12 @@ function GuessSummarySection({
       return;
     }
 
-    scrollTrainingElementIntoView(selectedMoveRef.current, "nearest");
-  }, [guessBrowseIndex, hasBrowseSelection]);
+    scrollTrainingElementIntoView(
+      selectedMoveRef.current,
+      "nearest",
+      isMobileView,
+    );
+  }, [guessBrowseIndex, hasBrowseSelection, isMobileView]);
 
   return (
     <>
@@ -571,6 +569,7 @@ function GuessHistorySection({
 
 function GuessTheMoveTrainingPanel({
   panelHeight,
+  isMobileView,
   onClose,
   hasReplaySource,
   normalizedTrainingState,
@@ -633,8 +632,8 @@ function GuessTheMoveTrainingPanel({
       return;
     }
 
-    scrollTrainingElementIntoView(summaryRef.current, "start");
-  }, [shouldShowSummary, activeGuessHistoryEntry?.id]);
+    scrollTrainingElementIntoView(summaryRef.current, "start", isMobileView);
+  }, [shouldShowSummary, activeGuessHistoryEntry?.id, isMobileView]);
 
   return (
     <div
@@ -850,6 +849,7 @@ function GuessTheMoveTrainingPanel({
                 onGuessBrowseStart={onGuessBrowseStart}
                 onGuessBrowseEnd={onGuessBrowseEnd}
                 onStopGuessBrowsing={onStopGuessBrowsing}
+                isMobileView={isMobileView}
               />
             )}
             {!isTrainingPlayActive && !isGuessTrainingActive && (

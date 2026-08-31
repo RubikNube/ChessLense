@@ -45,6 +45,7 @@ function renderMenu(root, overrides = {}) {
     showComments: true,
     showImportedPgn: true,
     showVariants: true,
+    viewMode: "auto",
     actions,
     ...overrides,
   };
@@ -84,5 +85,51 @@ describe("AppMenuBar whole-game analysis actions", () => {
     ].find((button) => button.textContent === "Show Whole Game Analysis");
     act(() => toggleButton.click());
     expect(onMenuAction).toHaveBeenCalledWith(actions.toggleGameAnalysisPanel);
+  });
+
+  it("offers explicit view modes and marks the active mode", () => {
+    const onMenuAction = vi.fn();
+    const actions = createActions();
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+
+    renderMenu(root, {
+      openMenu: "view",
+      actions,
+      onMenuAction,
+      viewMode: "normal",
+    });
+
+    const modeButtons = [
+      ...container.querySelectorAll(".menu-dropdown button"),
+    ].filter((button) => button.textContent.includes("View Mode:"));
+    expect(modeButtons).toHaveLength(3);
+    expect(
+      modeButtons
+        .find((button) => button.textContent.includes("Normal"))
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    const mobileButton = modeButtons.find((button) =>
+      button.textContent.includes("Mobile"),
+    );
+    act(() => mobileButton.click());
+    expect(onMenuAction).toHaveBeenCalledWith(actions.useMobileViewMode);
+
+    renderMenu(root, {
+      openMenu: "mobile",
+      actions,
+      onMenuAction,
+      viewMode: "normal",
+    });
+    const viewSectionButton = [
+      ...container.querySelectorAll(".menu-accordion-trigger"),
+    ].find((button) => button.textContent.includes("View"));
+    act(() => viewSectionButton.click());
+    const mobileModeChoices = [
+      ...container.querySelectorAll(".menu-accordion-content button"),
+    ].filter((button) => button.textContent.includes("View Mode:"));
+    expect(mobileModeChoices).toHaveLength(3);
   });
 });

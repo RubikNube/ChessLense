@@ -1557,3 +1557,63 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+/* Explicit view modes override only the responsive behavior they own. */
+.app.view-mode-mobile {
+  padding: 16px;
+  gap: 16px;
+}
+
+.app.view-mode-mobile .menu-desktop {
+  display: none;
+}
+
+.app.view-mode-mobile .menu-mobile,
+.app.view-mode-mobile .mobile-move-strip,
+.app.view-mode-mobile .mobile-move-nav {
+  display: flex;
+}
+
+.app.view-mode-mobile .top-menu {
+  padding: 8px;
+}
+
+.app.view-mode-mobile .workspace {
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.app.view-mode-mobile .board-panel,
+.app.view-mode-mobile .info-column-training-focus {
+  grid-column: auto;
+}
+
+.app.view-mode-mobile .info-column-navigation {
+  display: none;
+}
+
+.app.view-mode-mobile .sortable-view-column:empty {
+  display: none;
+}
+
+.app.view-mode-normal .menu-desktop {
+  display: flex;
+}
+
+.app.view-mode-normal .menu-mobile {
+  display: none;
+}
+
+.app.view-mode-normal .top-menu {
+  padding: 8px 12px;
+}
+
+.app.view-mode-normal .mobile-move-strip,
+.app.view-mode-normal .mobile-move-nav {
+  display: none;
+}
+
+.app.view-mode-normal .info-column-navigation,
+.app.view-mode-normal .sortable-view-column:empty {
+  display: flex;
+}

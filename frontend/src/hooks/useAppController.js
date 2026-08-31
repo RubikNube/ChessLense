@@ -3,6 +3,10 @@ import { Chess } from "chess.js";
 import {
   DEFAULT_BOARD_SOUNDS_ENABLED,
   DEFAULT_VIEW_LAYOUT,
+  DEFAULT_VIEW_MODE,
+  VIEW_MODE_AUTO,
+  VIEW_MODE_MOBILE,
+  VIEW_MODE_NORMAL,
   addCommentsToMoveHistoryEntries,
   createUserPositionComment,
   DEFAULT_ENGINE_SEARCH_DEPTH,
@@ -12,6 +16,7 @@ import {
   loadPersistedAppState,
   normalizeEngineSearchDepth,
   normalizeViewLayout,
+  normalizeViewMode,
   reorderPositionCommentEntries,
   removePositionCommentEntry,
   savePositionCommentEntry,
@@ -297,6 +302,15 @@ function useAppController() {
   );
   const [viewLayout, setViewLayout] = useState(
     () => persistedAppState?.viewLayout ?? DEFAULT_VIEW_LAYOUT,
+  );
+  const [viewMode, setViewMode] = useState(() =>
+    normalizeViewMode(persistedAppState?.viewMode ?? DEFAULT_VIEW_MODE),
+  );
+  const [isNarrowViewport, setIsNarrowViewport] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 640px)").matches,
   );
   const [hoveredOpeningTreeMove, setHoveredOpeningTreeMove] = useState(null);
   const [showShortcutsPopup, setShowShortcutsPopup] = useState(false);
@@ -1892,6 +1906,25 @@ function useAppController() {
     setCommentDraft("");
   }, [fen]);
 
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 640px)");
+    const handleChange = (event) => setIsNarrowViewport(event.matches);
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  const isMobileView =
+    viewMode === VIEW_MODE_MOBILE ||
+    (viewMode === VIEW_MODE_AUTO && isNarrowViewport);
+
   useAppPersistence(
     {
       variantTree,
@@ -1917,6 +1950,7 @@ function useAppController() {
       showImportedPgn,
       showVariants,
       showVariantArrows,
+      viewMode,
       viewLayout,
       themeOverrides,
       lichessSearchFilters,
@@ -2192,6 +2226,16 @@ function useAppController() {
     setViewLayout(normalizeViewLayout());
   }, []);
 
+  const useAutoViewMode = useCallback(() => setViewMode(VIEW_MODE_AUTO), []);
+  const useNormalViewMode = useCallback(
+    () => setViewMode(VIEW_MODE_NORMAL),
+    [],
+  );
+  const useMobileViewMode = useCallback(
+    () => setViewMode(VIEW_MODE_MOBILE),
+    [],
+  );
+
   const updateThemeColor = useCallback((tokenName, nextColor) => {
     setThemeOverrides((currentOverrides) =>
       getThemeOverrideValue(currentOverrides, tokenName, nextColor),
@@ -2227,6 +2271,9 @@ function useAppController() {
       openStudiesPopup,
       toggleBoardOrientation,
       resetViewLayout,
+      useAutoViewMode,
+      useNormalViewMode,
+      useMobileViewMode,
       toggleMoveHistory,
       toggleOpeningTreePanel,
       toggleOtbPlayerTreePanel,
@@ -2259,6 +2306,9 @@ function useAppController() {
       openShortcutsPopup,
       openStudiesPopup,
       resetViewLayout,
+      useAutoViewMode,
+      useNormalViewMode,
+      useMobileViewMode,
       openThemeSettingsPopup,
       redoMove,
       resetGame,
@@ -2545,6 +2595,7 @@ function useAppController() {
     isGuessResultBrowsing,
     isGuessTrainingActive,
     isGuessTrainingEnded,
+    isMobileView,
     isPositionSetupMode,
     isReplayTrainingActive,
     isReplayTrainingEnded,
@@ -2714,6 +2765,7 @@ function useAppController() {
     variantTree,
     viewGuessHistoryEntry,
     viewLayout,
+    viewMode,
     visibleStudies,
     whiteTrainingLabel,
   };

@@ -124,6 +124,7 @@ function AppWorkspaceContent({ app }) {
     isGuessResultBrowsing,
     isGuessTrainingActive,
     isGuessTrainingEnded,
+    isMobileView,
     isPositionSetupMode,
     isReplayTrainingActive,
     isReplayTrainingEnded,
@@ -294,6 +295,7 @@ function AppWorkspaceContent({ app }) {
         viewLayout={viewLayout}
         onViewLayoutChange={setViewLayout}
         showViewLayout={!isPositionSetupMode}
+        isMobileView={isMobileView}
       >
         {isPositionSetupMode ? (
           <PositionSetupPanel
@@ -417,6 +419,7 @@ function AppWorkspaceContent({ app }) {
               <GuessTheMoveTrainingPanel
                 viewId="guess-training"
                 panelHeight={boardPanelHeight}
+                isMobileView={isMobileView}
                 onClose={closeGuessTrainingPanel}
                 hasReplaySource={hasReplaySource}
                 normalizedTrainingState={normalizedTrainingState}

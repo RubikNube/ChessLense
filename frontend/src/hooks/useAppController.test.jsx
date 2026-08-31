@@ -7,8 +7,9 @@ import useAppController from "./useAppController.js";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-function ControllerHarness() {
+function ControllerHarness({ onController }) {
   const controller = useAppController();
+  onController?.(controller);
   return <div data-testid="controller-ready">{controller.fen}</div>;
 }
 
@@ -39,5 +40,55 @@ describe("useAppController", () => {
     expect(
       container.querySelector('[data-testid="controller-ready"]'),
     ).not.toBeNull();
+  });
+
+  it("resolves auto, normal, and mobile view modes", () => {
+    let matches = false;
+    const listeners = new Set();
+    const mediaQuery = {
+      get matches() {
+        return matches;
+      },
+      addEventListener: vi.fn((eventName, listener) => {
+        if (eventName === "change") listeners.add(listener);
+      }),
+      removeEventListener: vi.fn((eventName, listener) => {
+        if (eventName === "change") listeners.delete(listener);
+      }),
+    };
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn(() => mediaQuery),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    let controller;
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+
+    act(() =>
+      root.render(
+        <ControllerHarness onController={(value) => (controller = value)} />,
+      ),
+    );
+    expect(controller.viewMode).toBe("auto");
+    expect(controller.isMobileView).toBe(false);
+
+    act(() => {
+      matches = true;
+      listeners.forEach((listener) => listener({ matches }));
+    });
+    expect(controller.isMobileView).toBe(true);
+
+    act(() => controller.menuActions.useNormalViewMode());
+    expect(controller.viewMode).toBe("normal");
+    expect(controller.isMobileView).toBe(false);
+
+    act(() => controller.menuActions.useMobileViewMode());
+    expect(controller.viewMode).toBe("mobile");
+    expect(controller.isMobileView).toBe(true);
   });
 });
