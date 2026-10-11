@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   OTB_COLOR_OPTIONS,
   OTB_PAGE_SIZE_OPTIONS,
@@ -11,8 +12,11 @@ import ModalShell from "./ModalShell.jsx";
 import {
   modalActionRowStyle,
   modalButtonStyle,
+  modalDangerButtonStyle,
   modalErrorStyle,
+  modalInputStyle,
   modalPrimaryButtonStyle,
+  modalSuccessStyle,
 } from "./modalStyles.js";
 import { THEME_CSS_VARS } from "../../utils/theme.js";
 
@@ -21,6 +25,105 @@ function formatPlayerLabel(player) {
   const rating = Number.isFinite(player?.rating) ? ` (${player.rating})` : "";
 
   return `${prefix}${player?.name ?? "Anonymous"}${rating}`;
+}
+
+const playerRenameButtonStyle = {
+  appearance: "none",
+  border: 0,
+  background: "transparent",
+  color: "inherit",
+  cursor: "pointer",
+  font: "inherit",
+  fontWeight: "inherit",
+  padding: 0,
+  textDecoration: "underline",
+  textDecorationStyle: "dotted",
+};
+
+function RenameOtbPlayerModal({ player, onRename, onClose }) {
+  const [name, setName] = useState(player.name);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      setError("Enter a player name.");
+      return;
+    }
+
+    if (trimmedName === player.name) {
+      setError("Enter a different player name.");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Rename "${player.name}" to "${trimmedName}" in every linked OTB game?`,
+      )
+    ) {
+      return;
+    }
+
+    setError("");
+    setSaving(true);
+
+    try {
+      await onRename(player.id, trimmedName);
+      onClose();
+    } catch (renameError) {
+      setError(renameError.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <ModalShell
+      title="Rename OTB Player"
+      titleId="rename-otb-player-title"
+      onClose={onClose}
+    >
+      <p>
+        This updates every linked game and its stored White or Black PGN header.
+      </p>
+      <form onSubmit={handleSubmit}>
+        <label>
+          <span>Player name</span>
+          <input
+            style={modalInputStyle}
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              setError("");
+            }}
+            autoFocus
+            maxLength={200}
+          />
+        </label>
+        {error && <p style={modalErrorStyle}>{error}</p>}
+        <div style={modalActionRowStyle}>
+          <button
+            type="button"
+            style={modalButtonStyle}
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            style={modalDangerButtonStyle}
+            disabled={saving}
+          >
+            {saving ? "Renaming..." : "Rename in all games"}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
+  );
 }
 
 function OtbSearchModal({
@@ -40,9 +143,12 @@ function OtbSearchModal({
   onPageChange,
   onPageSizeChange,
   onImport,
+  onRenamePlayer,
   onExploreOpeningTree,
   onClose,
 }) {
+  const [renamePlayer, setRenamePlayer] = useState(null);
+  const [renameStatus, setRenameStatus] = useState("");
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
   const totalResults = Number.isInteger(pagination?.totalResults)
     ? pagination.totalResults
@@ -58,6 +164,18 @@ function OtbSearchModal({
   const lastResultIndex =
     results.length > 0 ? firstResultIndex + results.length - 1 : 0;
   const visiblePages = getOtbPageWindow(safePage, totalPages);
+  const handleRenamePlayer = async (playerId, name) => {
+    const result = await onRenamePlayer(playerId, name);
+    const gameLabel = result.affectedGames === 1 ? "game" : "games";
+    const mergeLabel = result.mergedGames
+      ? ` ${result.mergedGames} corrected duplicate ${result.mergedGames === 1 ? "was" : "were"} merged.`
+      : "";
+
+    setRenameStatus(
+      `Renamed ${result.previousName} to ${result.name} in ${result.affectedGames} ${gameLabel}.${mergeLabel}`,
+    );
+    return result;
+  };
 
   return (
     <ModalShell
@@ -307,6 +425,7 @@ function OtbSearchModal({
         </div>
         {searchError && <p style={modalErrorStyle}>{searchError}</p>}
         {importError && <p style={modalErrorStyle}>{importError}</p>}
+        {renameStatus && <p style={modalSuccessStyle}>{renameStatus}</p>}
         <div style={modalActionRowStyle}>
           <button type="button" style={modalButtonStyle} onClick={onClose}>
             Close
@@ -354,8 +473,27 @@ function OtbSearchModal({
                 <li key={gameResult.id} className="search-result-card">
                   <div className="search-result-header">
                     <strong>
-                      {formatPlayerLabel(gameResult.players.white)} vs{" "}
-                      {formatPlayerLabel(gameResult.players.black)}
+                      <button
+                        type="button"
+                        style={playerRenameButtonStyle}
+                        onClick={() =>
+                          setRenamePlayer(gameResult.players.white)
+                        }
+                        title="Rename this player throughout the OTB database"
+                      >
+                        {formatPlayerLabel(gameResult.players.white)}
+                      </button>{" "}
+                      vs{" "}
+                      <button
+                        type="button"
+                        style={playerRenameButtonStyle}
+                        onClick={() =>
+                          setRenamePlayer(gameResult.players.black)
+                        }
+                        title="Rename this player throughout the OTB database"
+                      >
+                        {formatPlayerLabel(gameResult.players.black)}
+                      </button>
                     </strong>
                     <span className="search-result-score">
                       {formatOtbResult(gameResult)}
@@ -480,6 +618,13 @@ function OtbSearchModal({
           </>
         )}
       </div>
+      {renamePlayer && (
+        <RenameOtbPlayerModal
+          player={renamePlayer}
+          onRename={handleRenamePlayer}
+          onClose={() => setRenamePlayer(null)}
+        />
+      )}
     </ModalShell>
   );
 }

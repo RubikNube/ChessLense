@@ -4,6 +4,7 @@ const path = require("path");
 const { Chess, DEFAULT_POSITION } = require("chess.js");
 const { HttpError } = require("./httpError");
 const { clearOtbDatabase, openOtbDatabase } = require("./otbDb");
+const { decodePgnContent } = require("./pgnEncoding");
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 25;
@@ -497,6 +498,58 @@ function normalizeNameForSearch(value, fallback = "Unknown Player") {
 	};
 }
 
+function validatePlayerName(value) {
+	const name = normalizeString(value);
+
+	if (!name) {
+		throw new HttpError(400, "invalid_player_name", "Player name is required.");
+	}
+
+	if (name.length > 200) {
+		throw new HttpError(
+			400,
+			"invalid_player_name",
+			"Player name cannot exceed 200 characters.",
+		);
+	}
+
+	if (/[\u0000-\u001f\u007f]/u.test(name)) {
+		throw new HttpError(
+			400,
+			"invalid_player_name",
+			"Player name cannot contain control characters.",
+		);
+	}
+
+	return name;
+}
+
+function escapePgnHeaderValue(value) {
+	return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function replacePgnPlayerHeader(rawPgn, color, name) {
+	const headerName = color === "white" ? "White" : "Black";
+	const pattern = new RegExp(
+		`(\\[\\s*${headerName}\\s+")((?:\\\\.|[^"\\\\])*)("\\s*\\])`,
+		"i",
+	);
+
+	if (!pattern.test(rawPgn)) {
+		throw new HttpError(
+			409,
+			"player_rename_conflict",
+			`A linked game does not contain a ${headerName} PGN header.`,
+		);
+	}
+
+	return rawPgn.replace(
+		pattern,
+		(_match, prefix, _previousName, suffix) =>
+			`${prefix}${escapePgnHeaderValue(name)}${suffix}`,
+	);
+}
+
 function matchesNameTokens(source, query) {
 	const queryTokens = splitNameTokens(query);
 
@@ -765,15 +818,15 @@ function mapGameSummaryRow(row) {
 		sourceFile: normalizeString(row.sourceFile) || null,
 		players: {
 			white: {
+				id: Number.isInteger(row.whitePlayerId) ? row.whitePlayerId : null,
 				name: normalizeString(row.whiteName) || "Unknown White",
-				id: null,
 				title: null,
 				rating: null,
 				ratingDiff: null,
 			},
 			black: {
+				id: Number.isInteger(row.blackPlayerId) ? row.blackPlayerId : null,
 				name: normalizeString(row.blackName) || "Unknown Black",
-				id: null,
 				title: null,
 				rating: null,
 				ratingDiff: null,
@@ -974,7 +1027,7 @@ async function importPgnDirectory(options = {}) {
 	const result = await importPgnSourceEntries(
 		files.map((file) => ({
 			sourceFile: file.relativePath,
-			loadContent: () => fs.readFile(file.fullPath, "utf8"),
+			loadContent: () => fs.readFile(file.fullPath),
 		})),
 		{
 			dbPath: options.dbPath,
@@ -990,7 +1043,7 @@ async function importPgnDirectory(options = {}) {
 
 async function importPgnFile(options = {}) {
 	const sourceFile = normalizeString(options.sourceFile);
-	const rawContent = typeof options.content === "string" ? options.content : "";
+	const rawContent = decodePgnContent(options.content);
 
 	if (!sourceFile) {
 		throw new HttpError(400, "invalid_import", "fileName is required.");
@@ -1109,7 +1162,7 @@ async function importPgnSourceEntries(sourceEntries, options = {}) {
 			}
 
 			for (const entry of entries) {
-				const content = await entry.loadContent();
+				const content = decodePgnContent(await entry.loadContent());
 				const fileGames = splitGames(content);
 
 				for (const rawPgn of fileGames) {
@@ -1174,6 +1227,179 @@ async function importPgnSourceEntries(sourceEntries, options = {}) {
 	}
 }
 
+async function renamePlayer(playerId, rawName, options = {}) {
+	const normalizedPlayerId = Number(playerId);
+	const name = validatePlayerName(rawName);
+
+	if (!Number.isInteger(normalizedPlayerId) || normalizedPlayerId < 1) {
+		throw new HttpError(400, "invalid_player", "Player id is invalid.");
+	}
+
+	const { database } = await openOtbDatabase({ dbPath: options.dbPath });
+	let transactionOpen = false;
+
+	try {
+		database.exec("BEGIN IMMEDIATE");
+		transactionOpen = true;
+
+		const sourcePlayer = database
+			.prepare(`SELECT id, name FROM otb_players WHERE id = ?`)
+			.get(normalizedPlayerId);
+
+		if (!sourcePlayer) {
+			throw new HttpError(404, "not_found", "OTB player not found.");
+		}
+
+		if (sourcePlayer.name === name) {
+			throw new HttpError(
+				400,
+				"invalid_player_name",
+				"Enter a different player name.",
+			);
+		}
+
+		const normalizedPlayer = normalizeNameForSearch(name);
+		const affectedGames = database
+			.prepare(
+				`
+					SELECT
+						g.id,
+						g.raw_pgn AS rawPgn,
+						GROUP_CONCAT(gp.color) AS colors
+					FROM otb_games g
+					JOIN otb_game_players gp ON gp.game_id = g.id
+					WHERE gp.player_id = ?
+					GROUP BY g.id, g.raw_pgn
+				`,
+			)
+			.all(normalizedPlayerId);
+
+		let targetPlayer = database
+			.prepare(
+				`
+					SELECT id, name
+					FROM otb_players
+					WHERE normalized_name = ? AND name = ?
+				`,
+			)
+			.get(normalizedPlayer.normalizedName, normalizedPlayer.displayName);
+		const mergedPlayer = Boolean(
+			targetPlayer && targetPlayer.id !== normalizedPlayerId,
+		);
+
+		if (!targetPlayer) {
+			database
+				.prepare(
+					`
+						UPDATE otb_players
+						SET name = ?, normalized_name = ?, search_name = ?
+						WHERE id = ?
+					`,
+				)
+				.run(
+					normalizedPlayer.displayName,
+					normalizedPlayer.normalizedName,
+					normalizedPlayer.searchName,
+					normalizedPlayerId,
+				);
+			targetPlayer = {
+				id: normalizedPlayerId,
+				name: normalizedPlayer.displayName,
+			};
+		} else if (mergedPlayer) {
+			database
+				.prepare(
+					`UPDATE otb_game_players SET player_id = ? WHERE player_id = ?`,
+				)
+				.run(targetPlayer.id, normalizedPlayerId);
+		}
+
+		const insertGameCopy = database.prepare(`
+			INSERT INTO otb_games (
+				id, raw_pgn, source, source_file, event, site, round, result,
+				variant, date_label, year, created_at, eco, eco_normalized,
+				opening, ply_count, move_count, imported_at, move_index_status,
+				move_index_error
+			)
+			SELECT
+				?, ?, source, source_file, event, site, round, result,
+				variant, date_label, year, created_at, eco, eco_normalized,
+				opening, ply_count, move_count, imported_at, move_index_status,
+				move_index_error
+			FROM otb_games
+			WHERE id = ?
+		`);
+		const copyGamePlayers = database.prepare(`
+			INSERT INTO otb_game_players (game_id, color, player_id)
+			SELECT ?, color, player_id
+			FROM otb_game_players
+			WHERE game_id = ?
+		`);
+		const copyGameMoves = database.prepare(`
+			INSERT INTO otb_game_moves (game_id, ply, position_key, uci, san)
+			SELECT ?, ply, position_key, uci, san
+			FROM otb_game_moves
+			WHERE game_id = ?
+		`);
+		const gameExists = database.prepare(
+			`SELECT 1 AS found FROM otb_games WHERE id = ?`,
+		);
+		const deleteGame = database.prepare(`DELETE FROM otb_games WHERE id = ?`);
+		let mergedGames = 0;
+
+		for (const game of affectedGames) {
+			let nextPgn = game.rawPgn;
+			const colors = normalizeString(game.colors).split(",").filter(Boolean);
+
+			for (const color of colors) {
+				nextPgn = replacePgnPlayerHeader(nextPgn, color, name);
+			}
+
+			const nextGameId = createGameId(nextPgn);
+
+			if (nextGameId === game.id) {
+				continue;
+			}
+
+			if (gameExists.get(nextGameId)) {
+				mergedGames += 1;
+			} else {
+				insertGameCopy.run(nextGameId, nextPgn, game.id);
+				copyGamePlayers.run(nextGameId, game.id);
+				copyGameMoves.run(nextGameId, game.id);
+			}
+
+			deleteGame.run(game.id);
+		}
+
+		if (mergedPlayer) {
+			database
+				.prepare(`DELETE FROM otb_players WHERE id = ?`)
+				.run(normalizedPlayerId);
+		}
+
+		database.exec("COMMIT");
+		transactionOpen = false;
+
+		return {
+			playerId: targetPlayer.id,
+			previousName: sourcePlayer.name,
+			name: targetPlayer.name,
+			affectedGames: affectedGames.length,
+			mergedPlayer,
+			mergedGames,
+		};
+	} catch (error) {
+		if (transactionOpen) {
+			database.exec("ROLLBACK");
+		}
+
+		throw error;
+	} finally {
+		database.close();
+	}
+}
+
 async function searchGames(rawQuery, options = {}) {
 	const search = normalizeSearchQuery(rawQuery);
 	const { database } = await openOtbDatabase({
@@ -1215,7 +1441,9 @@ async function searchGames(rawQuery, options = {}) {
 					g.round,
 					g.eco,
 					g.opening,
+					pw.id AS whitePlayerId,
 					pw.name AS whiteName,
+					pb.id AS blackPlayerId,
 					pb.name AS blackName
 					${queryDefinition.fromClause}
 					${queryDefinition.whereClause}
@@ -1275,7 +1503,9 @@ async function getGame(gameId, options = {}) {
 					g.round,
 					g.eco,
 					g.opening,
+					pw.id AS whitePlayerId,
 					pw.name AS whiteName,
+					pb.id AS blackPlayerId,
 					pb.name AS blackName
 				FROM otb_games g
 				JOIN otb_game_players gpw
@@ -1571,7 +1801,9 @@ function queryOpeningTreeGames(database, search, positionKey, uci) {
 				g.round,
 				g.eco,
 				g.opening,
+				pw.id AS whitePlayerId,
 				pw.name AS whiteName,
+				pb.id AS blackPlayerId,
 				pb.name AS blackName
 			${queryDefinition.fromClause}
 			JOIN otb_game_moves gm ON gm.game_id = g.id
@@ -1886,6 +2118,7 @@ module.exports = {
 	getOpeningTreeGames,
 	importPgnDirectory,
 	importPgnFile,
+	renamePlayer,
 	searchGames,
 	__testing: {
 		buildImportedGameRecord,
@@ -1898,6 +2131,7 @@ module.exports = {
 		normalizeNameForSearch,
 		normalizeSearchQuery,
 		normalizePositionKey,
+		replacePgnPlayerHeader,
 		renderExportNode,
 		splitGames,
 	},

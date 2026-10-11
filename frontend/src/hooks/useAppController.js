@@ -1735,6 +1735,7 @@ function useAppController() {
     changeOtbPageSize,
     importOtbGame,
     importOtbOpeningTreeGame,
+    renameOtbPlayer,
     exploreOtbPlayerOpeningTree,
   } = useGameSourceActions({
     appliedOtbSearchFilters,
@@ -2585,6 +2586,7 @@ function useAppController() {
     importOtbGame,
     importOtbOpeningTreeGame,
     importOtbPgnFile,
+    renameOtbPlayer,
     importPgn,
     importPgnError,
     importPgnValue,

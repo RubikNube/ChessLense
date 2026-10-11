@@ -169,13 +169,12 @@ function useGameSourceActions(context) {
     setImportingOtbFile(true);
 
     try {
-      const pgn = await file.text();
       const summary = await fetchJson(buildOtbImportPath(file), {
         method: "POST",
         headers: {
-          "Content-Type": "text/plain",
+          "Content-Type": "application/octet-stream",
         },
-        body: pgn,
+        body: file,
       });
       setOtbFileImportStatus(formatOtbImportSummary(summary));
     } catch (error) {
@@ -183,6 +182,34 @@ function useGameSourceActions(context) {
     } finally {
       setImportingOtbFile(false);
     }
+  }
+
+  async function renameOtbPlayer(playerId, name) {
+    setOtbImportError("");
+
+    const result = await fetchJson(`/api/otb/players/${playerId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name }),
+    });
+    const updateRenamedFilter = (filters) => ({
+      ...filters,
+      player:
+        filters.player === result.previousName ? result.name : filters.player,
+      opponent:
+        filters.opponent === result.previousName
+          ? result.name
+          : filters.opponent,
+    });
+
+    setOtbSearchFilters(updateRenamedFilter);
+    setAppliedOtbSearchFilters(updateRenamedFilter);
+    setOtbSearchPage(1);
+    setOtbSearchNonce((currentValue) => currentValue + 1);
+
+    return result;
   }
 
   async function searchLichessGames() {
@@ -348,6 +375,7 @@ function useGameSourceActions(context) {
     changeOtbPageSize,
     importOtbGame,
     importOtbOpeningTreeGame,
+    renameOtbPlayer,
     exploreOtbPlayerOpeningTree,
   };
 }

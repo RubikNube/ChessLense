@@ -87,6 +87,7 @@ function AppModalHost({ app }) {
     otbSearchResults,
     removeCollection,
     removeStudy,
+    renameOtbPlayer,
     resetTheme,
     resolvedTheme,
     saveBackendConnection,
@@ -279,6 +280,7 @@ function AppModalHost({ app }) {
           onPageChange={changeOtbPage}
           onPageSizeChange={changeOtbPageSize}
           onImport={importOtbGame}
+          onRenamePlayer={renameOtbPlayer}
           onExploreOpeningTree={exploreOtbPlayerOpeningTree}
           onClose={closeOtbSearchPopup}
         />

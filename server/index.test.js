@@ -192,6 +192,121 @@ test("POST /api/otb/import accepts text/plain uploads with the file name in the 
 	}
 });
 
+test("POST /api/otb/import decodes binary Windows-1252 uploads", async () => {
+	const previousDbPath = process.env.OTB_DB_PATH;
+	const { dbPath, rootDir } = await createTempDbPath();
+	process.env.OTB_DB_PATH = dbPath;
+	const pgn = SAMPLE_PGN.replace("Paul Morphy", "Käfergrün, Jörg");
+
+	try {
+		const { baseUrl, server } = await startServer();
+
+		try {
+			const response = await fetch(
+				`${baseUrl}/api/otb/import?fileName=latin1.pgn`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/octet-stream" },
+					body: Buffer.from(pgn, "latin1"),
+				},
+			);
+			const data = await response.json();
+			const searchResult = await searchGames(
+				{ player: "Käfergrün, Jörg", pageSize: 10 },
+				{ dbPath },
+			);
+
+			assert.equal(response.status, 201);
+			assert.equal(data.importedGames, 2);
+			assert.equal(searchResult.games.length, 1);
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		if (typeof previousDbPath === "string") {
+			process.env.OTB_DB_PATH = previousDbPath;
+		} else {
+			delete process.env.OTB_DB_PATH;
+		}
+
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("PATCH /api/otb/players/:playerId requires edit access and repairs names", async () => {
+	const previousDbPath = process.env.OTB_DB_PATH;
+	const previousApiToken = process.env.CHESSLENSE_API_TOKEN;
+	const previousAllowEdit = process.env.OTB_ALLOW_EDIT;
+	const { dbPath, rootDir } = await createTempDbPath();
+	process.env.OTB_DB_PATH = dbPath;
+	process.env.CHESSLENSE_API_TOKEN = "test-edit-token";
+	process.env.OTB_ALLOW_EDIT = "true";
+	const corruptedPgn = SAMPLE_PGN.replace("Paul Morphy", "K�fergr�n, J�rg");
+
+	try {
+		const { baseUrl, server } = await startServer();
+		const headers = {
+			Authorization: "Bearer test-edit-token",
+			"Content-Type": "application/json",
+		};
+
+		try {
+			await fetch(`${baseUrl}/api/otb/import`, {
+				method: "POST",
+				headers,
+				body: JSON.stringify({
+					fileName: "corrupted.pgn",
+					pgn: corruptedPgn,
+				}),
+			});
+			const before = await searchGames(
+				{ player: "K�fergr�n, J�rg" },
+				{ dbPath },
+			);
+			const playerId = before.games[0].players.white.id;
+			const unauthorized = await fetch(
+				`${baseUrl}/api/otb/players/${playerId}`,
+				{
+					method: "PATCH",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ name: "Käfergrün, Jörg" }),
+				},
+			);
+			const response = await fetch(`${baseUrl}/api/otb/players/${playerId}`, {
+				method: "PATCH",
+				headers,
+				body: JSON.stringify({ name: "Käfergrün, Jörg" }),
+			});
+			const data = await response.json();
+			const after = await searchGames(
+				{ player: "Käfergrün, Jörg", pageSize: 10 },
+				{ dbPath },
+			);
+
+			assert.equal(unauthorized.status, 401);
+			assert.equal(response.status, 200);
+			assert.equal(data.affectedGames, 1);
+			assert.equal(after.games.length, 1);
+		} finally {
+			await closeServer(server);
+		}
+	} finally {
+		for (const [key, value] of [
+			["OTB_DB_PATH", previousDbPath],
+			["CHESSLENSE_API_TOKEN", previousApiToken],
+			["OTB_ALLOW_EDIT", previousAllowEdit],
+		]) {
+			if (typeof value === "string") {
+				process.env[key] = value;
+			} else {
+				delete process.env[key];
+			}
+		}
+
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
 test("POST /api/otb/import rejects invalid uploads", async () => {
 	const previousDbPath = process.env.OTB_DB_PATH;
 	const { dbPath, rootDir } = await createTempDbPath();

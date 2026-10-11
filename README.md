@@ -109,9 +109,12 @@ OTB_DB_PATH=/path/to/otb.sqlite npm run otb:import -- /path/to/master-pgn-archiv
 ```
 
 You can also import a single `.pgn` file into the OTB database directly from the app via
-**Import PGN**. The app uploads the raw PGN text instead of wrapping it in JSON, which reduces
-request overhead for hosted deployments. The CLI importer remains the better option for bulk
-archive loads.
+**Import PGN**. Binary uploads preserve the source bytes so UTF-8 and legacy Windows-1252 PGNs
+are decoded correctly. The CLI importer remains the better option for bulk archive loads.
+
+OTB search result player names can be renamed throughout the database when the backend has both
+`CHESSLENSE_API_TOKEN` configured and `OTB_ALLOW_EDIT=true`. The rename also repairs the stored
+White/Black PGN headers and merges corrected duplicates.
 
 OTB player trees index standard-game main lines during import. Existing databases are upgraded
 automatically, and matching legacy games are indexed the first time a player tree is opened.

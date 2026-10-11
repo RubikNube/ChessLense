@@ -12,6 +12,8 @@ const {
 	getOpeningTree,
 	getOpeningTreeGames,
 	importPgnDirectory,
+	importPgnFile,
+	renamePlayer,
 	searchGames,
 	__testing,
 } = require("./otb");
@@ -345,6 +347,132 @@ test("importPgnDirectory loads PGN archives into SQLite and skips duplicates", a
 		assert.equal(firstImport.skippedGames, 0);
 		assert.equal(secondImport.importedGames, 0);
 		assert.equal(secondImport.skippedGames, 3);
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("importPgnDirectory decodes Windows-1252 player names", async () => {
+	const rootDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), "chesslense-encoding-"),
+	);
+	const archiveDir = path.join(rootDir, "archive");
+	const dbPath = path.join(rootDir, "otb.sqlite");
+	const pgn = SAMPLE_PGN.replace("Paul Morphy", "Käfergrün, Jörg");
+
+	try {
+		await fs.mkdir(archiveDir, { recursive: true });
+		await fs.writeFile(
+			path.join(archiveDir, "latin1.pgn"),
+			Buffer.from(pgn, "latin1"),
+		);
+		await importPgnDirectory({ rootDir: archiveDir, dbPath });
+
+		const result = await searchGames(
+			{ player: "Käfergrün, Jörg", pageSize: 10 },
+			{ dbPath },
+		);
+
+		assert.equal(result.games.length, 1);
+		assert.equal(result.games[0].players.white.name.includes("�"), false);
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("renamePlayer repairs linked PGNs and merges corrected duplicates", async () => {
+	const rootDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), "chesslense-rename-"),
+	);
+	const dbPath = path.join(rootDir, "otb.sqlite");
+	const corruptedPgn = SAMPLE_PGN.split(/\n\s*\n(?=\[Event)/)[0].replace(
+		"Paul Morphy",
+		"K�fergr�n, J�rg",
+	);
+	const correctedPgn = corruptedPgn.replace(
+		"K�fergr�n, J�rg",
+		"Käfergrün, Jörg",
+	);
+	const secondCorruptedPgn = SECOND_PGN.replace(
+		"Anatoly Karpov",
+		"K�fergr�n, J�rg",
+	);
+
+	try {
+		await importPgnFile({
+			sourceFile: "corrupted.pgn",
+			content: `${corruptedPgn}\n\n${correctedPgn}\n\n${secondCorruptedPgn}`,
+			dbPath,
+		});
+		const before = await searchGames({ player: "K�fergr�n, J�rg" }, { dbPath });
+		const playerId = before.games
+			.flatMap((game) => [game.players.white, game.players.black])
+			.find((player) => player.name === "K�fergr�n, J�rg").id;
+		const renamed = await renamePlayer(playerId, "Käfergrün, Jörg", {
+			dbPath,
+		});
+		const after = await searchGames(
+			{ player: "Käfergrün, Jörg", pageSize: 10 },
+			{ dbPath },
+		);
+
+		assert.equal(renamed.affectedGames, 2);
+		assert.equal(renamed.mergedPlayer, true);
+		assert.equal(renamed.mergedGames, 1);
+		assert.equal(after.games.length, 2);
+		assert.equal(
+			after.games.every((game) =>
+				[game.players.white.name, game.players.black.name].includes(
+					"Käfergrün, Jörg",
+				),
+			),
+			true,
+		);
+
+		for (const game of after.games) {
+			const loaded = await getGame(game.id, { dbPath });
+			assert.match(loaded.pgn, /\[(?:White|Black) "Käfergrün, Jörg"\]/u);
+			assert.doesNotMatch(loaded.pgn, /�/u);
+		}
+	} finally {
+		await fs.rm(rootDir, { recursive: true, force: true });
+	}
+});
+
+test("renamePlayer rolls back when a linked PGN cannot be rewritten", async () => {
+	const rootDir = await fs.mkdtemp(
+		path.join(os.tmpdir(), "chesslense-rename-"),
+	);
+	const dbPath = path.join(rootDir, "otb.sqlite");
+	const corruptedPgn = SAMPLE_PGN.split(/\n\s*\n(?=\[Event)/)[0].replace(
+		"Paul Morphy",
+		"K�fergr�n, J�rg",
+	);
+
+	try {
+		await importPgnFile({
+			sourceFile: "corrupted.pgn",
+			content: corruptedPgn,
+			dbPath,
+		});
+		const before = await searchGames({ player: "K�fergr�n, J�rg" }, { dbPath });
+		const playerId = before.games[0].players.white.id;
+		const database = new DatabaseSync(dbPath);
+		database
+			.prepare(
+				`UPDATE otb_games SET raw_pgn = REPLACE(raw_pgn, '[White', '[Player')`,
+			)
+			.run();
+		database.close();
+
+		await assert.rejects(
+			renamePlayer(playerId, "Käfergrün, Jörg", { dbPath }),
+			(error) => error.code === "player_rename_conflict",
+		);
+		const after = await searchGames({ player: "K�fergr�n, J�rg" }, { dbPath });
+
+		assert.equal(after.games.length, 1);
+		assert.equal(after.games[0].players.white.id, playerId);
 	} finally {
 		await fs.rm(rootDir, { recursive: true, force: true });
 	}

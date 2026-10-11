@@ -36,6 +36,7 @@ const {
 	getOpeningTree: getOtbOpeningTree,
 	getOpeningTreeGames: getOtbOpeningTreeGames,
 	importPgnFile: importOtbPgnFile,
+	renamePlayer: renameOtbPlayer,
 	searchGames: searchOtbGames,
 } = require("./otb");
 const {
@@ -61,6 +62,10 @@ const JSON_BODY_LIMIT = "25mb";
 const MAX_GAME_ANALYSIS_PLIES = 500;
 const PGN_TEXT_BODY_PARSER = express.text({
 	type: "text/plain",
+	limit: JSON_BODY_LIMIT,
+});
+const PGN_BINARY_BODY_PARSER = express.raw({
+	type: "application/octet-stream",
 	limit: JSON_BODY_LIMIT,
 });
 
@@ -170,6 +175,7 @@ function createApp() {
 		process.env.CHESSLENSE_ALLOWED_ORIGINS,
 	);
 	const trustProxy = readBooleanEnv(process.env.TRUST_PROXY);
+	const otbAllowEdit = readBooleanEnv(process.env.OTB_ALLOW_EDIT);
 	const analyzeRateLimit = createRateLimitMiddleware({
 		windowMs: parsePositiveInteger(
 			process.env.ANALYZE_RATE_LIMIT_WINDOW_MS,
@@ -445,26 +451,34 @@ function createApp() {
 	app.post(
 		"/api/otb/import",
 		importRateLimit,
+		PGN_BINARY_BODY_PARSER,
 		PGN_TEXT_BODY_PARSER,
 		async (req, res) => {
 			try {
+				const isBinaryUpload = Buffer.isBuffer(req.body);
 				const isPlainTextUpload = typeof req.body === "string";
 				const fileName = path.basename(
 					normalizeString(
-						isPlainTextUpload ? req.query?.fileName : req.body?.fileName,
+						isBinaryUpload || isPlainTextUpload
+							? req.query?.fileName
+							: req.body?.fileName,
 					),
 				);
-				const pgn = isPlainTextUpload
-					? req.body
-					: typeof req.body?.pgn === "string"
-						? req.body.pgn
-						: "";
+				const content =
+					isBinaryUpload || isPlainTextUpload
+						? req.body
+						: typeof req.body?.pgn === "string"
+							? req.body.pgn
+							: "";
 
 				if (!fileName) {
 					throw new HttpError(400, "invalid_import", "fileName is required.");
 				}
 
-				if (!pgn.trim()) {
+				if (
+					(Buffer.isBuffer(content) && content.length === 0) ||
+					(typeof content === "string" && !content.trim())
+				) {
 					throw new HttpError(
 						400,
 						"invalid_import",
@@ -474,7 +488,7 @@ function createApp() {
 
 				const summary = await importOtbPgnFile({
 					sourceFile: fileName,
-					content: pgn,
+					content,
 				});
 
 				return res.status(201).json(summary);
@@ -483,6 +497,24 @@ function createApp() {
 			}
 		},
 	);
+
+	app.patch("/api/otb/players/:playerId", async (req, res) => {
+		try {
+			if (!otbAllowEdit || !normalizeString(apiToken)) {
+				throw new HttpError(
+					403,
+					"otb_edit_forbidden",
+					"OTB editing requires OTB_ALLOW_EDIT=true and a configured CHESSLENSE_API_TOKEN.",
+				);
+			}
+
+			const result = await renameOtbPlayer(req.params.playerId, req.body?.name);
+
+			return res.json(result);
+		} catch (error) {
+			return sendApiError(res, error);
+		}
+	});
 
 	app.get("/api/otb/games", async (req, res) => {
 		try {

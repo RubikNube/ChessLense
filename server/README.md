@@ -168,6 +168,12 @@ Example:
 OTB_DB_PATH=/path/to/otb.sqlite npm run dev
 ```
 
+### `OTB_ALLOW_EDIT`
+
+Set `OTB_ALLOW_EDIT=true` together with `CHESSLENSE_API_TOKEN` to enable authenticated player
+renames from OTB search results. Renames update every linked PGN and can merge corrected
+duplicates. Editing stays disabled when either setting is missing.
+
 ### Importing PGN archives into SQLite
 
 Import a PGN directory into the OTB database with:
@@ -185,8 +191,9 @@ If no PGN directory argument is provided, the importer uses `OTB_PGN_DIR` or `se
 
 For single-file imports, the frontend can also upload one `.pgn` file at a time through the
 **Import PGN** modal and store its games in the same OTB SQLite database. The hosted frontend
-now sends the raw PGN as `text/plain` to reduce upload overhead, but your reverse proxy body-size
-limit still needs to be larger than the original `.pgn` file.
+uploads the original bytes as `application/octet-stream`. The importer uses strict UTF-8 when
+valid and falls back to Windows-1252 for legacy archives. Your reverse proxy body-size limit
+still needs to be larger than the original `.pgn` file.
 
 ### `STUDIES_DIR`
 
@@ -636,6 +643,9 @@ Fetch one OTB game plus its full PGN for import into the frontend.
 
 Import one uploaded `.pgn` file into the OTB SQLite database.
 
+The frontend sends the PGN bytes as `application/octet-stream` with `fileName` in the query
+string. The JSON request below and UTF-8 `text/plain` uploads remain supported for compatibility.
+
 #### Request body
 
 ```json
@@ -668,6 +678,20 @@ Import one uploaded `.pgn` file into the OTB SQLite database.
   "details": "fileName must end with .pgn."
 }
 ```
+
+### `PATCH /api/otb/players/:playerId`
+
+Rename one indexed player across all linked games. This endpoint requires
+`OTB_ALLOW_EDIT=true` and an authenticated `CHESSLENSE_API_TOKEN` request.
+
+```json
+{
+  "name": "Käfergrün, Jörg"
+}
+```
+
+The operation rewrites the corresponding White/Black PGN headers, updates content-based game
+IDs and move-index relationships, and merges an existing corrected player or identical game.
 
 ### `GET /api/studies`
 
